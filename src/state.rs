@@ -1,16 +1,18 @@
 use log::debug;
-use winit::{application::ApplicationHandler, window::{Window, WindowAttributes}};
+use winit::{
+    application::ApplicationHandler,
+    window::{Window, WindowAttributes},
+};
+
+use crate::renderer::surface;
 
 pub struct AppState {
-    window: Option<Window>
+    window: Option<Window>,
 }
-
 
 impl AppState {
     pub fn new() -> Self {
-        Self {
-            window: None
-        }
+        Self { window: None }
     }
 }
 
@@ -21,8 +23,10 @@ impl ApplicationHandler for AppState {
             Err(e) => {
                 debug!("{:?}", e);
                 panic!();
-            },
+            }
         };
+
+        surface::RendererContext::new(&window);
         self.window = Some(window);
     }
 
