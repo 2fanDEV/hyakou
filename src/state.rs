@@ -3,6 +3,8 @@ use std::sync::Arc;
 use log::debug;
 use winit::{
     application::ApplicationHandler,
+    dpi::PhysicalPosition,
+    event::WindowEvent,
     window::{Window, WindowAttributes},
 };
 
@@ -10,12 +12,15 @@ use crate::renderer::Renderer;
 
 pub struct AppState {
     window: Option<Arc<Window>>,
-    renderer: Option<Renderer>
+    renderer: Option<Renderer>,
 }
 
 impl AppState {
     pub fn new() -> Self {
-        Self { window: None, renderer: None }
+        Self {
+            window: None,
+            renderer: None,
+        }
     }
 }
 
@@ -39,5 +44,16 @@ impl ApplicationHandler for AppState {
         window_id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
+        let mut mouse_pos = PhysicalPosition::new(0.0, 0.0);
+        match event {
+            WindowEvent::CursorMoved {
+                device_id,
+                position,
+            } => {
+                mouse_pos = position;
+            }
+            _ => {}
+        }
+        self.renderer.as_mut().unwrap().render(mouse_pos).unwrap();
     }
 }
