@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use log::debug;
 use wgpu::{Color, CommandEncoder, CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor, TextureView, TextureViewDescriptor};
 use winit::{dpi::PhysicalPosition, window::Window};
 
 use crate::renderer::{renderer_context::RendererContext, wrappers::WinitSurfaceProvider};
 
 pub mod renderer_context;
-pub mod draw_entities;
+pub mod geometry;
+pub mod components;
 pub mod util;
 pub mod wrappers;
 pub mod parameter;
@@ -88,6 +88,7 @@ impl Renderer {
         
         render_pass.set_pipeline(&self.ctx.render_pipeline);
         render_pass.set_vertex_buffer(0, self.ctx.vertex_buffer.slice(..));
+        render_pass.set_bind_group(0, &self.ctx.bind_group, &[]);
         render_pass.set_index_buffer(self.ctx.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.draw_indexed(0..self.ctx.num_indices as u32, 0, 0..1);
         

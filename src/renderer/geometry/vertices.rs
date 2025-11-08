@@ -1,0 +1,76 @@
+use bytemuck::{Pod, Zeroable};
+use nalgebra::{Vector2, Vector3};
+use wgpu::{
+    BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, Sampler, ShaderStages, TextureSampleType, TextureView,
+    TextureViewDimension, VertexBufferLayout,
+};
+
+use crate::renderer::geometry::{BindGroupProvider, BufferLayoutProvider};
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+pub struct Vertex {
+    pos: Vector3<f32>,
+    tex_coords: Vector2<f32>,
+}
+
+impl Vertex {
+    pub const fn new(pos: Vector3<f32>, tex_coords: Vector2<f32>) -> Self {
+        Self { pos, tex_coords }
+    }
+
+    pub  fn bind_group_entries<'a>(
+        texture_view: &'a TextureView,
+        sampler: &'a Sampler,
+    ) -> Vec<BindGroupEntry<'a>> {
+            vec![
+                BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(texture_view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(sampler),
+                },
+            ],
+    }
+}
+
+impl BufferLayoutProvider for Vertex {
+    fn vertex_buffer_layout() -> VertexBufferLayout<'static> {
+        const ATTRIBS: [wgpu::VertexAttribute; 2] =
+            wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &ATTRIBS,
+        }
+    }
+}
+
+impl BindGroupProvider for Vertex {
+    fn bind_group_layout() -> wgpu::BindGroupLayoutDescriptor<'static> {
+        BindGroupLayoutDescriptor {
+            label: Some("texture_bind_group_layout"),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: true },
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        }
+    }
+}

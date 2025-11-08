@@ -1,13 +1,20 @@
 use anyhow::Result;
-use nalgebra::Vector3;
+use nalgebra::{Vector2, Vector3};
 use wgpu::{
-    include_wgsl, util::{BufferInitDescriptor, DeviceExt}, Backends, BlendState, Buffer, BufferUsages, ColorTargetState, ColorWrites, Device, DeviceDescriptor, ExperimentalFeatures, Extent3d, Features, FragmentState, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints, PipelineCompilationOptions, PipelineLayout, PrimitiveState, Queue, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, Surface, SurfaceConfiguration, TextureDescriptor, TextureUsages, VertexState
+    Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
+    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BlendState, Buffer, BufferUsages,
+    ColorTargetState, ColorWrites, CommandEncoderDescriptor, Device, DeviceDescriptor,
+    ExperimentalFeatures, Extent3d, Features, FragmentState, Instance, InstanceDescriptor,
+    InstanceFlags, Limits, MemoryHints, Origin3d, PipelineCompilationOptions, PrimitiveState,
+    Queue, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, SamplerDescriptor,
+    ShaderStages, Surface, SurfaceConfiguration, TexelCopyBufferInfo, TexelCopyBufferLayout,
+    TexelCopyTextureInfo, TextureDescriptor, TextureFormat, TextureUsages, TextureViewDescriptor,
+    VertexState, include_wgsl,
+    util::{BufferInitDescriptor, DeviceExt},
 };
 
 use crate::renderer::{
-    draw_entities::{vertices::Vertex, BufferLayouts},
-    util::Size,
-    wrappers::SurfaceProvider,
+    geometry::{BindGroupProvider, BufferLayoutProvider, vertices::Vertex}, util::Size, wrappers::SurfaceProvider
 };
 
 pub struct RendererContext {
@@ -19,6 +26,7 @@ pub struct RendererContext {
     pub vertex_buffer: Buffer,
     pub index_buffer: Buffer,
     pub num_indices: usize,
+    pub bind_group: BindGroup,
     pub queue: Queue,
 }
 
@@ -74,23 +82,23 @@ impl RendererContext {
         const VERTICES: &[Vertex] = &[
             Vertex::new(
                 Vector3::new(-0.0868241, 0.49240386, 0.0),
-                Vector3::new(0.5, 0.0, 0.5),
+                Vector2::new(0.4131759, 0.99240386),
             ),
             Vertex::new(
                 Vector3::new(-0.49513406, 0.06958647, 0.0),
-                Vector3::new(0.5, 0.0, 0.5),
+                Vector2::new(0.0048659444, 0.56958647),
             ),
             Vertex::new(
                 Vector3::new(-0.21918549, -0.44939706, 0.0),
-                Vector3::new(0.5, 0.0, 0.5),
+                Vector2::new(0.28081453, 0.05060294),
             ),
             Vertex::new(
                 Vector3::new(0.35966998, -0.3473291, 0.0),
-                Vector3::new(0.5, 0.0, 0.5),
+                Vector2::new(0.85967, 0.1526709),
             ),
             Vertex::new(
                 Vector3::new(0.44147372, 0.2347359, 0.0),
-                Vector3::new(0.5, 0.0, 0.5),
+                Vector2::new(0.9414737, 0.7347359),
             ),
         ];
 
@@ -108,6 +116,100 @@ impl RendererContext {
             usage: BufferUsages::INDEX,
         });
 
+        let image_bytes = include_bytes!("../../images/happy-tree.png");
+        let image = image::load_from_memory(image_bytes)?;
+        let rgba_image = image.to_rgba8();
+        let (img_width, img_height) = rgba_image.dimensions();
+
+        let texture_size = Extent3d {
+            width: img_width,
+            height: img_height,
+            depth_or_array_layers: 1,
+        };
+
+        let texture_img = device.create_texture(&TextureDescriptor {
+            label: Some("Tree Texture"),
+            size: Extent3d {
+                width: img_width,
+                height: img_height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        queue.write_texture(
+            TexelCopyTextureInfo {
+                texture: &texture_img,
+                mip_level: 0,
+                origin: Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            &rgba_image,
+            TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * img_width),
+                rows_per_image: Some(img_height),
+            },
+            texture_size,
+        );
+
+        let buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("tmp buff"),
+            contents: image_bytes,
+            usage: BufferUsages::COPY_SRC,
+        });
+
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("Buffer Copy Encoder"),
+        });
+
+        encoder.copy_buffer_to_texture(
+            TexelCopyBufferInfo {
+                buffer: &buffer,
+                layout: TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some((4 * img_width)),
+                    rows_per_image: Some(img_height),
+                },
+            },
+            TexelCopyTextureInfo {
+                texture: &texture_img,
+                mip_level: 0,
+                origin: Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            Extent3d {
+                width: img_width,
+                height: img_height,
+                depth_or_array_layers: 0,
+            },
+        );
+
+        queue.submit(std::iter::once(encoder.finish()));
+
+        let texture_view = texture_img.create_view(&TextureViewDescriptor::default());
+        let sampler = device.create_sampler(&SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let bind_group_layout = device.create_bind_group_layout(&Vertex::bind_group_layout());
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("bg"),
+            layout: &bind_group_layout,
+            entries: &Vertex::bind_group_entries(&texture_view, &sampler)
+        });
+
         let vertex_shader =
             device.create_shader_module(include_wgsl!("../../assets/vertex_hc.wgsl"));
         let fragment_shader =
@@ -115,7 +217,7 @@ impl RendererContext {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -126,7 +228,7 @@ impl RendererContext {
                 module: &vertex_shader,
                 entry_point: Some("vs_main"),
                 compilation_options: PipelineCompilationOptions::default(),
-                buffers: &[Vertex::layouts()],
+                buffers: &[Vertex::vertex_buffer_layout()],
             },
             fragment: Some(FragmentState {
                 module: &fragment_shader,
@@ -157,28 +259,6 @@ impl RendererContext {
             cache: None,
         });
 
-        let image_bytes = include_bytes!("../../images/happy-tree.png");
-        let image = image::load_from_memory(image_bytes)?;
-        let rgba_image = image.to_rgba8();
-        let (img_width, img_height) = rgba_image.dimensions();
-        
-        let texture_size = Extent3d {
-            width: img_width,
-            height: img_height,
-            depth_or_array_layers: 1
-        };
-
-        let texture_img = device.create_texture(&TextureDescriptor {
-            label: todo!(),
-            size: todo!(),
-            mip_level_count: todo!(),
-            sample_count: todo!(),
-            dimension: todo!(),
-            format: todo!(),
-            usage: todo!(),
-            view_formats: todo!(),
-        });
-
         Ok(Self {
             instance,
             surface,
@@ -188,6 +268,7 @@ impl RendererContext {
             vertex_buffer,
             index_buffer,
             num_indices: INDICES.len(),
+            bind_group,
             queue,
         })
     }

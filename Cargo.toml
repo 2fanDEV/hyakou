@@ -15,4 +15,5 @@ winit = "0.30.12"
 nalgebra = { version= "0.33.2", features = ["bytemuck"] }
 bytemuck = "1.24.0"
 image = { version =  "0.25.8", features = ["jpeg", "png"] }
+gltf = "1.4.1"
 
