@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
-use nalgebra::{Vector2, Vector3};
+use nalgebra::{Vector2, Vector3, Vector4};
 use wgpu::{
-    BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
+    BindGroupEntry, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, Sampler, ShaderStages, TextureSampleType, TextureView,
     TextureViewDimension, VertexBufferLayout,
 };
@@ -13,14 +13,16 @@ use crate::renderer::geometry::{BindGroupProvider, BufferLayoutProvider};
 pub struct Vertex {
     pos: Vector3<f32>,
     tex_coords: Vector2<f32>,
+    normals: Vector3<f32>,
+    colors: Vector4<f32>
 }
 
 impl Vertex {
-    pub const fn new(pos: Vector3<f32>, tex_coords: Vector2<f32>) -> Self {
-        Self { pos, tex_coords }
+    pub const fn new(pos: Vector3<f32>, tex_coords: Vector2<f32>, normals: Vector3<f32>, colors: Vector4<f32>) -> Self {
+        Self { pos, tex_coords, colors, normals }
     }
-
-    pub  fn bind_group_entries<'a>(
+    
+    pub fn bind_group_entries<'a>(
         texture_view: &'a TextureView,
         sampler: &'a Sampler,
     ) -> Vec<BindGroupEntry<'a>> {
@@ -33,7 +35,7 @@ impl Vertex {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(sampler),
                 },
-            ],
+            ]
     }
 }
 
