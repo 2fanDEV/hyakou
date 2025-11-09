@@ -19,47 +19,56 @@ impl GLTFLoader {
                 panic!("ERROR while parsing gltf/glb");
             }
         };
-        
-        let buffer_data: Vec<Vec<u8>> = gltf.buffers()
+
+        let buffer_data: Vec<Vec<u8>> = gltf
+            .buffers()
             .map(|buffer| match buffer.source() {
                 gltf::buffer::Source::Bin => gltf.blob.clone().unwrap(),
                 gltf::buffer::Source::Uri(uri) => std::fs::read(uri).unwrap(),
             })
             .collect();
-        
+
         let gltf_meshes = gltf.meshes().collect::<Vec<gltf::Mesh>>();
-        gltf_meshes.iter().enumerate().for_each(|(idx, mesh)| {
-            mesh.primitives().enumerate().for_each(|(p_idx, primitive)| {
+        gltf_meshes.iter().for_each(|mesh| {
+            mesh.primitives().for_each(|primitive| {
                 let reader = primitive.reader(|buffer| {
                     let index = buffer.index();
                     buffer_data.get(index).map(|data| data.as_slice())
                 });
-                let positions = reader.read_positions().unwrap().map(|vec| {
-                    Vector3::new(vec[0], vec[1], vec[2])
-                }).collect::<Vec<_>>();
-                let normals = reader.read_normals().unwrap()
-                .map(|vec|
-                    Vector3::new(vec[0], vec[1], vec[2])
-                 ).collect::<Vec<_>>();
-                let tex_coords = reader.read_tex_coords(0).unwrap().into_f32()
-                .map(|vec|
-                    Vector2::new(vec[0], vec[1]))
-                     .collect::<Vec<_>>();
-                let colors = reader.read_colors(0).unwrap().into_rgba_f32()
-                .map(|vec| Vector4::new(vec[0], vec[1], vec[2], vec[3])).collect::<Vec<_>>();
-                let vertices = zip(
-                 zip(positions, normals),
-                 zip(tex_coords, colors)
-                ).map(|(
-                 (pos, normals),
-                 (tex_coords, colors)
-                )| 
-                 Vertex::new(pos, tex_coords, normals, colors))
-                .collect::<Vec<_>>();
+                let positions = reader
+                    .read_positions()
+                    .unwrap()
+                    .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
+                    .collect::<Vec<_>>();
+                let indices = reader
+                    .read_indices()
+                    .unwrap()
+                    .into_u32()
+                    .collect::<Vec<_>>();
+                let normals = reader
+                    .read_normals()
+                    .unwrap()
+                    .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
+                    .collect::<Vec<_>>();
+                let tex_coords = reader
+                    .read_tex_coords(0)
+                    .unwrap()
+                    .into_f32()
+                    .map(|vec| Vector2::new(vec[0], vec[1]))
+                    .collect::<Vec<_>>();
+                let colors = reader
+                    .read_colors(0)
+                    .unwrap()
+                    .into_rgba_f32()
+                    .map(|vec| Vector4::new(vec[0], vec[1], vec[2], vec[3]))
+                    .collect::<Vec<_>>();
+                let vertices = zip(zip(positions, normals), zip(tex_coords, colors))
+                    .map(|((pos, normals), (tex_coords, colors))| {
+                        Vertex::new(pos, tex_coords, normals, colors)
+                    })
+                    .collect::<Vec<_>>();
 
-                meshes.push(Mesh {
-                    vertices,
-                });
+                meshes.push(Mesh { vertices, indices });
             })
         });
         Ok(vec![])
