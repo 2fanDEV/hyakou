@@ -85,13 +85,11 @@ impl Renderer {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        
         render_pass.set_pipeline(&self.ctx.render_pipeline);
         render_pass.set_vertex_buffer(0, self.ctx.vertex_buffer.slice(..));
         render_pass.set_bind_group(0, &self.ctx.bind_group, &[]);
-        render_pass.set_index_buffer(self.ctx.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.set_index_buffer(self.ctx.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         render_pass.draw_indexed(0..self.ctx.num_indices as u32, 0, 0..1);
-        
     }
 }
 

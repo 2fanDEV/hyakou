@@ -1,20 +1,24 @@
+use std::path::Path;
+
 use anyhow::Result;
-use nalgebra::{Vector2, Vector3};
+use log::{debug, error};
 use wgpu::{
-    Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
-    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BlendState, Buffer, BufferUsages,
-    ColorTargetState, ColorWrites, CommandEncoderDescriptor, Device, DeviceDescriptor,
-    ExperimentalFeatures, Extent3d, Features, FragmentState, Instance, InstanceDescriptor,
-    InstanceFlags, Limits, MemoryHints, Origin3d, PipelineCompilationOptions, PrimitiveState,
-    Queue, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, SamplerDescriptor,
-    ShaderStages, Surface, SurfaceConfiguration, TexelCopyBufferInfo, TexelCopyBufferLayout,
-    TexelCopyTextureInfo, TextureDescriptor, TextureFormat, TextureUsages, TextureViewDescriptor,
-    VertexState, include_wgsl,
+    Backends, BindGroup, BindGroupDescriptor, BlendState, Buffer, BufferUsages, ColorTargetState,
+    ColorWrites, CommandEncoderDescriptor, Device, DeviceDescriptor, ExperimentalFeatures,
+    Extent3d, Features, FragmentState, Instance, InstanceDescriptor, InstanceFlags, Limits,
+    MemoryHints, Origin3d, PipelineCompilationOptions, PrimitiveState, Queue, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, SamplerDescriptor, Surface,
+    SurfaceConfiguration, TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo,
+    TextureDescriptor, TextureFormat, TextureUsages, TextureViewDescriptor, VertexState,
+    include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
 use crate::renderer::{
-    geometry::{BindGroupProvider, BufferLayoutProvider, vertices::Vertex}, util::Size, wrappers::SurfaceProvider
+    components::glsl,
+    geometry::{BindGroupProvider, BufferLayoutProvider, vertices::Vertex},
+    util::Size,
+    wrappers::SurfaceProvider,
 };
 
 pub struct RendererContext {
@@ -79,40 +83,21 @@ impl RendererContext {
             None => None,
         };
 
-        const VERTICES: &[Vertex] = &[
-            Vertex::new(
-                Vector3::new(-0.0868241, 0.49240386, 0.0),
-                Vector2::new(0.4131759, 0.99240386),
-            ),
-            Vertex::new(
-                Vector3::new(-0.49513406, 0.06958647, 0.0),
-                Vector2::new(0.0048659444, 0.56958647),
-            ),
-            Vertex::new(
-                Vector3::new(-0.21918549, -0.44939706, 0.0),
-                Vector2::new(0.28081453, 0.05060294),
-            ),
-            Vertex::new(
-                Vector3::new(0.35966998, -0.3473291, 0.0),
-                Vector2::new(0.85967, 0.1526709),
-            ),
-            Vertex::new(
-                Vector3::new(0.44147372, 0.2347359, 0.0),
-                Vector2::new(0.9414737, 0.7347359),
-            ),
-        ];
+        let path = Path::new("assets/gltf/Suzanne.gltf");
+        println!("{:?}", path);
+        let meshes = glsl::GLTFLoader::load_from_path(path).unwrap();
 
+        error!("MESHES={:?}", meshes.len());
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(&meshes[0].vertices),
             usage: BufferUsages::VERTEX,
         });
 
-        const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
-
+        let indices: &[u32] = &meshes[0].indices;
         let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
+            contents: bytemuck::cast_slice(indices),
             usage: BufferUsages::INDEX,
         });
 
@@ -207,7 +192,7 @@ impl RendererContext {
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("bg"),
             layout: &bind_group_layout,
-            entries: &Vertex::bind_group_entries(&texture_view, &sampler)
+            entries: &Vertex::bind_group_entries(&texture_view, &sampler),
         });
 
         let vertex_shader =
@@ -267,7 +252,7 @@ impl RendererContext {
             render_pipeline,
             vertex_buffer,
             index_buffer,
-            num_indices: INDICES.len(),
+            num_indices: indices.len(),
             bind_group,
             queue,
         })
