@@ -1,4 +1,4 @@
-use wgpu::{BindGroupEntry, BindGroupLayoutDescriptor, Buffer, BufferBinding, Sampler, TextureView};
+use wgpu::{BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, Buffer, BufferBinding, Sampler, ShaderStages, TextureView};
 
 use crate::renderer::geometry::{BindGroupProvider, BufferLayoutProvider, vertices::Vertex};
 
@@ -36,16 +36,36 @@ impl BufferLayoutProvider for Mesh {
 
 impl BindGroupProvider for Mesh {
     fn bind_group_layout() -> wgpu::BindGroupLayoutDescriptor<'static> {
-        let mut vertex_bgl = Vertex::bind_group_layout().entries.to_vec();
-        vertex_bgl.push(BindGroupLayoutEntry {
-            binding: 2,
-            visibility: ShaderStages::VERTEX, 
-            ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None },
-            count: None,
-        })
-        BindGroupLayoutDescriptor {
+        wgpu::BindGroupLayoutDescriptor {
             label: Some("Mesh BindGroupLayoutDescriptor"),
-            entries: &vertex_bgl
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
         }
     }
 }

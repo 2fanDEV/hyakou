@@ -1,2 +1,3 @@
 pub mod camera;
-pub mod glsl;
+pub mod glTF;
+pub mod mesh_node;

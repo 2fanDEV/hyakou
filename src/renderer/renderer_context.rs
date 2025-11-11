@@ -15,8 +15,8 @@ use wgpu::{
 };
 
 use crate::renderer::{
-    components::glsl,
-    geometry::{BindGroupProvider, BufferLayoutProvider, vertices::Vertex},
+    components::glTF,
+    geometry::{BindGroupProvider, BufferLayoutProvider, mesh::Mesh, vertices::Vertex},
     util::Size,
     wrappers::SurfaceProvider,
 };
@@ -85,7 +85,7 @@ impl RendererContext {
 
         let path = Path::new("assets/gltf/Suzanne.gltf");
         println!("{:?}", path);
-        let meshes = glsl::GLTFLoader::load_from_path(path).unwrap();
+        let meshes = glTF::GLTFLoader::load_from_path(path).unwrap();
 
         error!("MESHES={:?}", meshes.len());
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
@@ -188,7 +188,7 @@ impl RendererContext {
             ..Default::default()
         });
 
-        let bind_group_layout = device.create_bind_group_layout(&Vertex::bind_group_layout());
+        let bind_group_layout = device.create_bind_group_layout(&Mesh::bind_group_layout());
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("bg"),
             layout: &bind_group_layout,
