@@ -1,4 +1,5 @@
 use bytemuck::{Pod, Zeroable};
+use log::debug;
 use nalgebra::{Vector2, Vector3, Vector4};
 use wgpu::{
     BindGroupEntry, BindGroupLayoutDescriptor,
@@ -9,17 +10,22 @@ use wgpu::{
 use crate::renderer::geometry::{BindGroupProvider, BufferLayoutProvider};
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable, Default)]
 pub struct Vertex {
-    pos: Vector3<f32>,
-    tex_coords: Vector2<f32>,
-    normals: Vector3<f32>,
-    colors: Vector4<f32>
+   pub position: Vector3<f32>,
+    pub tex_coords: Vector2<f32>,
+    pub normals: Vector3<f32>,
+    pub colors: Vector4<f32>,
 }
 
 impl Vertex {
-    pub const fn new(pos: Vector3<f32>, tex_coords: Vector2<f32>, normals: Vector3<f32>, colors: Vector4<f32>) -> Self {
-        Self { pos, tex_coords, colors, normals }
+    pub fn new(position: Vector3<f32>, tex_coords: Vector2<f32>, normals: Vector3<f32>, colors: Vector4<f32>) -> Self {
+        Self { position,
+               tex_coords,
+               colors,
+               normals,
+               ..Default::default()
+         }
     }
     
     pub fn bind_group_entries<'a>(

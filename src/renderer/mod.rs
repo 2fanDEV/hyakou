@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use wgpu::{Color, CommandEncoder, CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor, TextureView, TextureViewDescriptor};
+use wgpu::{Color, CommandEncoder, CommandEncoderDescriptor, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, TextureView, TextureViewDescriptor};
 use winit::{dpi::PhysicalPosition, window::Window};
 
 use crate::renderer::{renderer_context::RendererContext, wrappers::WinitSurfaceProvider};
@@ -73,15 +73,22 @@ impl Renderer {
                 resolve_target: None, 
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(Color {
-                        r: (0.25 * mouse_pos.x/mouse_pos.y),
-                        g: (0.1 * mouse_pos.x/mouse_pos.y) ,
-                        b: (0.75 * mouse_pos.x/mouse_pos.y), 
+                        r: 0.25,
+                        g: (0.1),
+                        b: (0.75), 
                         a: 0.2 
                     }),
                     store: wgpu::StoreOp::Store 
                 }
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                view: &self.ctx.depth_texture.view,
+                depth_ops: Some(Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
             timestamp_writes: None,
             occlusion_query_set: None,
         });

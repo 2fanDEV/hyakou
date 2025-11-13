@@ -1,21 +1,27 @@
 use std::path::Path;
 
 use anyhow::Result;
-use log::{debug, error};
+use log::debug;
+use nalgebra::{Point3, Vector3};
 use wgpu::{
     Backends, BindGroup, BindGroupDescriptor, BlendState, Buffer, BufferUsages, ColorTargetState,
-    ColorWrites, CommandEncoderDescriptor, Device, DeviceDescriptor, ExperimentalFeatures,
-    Extent3d, Features, FragmentState, Instance, InstanceDescriptor, InstanceFlags, Limits,
-    MemoryHints, Origin3d, PipelineCompilationOptions, PrimitiveState, Queue, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, SamplerDescriptor, Surface,
-    SurfaceConfiguration, TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo,
-    TextureDescriptor, TextureFormat, TextureUsages, TextureViewDescriptor, VertexState,
-    include_wgsl,
+    ColorWrites, CommandEncoderDescriptor, DepthBiasState, DepthStencilState, Device,
+    DeviceDescriptor, ExperimentalFeatures, Extent3d, Features, FragmentState, Instance,
+    InstanceDescriptor, InstanceFlags, Limits, MemoryHints, Origin3d, PipelineCompilationOptions,
+    PrimitiveState, Queue, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
+    SamplerDescriptor, StencilFaceState, StencilState, Surface, SurfaceConfiguration,
+    TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo, TextureDescriptor,
+    TextureFormat, TextureUsages, TextureViewDescriptor, VertexState, include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
 use crate::renderer::{
-    components::glTF,
+    components::{
+        camera::{Camera, CameraUniform},
+        glTF,
+        mesh_node::MeshNode,
+        texture::Texture,
+    },
     geometry::{BindGroupProvider, BufferLayoutProvider, mesh::Mesh, vertices::Vertex},
     util::Size,
     wrappers::SurfaceProvider,
@@ -31,6 +37,9 @@ pub struct RendererContext {
     pub index_buffer: Buffer,
     pub num_indices: usize,
     pub bind_group: BindGroup,
+    pub camera: Camera,
+    pub camera_uniform_buffer: Buffer,
+    pub depth_texture: Texture,
     pub queue: Queue,
 }
 
@@ -73,21 +82,34 @@ impl RendererContext {
             })
             .await?;
 
+        let size = provider.unwrap().get_size();
         let surface_configuration = match surface.as_ref() {
-            Some(surface_ref) => init_surface_configuration(
-                Some(surface_ref),
-                adapter,
-                provider.unwrap().get_size(),
-                &device,
-            ),
+            Some(surface_ref) => {
+                init_surface_configuration(Some(surface_ref), adapter, size, &device)
+            }
             None => None,
         };
+        let camera = Camera::new(
+            Point3::new(0.0, 0.0, 10.0),
+            Point3::new(0.0, 0.0, -1.0),
+            Vector3::y_axis().into_inner(),
+            (size.width / size.height) as f32,
+            45.0_f32.to_radians(),
+            0.1,
+            1000.0,
+        );
 
-        let path = Path::new("assets/gltf/Suzanne.gltf");
-        println!("{:?}", path);
+        let mut camera_uniform = CameraUniform::new();
+        //camera_uniform.update(&camera);
+
+        let camera_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Camera Uniform Buffer"),
+            contents: bytemuck::bytes_of(&camera_uniform),
+            usage: BufferUsages::UNIFORM,
+        });
+
+        let path = Path::new("/Users/zapzap/Projects/hyako/assets/gltf/monkey.glb");
         let meshes = glTF::GLTFLoader::load_from_path(path).unwrap();
-
-        error!("MESHES={:?}", meshes.len());
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(&meshes[0].vertices),
@@ -188,11 +210,11 @@ impl RendererContext {
             ..Default::default()
         });
 
-        let bind_group_layout = device.create_bind_group_layout(&Mesh::bind_group_layout());
+        let bind_group_layout = device.create_bind_group_layout(&MeshNode::bind_group_layout());
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("bg"),
             layout: &bind_group_layout,
-            entries: &Vertex::bind_group_entries(&texture_view, &sampler),
+            entries: &MeshNode::bind_group_entries(&camera_uniform_buffer, &texture_view, &sampler),
         });
 
         let vertex_shader =
@@ -234,7 +256,13 @@ impl RendererContext {
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(DepthStencilState {
+                format: Texture::DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: StencilState::default(),
+                bias: DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: 0,
@@ -244,6 +272,12 @@ impl RendererContext {
             cache: None,
         });
 
+        let depth_texture = Texture::create_depth_texture(
+            "Depth Texture",
+            &device,
+            surface_configuration.as_ref().unwrap(),
+        );
+
         Ok(Self {
             instance,
             surface,
@@ -252,6 +286,9 @@ impl RendererContext {
             render_pipeline,
             vertex_buffer,
             index_buffer,
+            camera,
+            camera_uniform_buffer,
+            depth_texture,
             num_indices: indices.len(),
             bind_group,
             queue,

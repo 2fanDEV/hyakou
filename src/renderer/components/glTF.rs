@@ -1,22 +1,26 @@
 use std::{iter::zip, path::Path};
 
 use anyhow::Result;
+use log::debug;
 use nalgebra::{Vector2, Vector3, Vector4};
 
-use crate::renderer::{components::mesh_node::MeshNode, geometry::{mesh::Mesh, vertices::Vertex}};
+use crate::renderer::{
+    components::mesh_node::MeshNode,
+    geometry::{mesh::Mesh, vertices::Vertex},
+};
 
-static BASE_PATH: &str = "assets/gltf";
+static BASE_PATH: &str = "/Users/zapzap/Projects/hyako/assets/gltf";
 
 pub struct GLTFLoader {}
 
 impl GLTFLoader {
-    pub fn load_from_path(path: &Path) -> Result<Vec<Mesh>> {
+    pub fn load_from_path(path: &Path) -> Result<Vec<MeshNode>> {
         let slice = std::fs::read(path).unwrap();
         Self::load_from_slice(&slice)
     }
 
-    pub fn load_from_slice(slice: &[u8]) -> Result<Vec<Mesh>> {
-        let mut meshes: Vec<Mesh> = vec![];
+    pub fn load_from_slice(slice: &[u8]) -> Result<Vec<MeshNode>> {
+        let mut mesh_nodes: Vec<MeshNode> = vec![];
         let gltf = match gltf::Gltf::from_slice(slice) {
             Ok(gltf) => gltf,
             Err(err) => {
@@ -36,57 +40,64 @@ impl GLTFLoader {
                 }
             })
             .collect();
-
-        let gltf_meshes = gltf.meshes().collect::<Vec<gltf::Mesh>>();
-
+        debug!("ELELEL: {:?}", gltf.nodes().len());
         for node in gltf.nodes() {
             let matrix = node.transform().matrix();
-            MeshNode::new(mesh, m)
+            let mesh = match node.mesh() {
+                Some(mesh) => mesh,
+                None => continue,
+            };
+            let meshes = mesh
+                .primitives()
+                .map(|primitive| {
+                    let reader = primitive.reader(|buffer| {
+                        let index = buffer.index();
+                        buffer_data.get(index).map(|data| data.as_slice())
+                    });
+                    let positions = reader
+                        .read_positions()
+                        .unwrap()
+                        .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
+                        .collect::<Vec<_>>();
+                
+                    let indices = reader
+                        .read_indices()
+                        .unwrap()
+                        .into_u32()
+                        .collect::<Vec<_>>();
+
+                    let normals = reader
+                        .read_normals()
+                        .unwrap()
+                        .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
+                        .collect::<Vec<_>>();
+                    let tex_coords = reader
+                        .read_tex_coords(0)
+                        .unwrap()
+                        .into_f32()
+                        .map(|vec| Vector2::new(vec[0], vec[1]))
+                        .collect::<Vec<_>>();
+                    let gltf_colors = reader.read_colors(0);
+                    let colors: Vec<Vector4<f32>> = match gltf_colors {
+                        Some(read_colors) => read_colors
+                            .into_rgba_f32()
+                            .map(|v| Vector4::new(v[0], v[1], v[2], v[3]))
+                            .collect::<Vec<_>>(),
+                        None => vec![Vector4::new(0.0, 0.0, 0.0, 0.0)],
+                    };
+                    let vertices = zip(zip(positions, normals), tex_coords)
+                        .map(|((pos, normals), tex_coords)| {
+                            Vertex::new(pos, tex_coords, normals, colors[0])
+                        })
+                        .collect::<Vec<_>>();
+                    Mesh { vertices, indices }
+                })
+                .collect::<Vec<_>>();
+            meshes
+                .into_iter()
+                .for_each(|mesh| mesh_nodes.push(MeshNode::new(mesh, matrix)));
         }
 
-        gltf_meshes.iter().for_each(|mesh| {
-            mesh.primitives().for_each(|primitive| {
-                let reader = primitive.reader(|buffer| {
-                    let index = buffer.index();
-                    buffer_data.get(index).map(|data| data.as_slice())
-                });
-                let positions = reader
-                    .read_positions()
-                    .unwrap()
-                    .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
-                    .collect::<Vec<_>>();
-                let indices = reader
-                    .read_indices()
-                    .unwrap()
-                    .into_u32()
-                    .collect::<Vec<_>>();
-                let normals = reader
-                    .read_normals()
-                    .unwrap()
-                    .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
-                    .collect::<Vec<_>>();
-                let tex_coords = reader
-                    .read_tex_coords(0)
-                    .unwrap()
-                    .into_f32()
-                    .map(|vec| Vector2::new(vec[0], vec[1]))
-                    .collect::<Vec<_>>();
-                let gltf_colors = reader.read_colors(0);
-                let colors = match gltf_colors {
-                    Some(read_colors) => read_colors
-                        .into_rgba_f32()
-                        .map(|v| Vector4::new(v[0], v[1], v[2], v[3]))
-                        .collect::<Vec<_>>(),
-                    None => vec![Vector4::new(1.0, 1.0, 1.0, 1.0)],
-                };
-                let vertices = zip(zip(positions, normals), zip(tex_coords, colors))
-                    .map(|((pos, normals), (tex_coords, colors))| {
-                        Vertex::new(pos, tex_coords, normals, colors)
-                    })
-                    .collect::<Vec<_>>();
-                meshes.push(Mesh { vertices, indices });
-            })
-        });
-        Ok(meshes)
+        Ok(mesh_nodes)
     }
 }

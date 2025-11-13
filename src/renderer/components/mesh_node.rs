@@ -1,20 +1,26 @@
+use std::ops::Deref;
+
 use log::debug;
 use nalgebra::{Matrix4, Perspective3, Point3, Vector3};
+use wgpu::{BindGroupEntry, Buffer, BufferBinding, Sampler, ShaderStages, TextureView};
 
-use crate::renderer::geometry::mesh::Mesh;
+use crate::renderer::geometry::{BindGroupProvider, BufferLayoutProvider, mesh::Mesh, vertices::Vertex};
 
 pub struct MeshNode {
     mesh: Mesh,
-    model: Matrix4<f32>,
-    view: Matrix4<f32>,
-    projection: Matrix4<f32>
+    pub model: Matrix4<f32>,
+}
+
+impl Deref for MeshNode {
+    type Target = Mesh;
+
+    fn deref(&self) -> &Self::Target {
+        &self.mesh
+    }
 }
 
 impl MeshNode {
     pub fn new(mesh: Mesh, m: [[f32; 4]; 4]) -> MeshNode {
-        let eye = Point3::<f32>::new(0.0, 0.0, 3.0);
-        let target = Point3::<f32>::new(0.0,0.0,0.0);
-        let up = Vector3::<f32>::y_axis();
         let mesh_node = MeshNode {
             mesh,
             #[rustfmt::skip]
@@ -24,14 +30,59 @@ impl MeshNode {
                  m[2][0], m[2][1], m[2][2], m[2][3], 
                  m[3][0], m[3][1], m[3][2], m[3][3]
                 ),
-            view: Perspective3::new(0.1, 1.0, 10.0, 0.1).to_homogeneous(),
-            projection: Matrix4::look_at_rh(&eye, &target, &up)
         };
-        debug!("{:?}", mesh_node.model);
-        debug!("{:?}", mesh_node.view);
-        debug!("{:?}", mesh_node.projection);
-        let mvp = mesh_node.projection * mesh_node.view * mesh_node.model;
-        debug!("{:?}", mvp);
         mesh_node
     }
+
+    pub fn bind_group_entries<'a>(buffer: &'a Buffer, texture_view: &'a TextureView, sampler: &'a Sampler) -> Vec<BindGroupEntry<'a>> {
+        vec![
+            BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(texture_view) },
+            BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(sampler)},
+            BindGroupEntry { binding: 2, resource: wgpu::BindingResource::Buffer(BufferBinding { buffer: buffer
+                , offset: 0, size: None  })}
+        ]
+    }
 }
+
+impl BufferLayoutProvider for MeshNode {
+    fn vertex_buffer_layout() -> wgpu::VertexBufferLayout<'static> {
+        Vertex::vertex_buffer_layout()
+    }
+}
+
+impl BindGroupProvider for MeshNode {
+    fn bind_group_layout() -> wgpu::BindGroupLayoutDescriptor<'static> {
+        wgpu::BindGroupLayoutDescriptor {
+            label: Some("MeshNode BindGroupLayoutDescriptor"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        }
+    }
+}
+
