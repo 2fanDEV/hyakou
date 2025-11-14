@@ -1,26 +1,15 @@
-use std::path::Path;
+use std::{ops::Range, path::Path};
 
 use anyhow::Result;
 use log::debug;
-use nalgebra::{Point3, Vector3};
+use nalgebra::{Matrix4, Point3, Vector3};
 use wgpu::{
-    Backends, BindGroup, BindGroupDescriptor, BlendState, Buffer, BufferUsages, ColorTargetState,
-    ColorWrites, CommandEncoderDescriptor, DepthBiasState, DepthStencilState, Device,
-    DeviceDescriptor, ExperimentalFeatures, Extent3d, Features, FragmentState, Instance,
-    InstanceDescriptor, InstanceFlags, Limits, MemoryHints, Origin3d, PipelineCompilationOptions,
-    PrimitiveState, Queue, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    SamplerDescriptor, StencilFaceState, StencilState, Surface, SurfaceConfiguration,
-    TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo, TextureDescriptor,
-    TextureFormat, TextureUsages, TextureViewDescriptor, VertexState, include_wgsl,
-    util::{BufferInitDescriptor, DeviceExt},
+    Backends, BindGroup, BindGroupDescriptor, BlendState, Buffer, BufferUsages, ColorTargetState, ColorWrites, CommandEncoderDescriptor, DepthBiasState, DepthStencilState, Device, DeviceDescriptor, ExperimentalFeatures, Extent3d, Features, FeaturesWGPU, FeaturesWebGPU, FragmentState, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints, Origin3d, PipelineCompilationOptions, PrimitiveState, PushConstantRange, Queue, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, SamplerDescriptor, ShaderStages, StencilFaceState, StencilState, Surface, SurfaceConfiguration, TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo, TextureDescriptor, TextureFormat, TextureUsages, TextureViewDescriptor, VertexBufferLayout, VertexState, include_wgsl, naga::ShaderStage, util::{BufferInitDescriptor, DeviceExt}
 };
 
 use crate::renderer::{
     components::{
-        camera::{Camera, CameraUniform},
-        glTF,
-        mesh_node::MeshNode,
-        texture::Texture,
+        camera::{Camera, CameraUniform}, glTF, mesh_node::MeshNode, render_pipeline::create_render_pipeline, texture::Texture
     },
     geometry::{BindGroupProvider, BufferLayoutProvider, mesh::Mesh, vertices::Vertex},
     util::Size,
@@ -39,6 +28,7 @@ pub struct RendererContext {
     pub bind_group: BindGroup,
     pub camera: Camera,
     pub camera_uniform_buffer: Buffer,
+    pub model_matrix: Matrix4<f32>,
     pub depth_texture: Texture,
     pub queue: Queue,
 }
@@ -70,12 +60,19 @@ impl RendererContext {
             })
             .await?;
 
+        let required_features = Features {
+            features_wgpu: FeaturesWGPU::PUSH_CONSTANTS,
+            ..Default::default()
+        };
+
         let (device, queue) = adapter
             .request_device(&DeviceDescriptor {
                 label: Some("Hyakou Device"),
-                required_features: Features::default(),
-                required_limits: Limits::downlevel_webgl2_defaults()
-                    .using_resolution(adapter.limits()),
+                required_features,
+                required_limits: Limits {
+                    max_push_constant_size: 128,
+                    ..Default::default()
+                },
                 experimental_features: ExperimentalFeatures::default(),
                 memory_hints: MemoryHints::MemoryUsage,
                 trace: wgpu::Trace::Off,
@@ -89,6 +86,8 @@ impl RendererContext {
             }
             None => None,
         };
+
+        debug!("SIZE: {:?}, {:?}", size.width, size.height);
         let camera = Camera::new(
             Point3::new(0.0, 0.0, 10.0),
             Point3::new(0.0, 0.0, -1.0),
@@ -96,11 +95,12 @@ impl RendererContext {
             (size.width / size.height) as f32,
             45.0_f32.to_radians(),
             0.1,
-            1000.0,
+            100.0,
         );
 
         let mut camera_uniform = CameraUniform::new();
-        //camera_uniform.update(&camera);
+        camera_uniform.update(&camera);
+        println!("{:?}", camera_uniform.view_projection_matrix);
 
         let camera_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Camera Uniform Buffer"),
@@ -123,98 +123,19 @@ impl RendererContext {
             usage: BufferUsages::INDEX,
         });
 
-        let image_bytes = include_bytes!("../../images/happy-tree.png");
-        let image = image::load_from_memory(image_bytes)?;
-        let rgba_image = image.to_rgba8();
-        let (img_width, img_height) = rgba_image.dimensions();
+        let model_matrix = meshes[0].model_matrix;
 
-        let texture_size = Extent3d {
-            width: img_width,
-            height: img_height,
-            depth_or_array_layers: 1,
-        };
-
-        let texture_img = device.create_texture(&TextureDescriptor {
-            label: Some("Tree Texture"),
-            size: Extent3d {
-                width: img_width,
-                height: img_height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: TextureFormat::Rgba8UnormSrgb,
-            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
-
-        queue.write_texture(
-            TexelCopyTextureInfo {
-                texture: &texture_img,
-                mip_level: 0,
-                origin: Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            &rgba_image,
-            TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(4 * img_width),
-                rows_per_image: Some(img_height),
-            },
-            texture_size,
+        let depth_texture = Texture::create_depth_texture(
+            "Depth Texture",
+            &device,
+            surface_configuration.as_ref().unwrap(),
         );
-
-        let buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("tmp buff"),
-            contents: image_bytes,
-            usage: BufferUsages::COPY_SRC,
-        });
-
-        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
-            label: Some("Buffer Copy Encoder"),
-        });
-
-        encoder.copy_buffer_to_texture(
-            TexelCopyBufferInfo {
-                buffer: &buffer,
-                layout: TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some((4 * img_width)),
-                    rows_per_image: Some(img_height),
-                },
-            },
-            TexelCopyTextureInfo {
-                texture: &texture_img,
-                mip_level: 0,
-                origin: Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            Extent3d {
-                width: img_width,
-                height: img_height,
-                depth_or_array_layers: 0,
-            },
-        );
-
-        queue.submit(std::iter::once(encoder.finish()));
-
-        let texture_view = texture_img.create_view(&TextureViewDescriptor::default());
-        let sampler = device.create_sampler(&SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
 
         let bind_group_layout = device.create_bind_group_layout(&MeshNode::bind_group_layout());
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("bg"),
             layout: &bind_group_layout,
-            entries: &MeshNode::bind_group_entries(&camera_uniform_buffer, &texture_view, &sampler),
+            entries: &MeshNode::bind_group_entries(&camera_uniform_buffer, &depth_texture.view, &depth_texture.sampler),
         });
 
         let vertex_shader =
@@ -225,58 +146,28 @@ impl RendererContext {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[&bind_group_layout],
-                push_constant_ranges: &[],
+                push_constant_ranges: &[PushConstantRange {
+                    stages: ShaderStages::VERTEX,
+                    range: Range { start: 0, end: 64 },
+                }],
             });
 
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: VertexState {
-                module: &vertex_shader,
-                entry_point: Some("vs_main"),
-                compilation_options: PipelineCompilationOptions::default(),
-                buffers: &[Vertex::vertex_buffer_layout()],
-            },
-            fragment: Some(FragmentState {
-                module: &fragment_shader,
-                entry_point: Some("fs_main"),
-                compilation_options: PipelineCompilationOptions::default(),
-                targets: &[Some(ColorTargetState {
-                    format: surface_configuration.as_ref().unwrap().format,
-                    blend: Some(BlendState::REPLACE),
-                    write_mask: ColorWrites::ALL,
-                })],
-            }),
-            primitive: PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None,
-                unclipped_depth: false,
-                polygon_mode: wgpu::PolygonMode::Fill,
-                conservative: false,
-            },
-            depth_stencil: Some(DepthStencilState {
-                format: Texture::DEPTH_FORMAT,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: StencilState::default(),
-                bias: DepthBiasState::default(),
-            }),
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: 0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-            cache: None,
-        });
-
-        let depth_texture = Texture::create_depth_texture(
-            "Depth Texture",
+        let depth_render_pass = create_render_pipeline(
             &device,
-            surface_configuration.as_ref().unwrap(),
-        );
+             "depth render pass",
+              pipeline_layout, surface_configuration.as_ref().unwrap().format, 
+              vertex_shader, Some(TextureFormat::Depth32Float))
+        
+
+
+        let render_pipeline = create_render_pipeline(
+              &device,
+             "Scene Render Pass",
+              &render_pipeline_layout,
+              surface_configuration.as_ref().unwrap().format,
+              vertex_shader,
+              None
+         );
 
         Ok(Self {
             instance,
@@ -292,6 +183,7 @@ impl RendererContext {
             num_indices: indices.len(),
             bind_group,
             queue,
+            model_matrix,
         })
     }
 

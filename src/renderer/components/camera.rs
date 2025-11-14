@@ -53,7 +53,7 @@ impl Camera {
     pub fn build_proj_matrix(&self) -> Matrix4<f32> {
         let view = Matrix4::look_at_rh(&self.eye, &self.target, &self.up);
         let proj =
-            Matrix4::new_perspective(self.fovy.to_radians(), self.aspect, self.znear, self.zfar);
+            Matrix4::new_perspective(self.aspect, self.fovy, self.znear, self.zfar);
         proj * view
     }
 }

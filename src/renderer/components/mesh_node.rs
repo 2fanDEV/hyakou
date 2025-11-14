@@ -8,7 +8,7 @@ use crate::renderer::geometry::{BindGroupProvider, BufferLayoutProvider, mesh::M
 
 pub struct MeshNode {
     mesh: Mesh,
-    pub model: Matrix4<f32>,
+    pub model_matrix: Matrix4<f32>,
 }
 
 impl Deref for MeshNode {
@@ -24,7 +24,7 @@ impl MeshNode {
         let mesh_node = MeshNode {
             mesh,
             #[rustfmt::skip]
-            model: Matrix4::new(
+            model_matrix: Matrix4::new(
                  m[0][0], m[0][1], m[0][2], m[0][3],
                  m[1][0], m[1][1], m[1][2], m[1][3], 
                  m[2][0], m[2][1], m[2][2], m[2][3], 
@@ -61,14 +61,14 @@ impl BindGroupProvider for MeshNode {
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
                         view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        sample_type:wgpu::TextureSampleType::Depth 
                     },
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {

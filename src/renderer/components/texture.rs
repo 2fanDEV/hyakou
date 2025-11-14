@@ -11,7 +11,7 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32FloatStencil8;
+    pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 
     pub fn create_depth_texture(
         label: &str,
@@ -49,6 +49,7 @@ impl Texture {
             lod_min_clamp: 0.0,
             lod_max_clamp: 100.0, 
             compare: Some(CompareFunction::Less),
+
             ..Default::default()
         });
 

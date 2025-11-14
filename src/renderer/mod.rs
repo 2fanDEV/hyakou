@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use wgpu::{Color, CommandEncoder, CommandEncoderDescriptor, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, TextureView, TextureViewDescriptor};
+use wgpu::{Color, CommandEncoder, CommandEncoderDescriptor, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, ShaderStages, TextureView, TextureViewDescriptor};
 use winit::{dpi::PhysicalPosition, window::Window};
 
 use crate::renderer::{renderer_context::RendererContext, wrappers::WinitSurfaceProvider};
@@ -93,6 +93,7 @@ impl Renderer {
             occlusion_query_set: None,
         });
         render_pass.set_pipeline(&self.ctx.render_pipeline);
+        render_pass.set_push_constants(ShaderStages::VERTEX, 0, bytemuck::bytes_of(&self.ctx.model_matrix));
         render_pass.set_vertex_buffer(0, self.ctx.vertex_buffer.slice(..));
         render_pass.set_bind_group(0, &self.ctx.bind_group, &[]);
         render_pass.set_index_buffer(self.ctx.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
