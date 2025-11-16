@@ -1,7 +1,6 @@
 use nalgebra::Matrix4;
 use wgpu::{
-    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, TextureView,
-    VertexBufferLayout,
+    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Device, TextureView, VertexBufferLayout
 };
 
 pub mod mesh;
@@ -12,5 +11,5 @@ pub trait BufferLayoutProvider {
 }
 
 pub trait BindGroupProvider {
-    fn bind_group_layout() -> BindGroupLayoutDescriptor<'static>;
+    fn bind_group_layout(device: &Device) -> BindGroupLayout;
 }

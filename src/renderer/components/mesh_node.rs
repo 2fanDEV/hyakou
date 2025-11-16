@@ -1,10 +1,8 @@
 use std::ops::Deref;
 
-use log::debug;
-use nalgebra::{Matrix4, Perspective3, Point3, Vector3};
-use wgpu::{BindGroupEntry, Buffer, BufferBinding, Sampler, ShaderStages, TextureView};
+use nalgebra::Matrix4;
 
-use crate::renderer::geometry::{BindGroupProvider, BufferLayoutProvider, mesh::Mesh, vertices::Vertex};
+use crate::renderer::geometry::{BufferLayoutProvider, mesh::Mesh, vertices::Vertex};
 
 pub struct MeshNode {
     mesh: Mesh,
@@ -34,14 +32,6 @@ impl MeshNode {
         mesh_node
     }
 
-    pub fn bind_group_entries<'a>(buffer: &'a Buffer, texture_view: &'a TextureView, sampler: &'a Sampler) -> Vec<BindGroupEntry<'a>> {
-        vec![
-            BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(texture_view) },
-            BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(sampler)},
-            BindGroupEntry { binding: 2, resource: wgpu::BindingResource::Buffer(BufferBinding { buffer: buffer
-                , offset: 0, size: None  })}
-        ]
-    }
 }
 
 impl BufferLayoutProvider for MeshNode {
@@ -49,40 +39,3 @@ impl BufferLayoutProvider for MeshNode {
         Vertex::vertex_buffer_layout()
     }
 }
-
-impl BindGroupProvider for MeshNode {
-    fn bind_group_layout() -> wgpu::BindGroupLayoutDescriptor<'static> {
-        wgpu::BindGroupLayoutDescriptor {
-            label: Some("MeshNode BindGroupLayoutDescriptor"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type:wgpu::TextureSampleType::Depth 
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-            ],
-        }
-    }
-}
-

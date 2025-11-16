@@ -4,16 +4,13 @@ use anyhow::Result;
 use log::debug;
 use nalgebra::{Matrix4, Point3, Vector3};
 use wgpu::{
-    Backends, BindGroup, BindGroupDescriptor, BlendState, Buffer, BufferUsages, ColorTargetState, ColorWrites, CommandEncoderDescriptor, DepthBiasState, DepthStencilState, Device, DeviceDescriptor, ExperimentalFeatures, Extent3d, Features, FeaturesWGPU, FeaturesWebGPU, FragmentState, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints, Origin3d, PipelineCompilationOptions, PrimitiveState, PushConstantRange, Queue, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, SamplerDescriptor, ShaderStages, StencilFaceState, StencilState, Surface, SurfaceConfiguration, TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo, TextureDescriptor, TextureFormat, TextureUsages, TextureViewDescriptor, VertexBufferLayout, VertexState, include_wgsl, naga::ShaderStage, util::{BufferInitDescriptor, DeviceExt}
+    Backends, BindGroup, Buffer, BufferUsages, Device, DeviceDescriptor, ExperimentalFeatures, Features, FeaturesWGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints, PushConstantRange, Queue, RenderPipeline, RequestAdapterOptions, ShaderStages, Surface, SurfaceConfiguration, TextureFormat, TextureUsages, include_wgsl, util::{BufferInitDescriptor, DeviceExt}
 };
 
 use crate::renderer::{
     components::{
-        camera::{Camera, CameraUniform}, glTF, mesh_node::MeshNode, render_pipeline::create_render_pipeline, texture::Texture
-    },
-    geometry::{BindGroupProvider, BufferLayoutProvider, mesh::Mesh, vertices::Vertex},
-    util::Size,
-    wrappers::SurfaceProvider,
+        camera::{Camera, CameraUniform}, glTF, light::LightSource, render_pipeline::create_render_pipeline, texture::Texture
+    }, geometry::vertices::Vertex, util::Size, wrappers::SurfaceProvider
 };
 
 pub struct RendererContext {
@@ -25,9 +22,13 @@ pub struct RendererContext {
     pub vertex_buffer: Buffer,
     pub index_buffer: Buffer,
     pub num_indices: usize,
-    pub bind_group: BindGroup,
+    pub mesh_bind_group: BindGroup,
     pub camera: Camera,
     pub camera_uniform_buffer: Buffer,
+    pub camera_bind_group: BindGroup,
+    pub light: LightSource,
+    pub light_uniform_buffer: Buffer,
+    pub light_bind_group: BindGroup,
     pub model_matrix: Matrix4<f32>,
     pub depth_texture: Texture,
     pub queue: Queue,
@@ -108,6 +109,12 @@ impl RendererContext {
             usage: BufferUsages::UNIFORM,
         });
 
+        let light = LightSource::new(Vector3::new(1.0, 1.0, 1.0), Vector3::new(1.0, 1.0, 1.0));
+        let light_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Light Source Buffer"),
+            contents: bytemuck::bytes_of(&light),
+            usage: BufferUsages::UNIFORM
+        });
         let path = Path::new("/Users/zapzap/Projects/hyako/assets/gltf/monkey.glb");
         let meshes = glTF::GLTFLoader::load_from_path(path).unwrap();
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
@@ -130,13 +137,10 @@ impl RendererContext {
             &device,
             surface_configuration.as_ref().unwrap(),
         );
-
-        let bind_group_layout = device.create_bind_group_layout(&MeshNode::bind_group_layout());
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("bg"),
-            layout: &bind_group_layout,
-            entries: &MeshNode::bind_group_entries(&camera_uniform_buffer, &depth_texture.view, &depth_texture.sampler),
-        });
+        
+        let (mesh_bind_group_layout, meshes_bind_group) = Vertex::create_bind_group(&device, &depth_texture.view, &depth_texture.sampler);
+        let (camera_bind_group_layout, camera_bind_group) = CameraUniform::bind_group(&device, &camera_uniform_buffer);
+        let (light_bind_group_layout, light_bind_group) = LightSource::bind_group(&device, &light_uniform_buffer);
 
         let vertex_shader =
             device.create_shader_module(include_wgsl!("../../assets/vertex_hc.wgsl"));
@@ -145,18 +149,20 @@ impl RendererContext {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&bind_group_layout],
+                bind_group_layouts: &[&mesh_bind_group_layout, &camera_bind_group_layout],
                 push_constant_ranges: &[PushConstantRange {
                     stages: ShaderStages::VERTEX,
                     range: Range { start: 0, end: 64 },
                 }],
             });
+        
 
-        let depth_render_pass = create_render_pipeline(
+        let light_render_pass = create_render_pipeline(
             &device,
              "depth render pass",
-              pipeline_layout, surface_configuration.as_ref().unwrap().format, 
-              vertex_shader, Some(TextureFormat::Depth32Float))
+              &render_pipeline_layout, 
+              surface_configuration.as_ref().unwrap().format, 
+              vertex_shader.clone(), Some(TextureFormat::Depth32Float));
         
 
 
@@ -179,9 +185,13 @@ impl RendererContext {
             index_buffer,
             camera,
             camera_uniform_buffer,
+            light,
+            light_uniform_buffer,
             depth_texture,
             num_indices: indices.len(),
-            bind_group,
+            mesh_bind_group: meshes_bind_group,
+            light_bind_group,
+            camera_bind_group,
             queue,
             model_matrix,
         })
