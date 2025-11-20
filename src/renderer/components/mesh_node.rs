@@ -9,7 +9,7 @@ pub struct MeshNode {
     pub model_matrix: Matrix4<f32>,
 }
 
-impl Deref for MeshNode {
+impl  Deref for MeshNode {
     type Target = Mesh;
 
     fn deref(&self) -> &Self::Target {
@@ -17,7 +17,7 @@ impl Deref for MeshNode {
     }
 }
 
-impl MeshNode {
+impl  MeshNode {
     pub fn new(mesh: Mesh, m: [[f32; 4]; 4]) -> MeshNode {
         let mesh_node = MeshNode {
             mesh,
@@ -34,7 +34,7 @@ impl MeshNode {
 
 }
 
-impl BufferLayoutProvider for MeshNode {
+impl  BufferLayoutProvider for MeshNode {
     fn vertex_buffer_layout() -> wgpu::VertexBufferLayout<'static> {
         Vertex::vertex_buffer_layout()
     }

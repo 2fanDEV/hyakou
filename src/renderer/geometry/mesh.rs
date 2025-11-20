@@ -1,17 +1,18 @@
-use wgpu::{BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, Buffer, BufferBinding, Sampler, ShaderStages, TextureView};
 
-use crate::renderer::geometry::{BindGroupProvider, BufferLayoutProvider, vertices::Vertex};
+use crate::renderer::geometry::vertices::Vertex;
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct Mesh {
+    pub name: Option<String>,
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>
 }
 
 impl Mesh {
-    pub fn new(vertices: Vec<Vertex>, indices: Vec<u32>) -> Mesh {
+    pub fn new(name: Option<String>, vertices: Vec<Vertex>, indices: Vec<u32>) -> Mesh {
         Self {
+            name,
             vertices,
             indices
         }

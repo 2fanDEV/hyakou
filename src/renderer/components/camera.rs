@@ -1,11 +1,81 @@
+use std::collections::HashSet;
+
 use bytemuck::{Pod, Zeroable};
+use gltf::camera;
 use nalgebra::{Matrix4, Point3, Vector3};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,
 };
+use winit::keyboard::KeyCode;
 
 use crate::renderer::geometry::BindGroupProvider;
+
+pub struct CameraController {
+    speed: f32,
+    is_forward_pressed: bool,
+    is_backward_pressed: bool,
+    is_left_pressed: bool,
+    is_right_pressed: bool,
+}
+
+impl CameraController {
+    pub fn new(camera_speed: f32) -> CameraController {
+        Self {
+            speed: camera_speed,
+            is_backward_pressed: false,
+            is_forward_pressed: false,
+            is_left_pressed: false,
+            is_right_pressed: false,
+        }
+    }
+
+    pub fn handle_key(&mut self, key_code: KeyCode, is_pressed: bool) -> bool {
+        match key_code {
+            KeyCode::KeyW | KeyCode::ArrowUp => {
+                self.is_forward_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyA | KeyCode::ArrowLeft => {
+                self.is_left_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyS | KeyCode::ArrowDown => {
+                self.is_backward_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyD | KeyCode::ArrowRight => {
+                self.is_right_pressed = is_pressed;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    pub fn update_camera(&self, camera: &mut Camera) {
+        let forward = camera.target - camera.eye;
+        let forward_norm = forward.normalize();
+        let forward_mag = forward.magnitude();
+
+        if self.is_forward_pressed && forward_mag > self.speed {
+            camera.eye += forward_norm * self.speed;
+        }
+        if self.is_backward_pressed {
+            camera.eye -= forward_norm * self.speed;
+        }
+
+        let right = forward_norm.cross(&camera.up);
+        let forward= camera.target - camera.eye;
+        let forward_mag = forward.magnitude();
+        if self.is_right_pressed {
+            camera.eye = camera.target - (forward + right * self.speed).normalize() * forward_mag;
+                }
+        if self.is_left_pressed {
+            camera.eye = camera.target - (forward - right * self.speed).normalize() * forward_mag;
+        }
+
+    }
+}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
@@ -49,7 +119,7 @@ impl BindGroupProvider for CameraUniform {
         device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("Camera Buffer"),
             entries: &[BindGroupLayoutEntry {
-                binding: 2,
+                binding: 0,
                 visibility: ShaderStages::VERTEX,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,

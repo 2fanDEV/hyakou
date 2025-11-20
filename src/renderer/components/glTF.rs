@@ -1,7 +1,6 @@
 use std::{iter::zip, path::Path};
 
 use anyhow::Result;
-use log::debug;
 use nalgebra::{Vector2, Vector3, Vector4};
 
 use crate::renderer::{
@@ -16,19 +15,18 @@ pub struct GLTFLoader {}
 impl GLTFLoader {
     pub fn load_from_path(path: &Path) -> Result<Vec<MeshNode>> {
         let slice = std::fs::read(path).unwrap();
-        Self::load_from_slice(&slice)
+        Self::load_from_slice(slice)
     }
 
-    pub fn load_from_slice(slice: &[u8]) -> Result<Vec<MeshNode>> {
+    pub fn load_from_slice(slice: Vec<u8>) -> Result<Vec<MeshNode>> {
         let mut mesh_nodes: Vec<MeshNode> = vec![];
-        let gltf = match gltf::Gltf::from_slice(slice) {
+        let gltf = match gltf::Gltf::from_slice(&slice) {
             Ok(gltf) => gltf,
             Err(err) => {
                 //todo!();
                 panic!("ERROR while parsing gltf/glb");
             }
         };
-
         let buffer_data: Vec<Vec<u8>> = gltf
             .buffers()
             .map(|buffer| match buffer.source() {
@@ -40,13 +38,14 @@ impl GLTFLoader {
                 }
             })
             .collect();
-        debug!("ELELEL: {:?}", gltf.nodes().len());
+
         for node in gltf.nodes() {
             let matrix = node.transform().matrix();
             let mesh = match node.mesh() {
                 Some(mesh) => mesh,
                 None => continue,
             };
+
             let meshes = mesh
                 .primitives()
                 .map(|primitive| {
@@ -54,12 +53,13 @@ impl GLTFLoader {
                         let index = buffer.index();
                         buffer_data.get(index).map(|data| data.as_slice())
                     });
+
                     let positions = reader
                         .read_positions()
                         .unwrap()
                         .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
                         .collect::<Vec<_>>();
-                
+
                     let indices = reader
                         .read_indices()
                         .unwrap()
@@ -71,13 +71,16 @@ impl GLTFLoader {
                         .unwrap()
                         .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
                         .collect::<Vec<_>>();
+
                     let tex_coords = reader
                         .read_tex_coords(0)
                         .unwrap()
                         .into_f32()
                         .map(|vec| Vector2::new(vec[0], vec[1]))
                         .collect::<Vec<_>>();
+
                     let gltf_colors = reader.read_colors(0);
+
                     let colors: Vec<Vector4<f32>> = match gltf_colors {
                         Some(read_colors) => read_colors
                             .into_rgba_f32()
@@ -85,19 +88,24 @@ impl GLTFLoader {
                             .collect::<Vec<_>>(),
                         None => vec![Vector4::new(0.0, 0.0, 0.0, 0.0)],
                     };
+
                     let vertices = zip(zip(positions, normals), tex_coords)
                         .map(|((pos, normals), tex_coords)| {
                             Vertex::new(pos, tex_coords, normals, colors[0])
                         })
                         .collect::<Vec<_>>();
-                    Mesh { vertices, indices }
+
+                    Mesh {
+                        name: mesh.name().map(|s| s.to_owned()),
+                        vertices,
+                        indices,
+                    }
                 })
                 .collect::<Vec<_>>();
             meshes
                 .into_iter()
                 .for_each(|mesh| mesh_nodes.push(MeshNode::new(mesh, matrix)));
         }
-
         Ok(mesh_nodes)
     }
 }

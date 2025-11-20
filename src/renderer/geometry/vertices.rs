@@ -1,5 +1,4 @@
 use bytemuck::{Pod, Zeroable};
-use log::debug;
 use nalgebra::{Vector2, Vector3, Vector4};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,

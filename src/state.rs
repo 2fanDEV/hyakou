@@ -4,7 +4,7 @@ use log::debug;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalPosition,
-    event::WindowEvent,
+    event::{KeyEvent, WindowEvent},
     window::{Window, WindowAttributes},
 };
 
@@ -51,9 +51,25 @@ impl ApplicationHandler for AppState {
                 position,
             } => {
                 mouse_pos = position;
+            },
+            WindowEvent::RedrawRequested => {
+                self.renderer.as_mut().unwrap().update();
             }
             _ => {}
         }
+
+        let key_event = match event {
+            WindowEvent::KeyboardInput { device_id, event, is_synthetic } => {
+                match event.physical_key {
+                    winit::keyboard::PhysicalKey::Code(key_code) => {
+                        self.renderer.as_mut().unwrap().camera_controller.handle_key(key_code, event.state.is_pressed());
+                    },
+                    winit::keyboard::PhysicalKey::Unidentified(native_key_code) => {},
+                }
+            }
+            _ => {}
+        };
+
         self.renderer.as_mut().unwrap().render(mouse_pos).unwrap();
     }
 }
