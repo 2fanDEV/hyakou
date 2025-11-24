@@ -1,9 +1,9 @@
-use std::{ops::Range, path::Path, sync::Arc};
+use std::{ops::Range, sync::Arc};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
 use log::debug;
-use nalgebra::{Matrix4, Point3, Vector3};
+use nalgebra::{Point3, Vector3};
 use wgpu::{
     Backends, BindGroup, Buffer, BufferUsages, Device, DeviceDescriptor, ExperimentalFeatures,
     Features, FeaturesWGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
@@ -29,12 +29,8 @@ pub struct RenderContext {
     pub surface: Option<Surface<'static>>,
     pub surface_configuration: Option<SurfaceConfiguration>,
     pub device: Arc<Device>,
-    pub render_pipeline: RenderPipeline,
     pub light_render_pipeline: RenderPipeline,
-    pub vertex_buffer: Buffer,
-    pub index_buffer: Buffer,
-    pub num_indices: usize,
-    //   pub mesh_bind_group: BindGroup,
+    pub no_light_render_pipeline: RenderPipeline,
     pub camera: Camera,
     pub camera_uniform: CameraUniform,
     pub camera_uniform_buffer: Buffer,
@@ -42,7 +38,6 @@ pub struct RenderContext {
     pub light: LightSource,
     pub light_uniform_buffer: Buffer,
     pub light_bind_group: BindGroup,
-    pub model_matrix: Matrix4<f32>,
     pub depth_texture: Texture,
     pub queue: Queue,
 }
@@ -92,7 +87,7 @@ impl RenderContext {
             })
             .await?;
 
-        let device = Arc::new(device); 
+        let device = Arc::new(device);
 
         let size = provider.unwrap().get_size();
         let surface_configuration = match surface.as_ref() {
@@ -114,36 +109,19 @@ impl RenderContext {
         );
 
         let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update(&camera);   
+        camera_uniform.update(&camera);
         let camera_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Camera Uniform Buffer"),
             contents: bytes_of(&camera_uniform),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        }); 
-        
-        let light = LightSource::new(Vector3::new(1.0, 1.0, 1.0), Vector3::new(1.0, 1.0, 1.0));
+        });
+
+        let light = LightSource::new(Vector3::new(0.0, 3.0, 3.0), Vector3::new(1.0, 1.0, 1.0));
         let light_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Light Source Buffer"),
             contents: bytemuck::bytes_of(&light),
             usage: BufferUsages::UNIFORM,
         });
-        
-        let path = Path::new("/Users/zapzap/Projects/hyako/assets/gltf/Suzanne.gltf");
-        let meshes = glTF::GLTFLoader::load_from_path(path).unwrap();
-        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&meshes[0].vertices),
-            usage: BufferUsages::VERTEX,
-        });
-
-        let indices: &[u32] = &meshes[0].indices;
-        let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(indices),
-            usage: BufferUsages::INDEX,
-        });
-
-        let model_matrix = meshes[0].model_matrix;
 
         let depth_texture = Texture::create_depth_texture(
             "Depth Texture",
@@ -155,32 +133,33 @@ impl RenderContext {
         let (camera_bind_group_layout, camera_bind_group) =
             CameraUniform::bind_group(&device, &camera_uniform_buffer);
         let (light_bind_group_layout, light_bind_group) =
-            LightSource::bind_group(&device, &light_uniform_buffer); 
+            LightSource::bind_group(&device, &light_uniform_buffer);
 
-        let vertex_shader =
-            device.create_shader_module(include_wgsl!("../../assets/vertex.wgsl"));
+        let vertex_shader = device.create_shader_module(include_wgsl!("../../assets/vertex.wgsl"));
+        let no_light_vertex_shader =
+            device.create_shader_module(include_wgsl!("../../assets/no_light_vertex.wgsl"));
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout],
+                bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
                 push_constant_ranges: &[PushConstantRange {
                     stages: ShaderStages::VERTEX,
                     range: Range { start: 0, end: 64 },
                 }],
             });
 
-        let light_render_pipeline = create_render_pipeline(
+        let no_light_render_pipeline = create_render_pipeline(
             &device,
-            "depth render pass",
+            "no light render pass",
             &render_pipeline_layout,
             surface_configuration.as_ref().unwrap().format,
-            vertex_shader.clone(),
+            no_light_vertex_shader,
             Some(TextureFormat::Depth32Float),
         );
 
-        let render_pipeline = create_render_pipeline(
+        let light_render_pipeline = create_render_pipeline(
             &device,
-            "Scene Render Pass",
+            "light render pass",
             &render_pipeline_layout,
             surface_configuration.as_ref().unwrap().format,
             vertex_shader,
@@ -192,22 +171,17 @@ impl RenderContext {
             surface,
             surface_configuration,
             device,
-            render_pipeline,
             light_render_pipeline,
-            vertex_buffer,
-            index_buffer,
+            no_light_render_pipeline,
             camera,
             camera_uniform,
             camera_uniform_buffer,
             light,
             light_uniform_buffer,
             depth_texture,
-            num_indices: indices.len(),
-            // mesh_bind_group: meshes_bind_group,
             light_bind_group,
             camera_bind_group,
             queue,
-            model_matrix,
         })
     }
 

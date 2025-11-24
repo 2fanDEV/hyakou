@@ -8,7 +8,7 @@ struct ModelMatrixPC {
 
 struct Light {
     position: vec3<f32>,
-    color: vec3<f32>
+    color: vec3<f32>,
 }
 
 @group(1) @binding(0)
@@ -51,8 +51,8 @@ fn vs_main(
 // Fragment shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var position = vec3(0.0, 0.0, 5.0);
-    var color = vec3(1.0, 1.0, 1.0); 
+    var position = light.position;
+    var color = light.color;
     var diffuse_power = 0.3;
     var distance = length(position);
     position = position / distance;

@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use nalgebra::Vector3;
+use nalgebra::{Vector2, Vector3};
 use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages};
 
 use crate::renderer::geometry::BindGroupProvider;
@@ -8,14 +8,18 @@ use crate::renderer::geometry::BindGroupProvider;
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct LightSource {
     position: Vector3<f32>,
-    color: Vector3<f32>
+    _padding_1: f32,
+    color: Vector3<f32>,
+    _padding_2: f32,
 }
 
 impl LightSource {
   pub fn new(position: Vector3<f32>, color: Vector3<f32>) -> LightSource {
     Self {
         position,
-        color
+        color,
+        _padding_1: 0.0,
+        _padding_2: 0.0,
     }
   }
 

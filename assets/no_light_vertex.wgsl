@@ -21,8 +21,8 @@ var<push_constant> model_matrix: ModelMatrix;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
+    @location(1) color: vec3<f32>
 };
-
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
@@ -34,7 +34,8 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    out.clip_position =  camera.view_projection_matrix * model_matrix.m * vec4<f32>(model.position, 1.0);
+    var scale: f32 = 0.25;
+    out.clip_position =  camera.view_projection_matrix * model_matrix.m * vec4<f32>(model.position * scale + light.position, 1.0);
     out.color = light.color;
     return out;
 }

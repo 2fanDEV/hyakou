@@ -1,7 +1,4 @@
-use std::collections::HashSet;
-
 use bytemuck::{Pod, Zeroable};
-use gltf::camera;
 use nalgebra::{Matrix4, Point3, Vector3};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,

@@ -2,18 +2,18 @@ use std::{path::Path, sync::Arc, time::Instant};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
+use log::debug;
 use wgpu::{
-    Color, CommandEncoder, CommandEncoderDescriptor, Operations, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, RenderPassDescriptor, ShaderStages, TextureView,
-    TextureViewDescriptor,
+    BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations, Queue,
+    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
+    RenderPipeline, ShaderStages, TextureView, TextureViewDescriptor,
 };
-use winit::{
-    dpi::PhysicalPosition,
-    window::Window,
-};
+use winit::{dpi::PhysicalPosition, window::Window};
 
 use crate::renderer::{
-    components::{asset_manager::AssetManager, camera::CameraController, glTF::GLTFLoader},
+    components::{
+        LightType, asset_manager::AssetManager, camera::CameraController, glTF::GLTFLoader, light, render_mesh::RenderMesh
+    },
     renderer_context::RenderContext,
     wrappers::WinitSurfaceProvider,
 };
@@ -38,15 +38,25 @@ pub struct Renderer {
 
 impl Renderer {
     pub async fn new(window: Arc<Window>) -> Result<Self> {
-        let ctx  =  RenderContext::new(Some(WinitSurfaceProvider {
-                window: window.clone(),
-            }))
-            .await
-            .unwrap();
+        let ctx = RenderContext::new(Some(WinitSurfaceProvider {
+            window: window.clone(),
+        }))
+        .await
+        .unwrap();
         let mut asset_manager = AssetManager::new(ctx.device.clone());
-        asset_manager.add_from_path("Monkey".to_string(), &Path::new("/Users/zapzap/Projects/hyako/assets/gltf/Suzanne.gltf" ));
+        asset_manager.add_from_path(
+            "Monkey".to_string(),
+            LightType::LIGHT,
+            &Path::new("/Users/zapzap/Projects/hyako/assets/gltf/Suzanne.gltf"),
+        );
+        asset_manager.add_from_path(
+            "Light".to_string(),
+            LightType::NO_LIGHT,
+            &Path::new("/Users/zapzap/Projects/hyako/assets/gltf/Cube.gltf"),
+        );
+        debug!("{:?}", asset_manager);
         Ok(Self {
-            ctx: ctx, 
+            ctx: ctx,
             asset_manager,
             frame_idx: 0,
             camera_controller: CameraController::new(0.2),
@@ -58,13 +68,14 @@ impl Renderer {
     pub fn update(&mut self) {
         self.camera_controller.update_camera(&mut self.ctx.camera);
         self.ctx.camera_uniform.update(&self.ctx.camera);
-        self.ctx.queue.write_buffer(&self.ctx.camera_uniform_buffer, 0, bytes_of(&self.ctx.camera_uniform));
+        self.ctx.queue.write_buffer(
+            &self.ctx.camera_uniform_buffer,
+            0,
+            bytes_of(&self.ctx.camera_uniform),
+        );
     }
 
-    pub fn render(
-        &mut self,
-        mouse_pos: PhysicalPosition<f64>,
-    ) -> Result<()> {
+    pub fn render(&mut self, mouse_pos: PhysicalPosition<f64>) -> Result<()> {
         self.window.request_redraw();
         self.render_delta = Instant::now();
         if self.ctx.surface_configuration.is_none() {
@@ -81,22 +92,16 @@ impl Renderer {
             .create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("Rendering Encoder"),
             });
-        let depth_texture = self.ctx.depth_texture.clone();
-        self.record_scene_pass_command_encoder(&mut encoder, view, depth_texture.view, mouse_pos);
-        self.ctx.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
-        self.frame_idx = (self.frame_idx + 1) % 1;
-        Ok(())
-    }
 
-    fn record_scene_pass_command_encoder(
-        &mut self,
-        encoder: &mut CommandEncoder,
-        view: TextureView,
-        depth_view: TextureView,
-        mouse_pos: PhysicalPosition<f64>,
-    ) {
-        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+        let mut clear_encoder = self
+            .ctx
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("Rendering Encoder"),
+            });
+        let depth_texture = self.ctx.depth_texture.clone();
+        {
+        clear_encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("Main Command Buffer"),
             color_attachments: &[Some(RenderPassColorAttachment {
                 view: &view,
@@ -115,6 +120,75 @@ impl Renderer {
             timestamp_writes: None,
             occlusion_query_set: None,
             depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                view: &depth_texture.view,
+                depth_ops: Some(Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+        });
+    }
+        self.asset_manager
+            .get_all_visible_assets_with_modifier(&LightType::LIGHT)
+            .for_each(|elem| {
+                Self::record_scene_pass_command_encoder(
+                    &mut encoder,
+                    elem,
+                    &self.ctx.light_render_pipeline,
+                    &self.ctx.camera_bind_group,
+                    &self.ctx.light_bind_group,
+                    &view,
+                    &depth_texture.view,
+                    mouse_pos,
+                );
+            });
+
+        self.asset_manager.get_all_visible_assets_with_modifier(&LightType::NO_LIGHT)
+        .for_each(|elem| {
+             Self::record_scene_pass_command_encoder(
+                    &mut encoder,
+                    elem,
+                    &self.ctx.no_light_render_pipeline,
+                    &self.ctx.camera_bind_group,
+                    &self.ctx.light_bind_group,
+                    &view,
+                    &depth_texture.view,
+                    mouse_pos,
+                ); 
+        });
+
+        self.ctx.queue.submit(std::iter::once(clear_encoder.finish()));
+        self.ctx.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+        self.frame_idx = (self.frame_idx + 1) % 1;
+        Ok(())
+    }
+
+    fn record_scene_pass_command_encoder(
+        encoder: &mut CommandEncoder,
+        render_mesh: &RenderMesh,
+        render_pipeline: &RenderPipeline,
+        camera_bind_group: &BindGroup,
+        light_bind_group: &BindGroup,
+        view: &TextureView,
+        depth_view: &TextureView,
+        mouse_pos: PhysicalPosition<f64>,
+    ) {
+        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Main Command Buffer"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: &view,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
                 view: &depth_view,
                 depth_ops: Some(Operations {
                     load: wgpu::LoadOp::Clear(1.0),
@@ -124,24 +198,20 @@ impl Renderer {
             }),
         });
 
-        /*          depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-            view: &self.ctx.depth_texture.view,
-            depth_ops: Some(Operations {
-                load: wgpu::LoadOp::Clear(1.0),
-                store: wgpu::StoreOp::Store,
-            }),
-            stencil_ops: None,
-        }) , */
-        render_pass.set_pipeline(&self.ctx.render_pipeline);
+        render_pass.set_pipeline(render_pipeline);
         render_pass.set_push_constants(
             ShaderStages::VERTEX,
             0,
-            bytemuck::bytes_of(&self.ctx.model_matrix),
+            bytemuck::bytes_of(&render_mesh.mesh_matrix),
         );
-        render_pass.set_vertex_buffer(0, self.ctx.vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
+        render_pass.set_bind_group(1, light_bind_group, &[]);
         //  render_pass.set_bind_group(0, &self.ctx.mesh_bind_group, &[]);
-        render_pass.set_bind_group(0, &self.ctx.camera_bind_group, &[]);
-        render_pass.set_index_buffer(self.ctx.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        render_pass.draw_indexed(0..self.ctx.num_indices as u32, 0, 0..1);
+        render_pass.set_bind_group(0, camera_bind_group, &[]);
+        render_pass.set_index_buffer(
+            render_mesh.index_buffer.slice(..),
+            wgpu::IndexFormat::Uint32,
+        );
+        render_pass.draw_indexed(0..render_mesh.index_count as u32, 0, 0..1);
     }
 }
