@@ -12,7 +12,8 @@ use winit::{dpi::PhysicalPosition, window::Window};
 
 use crate::renderer::{
     components::{
-        LightType, asset_manager::AssetManager, camera::CameraController, glTF::GLTFLoader, light, render_mesh::RenderMesh
+        LightType, asset_manager::AssetManager, camera::CameraController, glTF::GLTFLoader, light,
+        render_mesh::RenderMesh,
     },
     renderer_context::RenderContext,
     wrappers::WinitSurfaceProvider,
@@ -100,35 +101,37 @@ impl Renderer {
                 label: Some("Rendering Encoder"),
             });
         let depth_texture = self.ctx.depth_texture.clone();
+        
         {
-        clear_encoder.begin_render_pass(&RenderPassDescriptor {
-            label: Some("Main Command Buffer"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: &view,
-                depth_slice: None,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(Color {
-                        r: 0.25,
-                        g: (0.1),
-                        b: (0.75),
-                        a: 0.2,
+            clear_encoder.begin_render_pass(&RenderPassDescriptor {
+                label: Some("Main Command Buffer"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: &view,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(Color {
+                            r: 0.25,
+                            g: (0.1),
+                            b: (0.75),
+                            a: 0.2,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                    view: &depth_texture.view,
+                    depth_ops: Some(Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
                     }),
-                    store: wgpu::StoreOp::Store,
-                },
-            })],
-            timestamp_writes: None,
-            occlusion_query_set: None,
-            depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                view: &depth_texture.view,
-                depth_ops: Some(Operations {
-                    load: wgpu::LoadOp::Clear(1.0),
-                    store: wgpu::StoreOp::Store,
+                    stencil_ops: None,
                 }),
-                stencil_ops: None,
-            }),
-        });
-    }
+            });
+        }
+        
         self.asset_manager
             .get_all_visible_assets_with_modifier(&LightType::LIGHT)
             .for_each(|elem| {
@@ -144,9 +147,10 @@ impl Renderer {
                 );
             });
 
-        self.asset_manager.get_all_visible_assets_with_modifier(&LightType::NO_LIGHT)
-        .for_each(|elem| {
-             Self::record_scene_pass_command_encoder(
+        self.asset_manager
+            .get_all_visible_assets_with_modifier(&LightType::NO_LIGHT)
+            .for_each(|elem| {
+                Self::record_scene_pass_command_encoder(
                     &mut encoder,
                     elem,
                     &self.ctx.no_light_render_pipeline,
@@ -155,10 +159,12 @@ impl Renderer {
                     &view,
                     &depth_texture.view,
                     mouse_pos,
-                ); 
-        });
+                );
+            });
 
-        self.ctx.queue.submit(std::iter::once(clear_encoder.finish()));
+        self.ctx
+            .queue
+            .submit(std::iter::once(clear_encoder.finish()));
         self.ctx.queue.submit(std::iter::once(encoder.finish()));
         output.present();
         self.frame_idx = (self.frame_idx + 1) % 1;
