@@ -1,3 +1,6 @@
 [submodule "AGENTS"]
 	path = AGENTS
 	url = git@github.com:2fanDEV/AGENTS.git
+[submodule ".agents"]
+	path = .agents
+	url = https://github.com/2fanDEV/.agents
