@@ -17,7 +17,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    const MIN_TIME_IN_MILLIS: f32 = 0.1;
+    const MIN_TIME_IN_SECONDS: f32 = 0.33;
 
     pub fn new() -> Self {
         Self {
@@ -31,7 +31,7 @@ impl AppState {
         let now = Instant::now();
         let delta = now.duration_since(self.last_frame_time);
         let mut delta_time = delta.as_secs_f32();
-        delta_time = delta_time.min(Self::MIN_TIME_IN_MILLIS);
+        delta_time = delta_time.min(Self::MIN_TIME_IN_SECONDS);
         self.last_frame_time = now;
         delta_time
     }
@@ -69,14 +69,10 @@ impl ApplicationHandler for AppState {
                 let delta = self.calculate_last_frame_time();
                 self.renderer.as_mut().unwrap().update(delta);
             }
-            _ => {}
-        }
-
-        match event {
             WindowEvent::KeyboardInput {
-                device_id,
+                device_id: _device_id,
                 event,
-                is_synthetic,
+                is_synthetic: _is_synthetic,
             } => match event.physical_key {
                 winit::keyboard::PhysicalKey::Code(key_code) => {
                     self.renderer
@@ -88,7 +84,7 @@ impl ApplicationHandler for AppState {
                 winit::keyboard::PhysicalKey::Unidentified(_) => {}
             },
             _ => {}
-        };
+        }
 
         self.renderer.as_mut().unwrap().render(mouse_pos).unwrap();
     }
@@ -110,10 +106,10 @@ mod tests {
         let mut state = setup();
         let actual = state.calculate_last_frame_time();
         assert!(actual > 0.0);
-        assert!(actual <= 0.1);
+        assert!(actual <= AppState::MIN_TIME_IN_SECONDS);
         sleep(Duration::from_secs(1));
         let actual = state.calculate_last_frame_time();
-        assert!(actual <= 0.1);
+        assert!(actual <= AppState::MIN_TIME_IN_SECONDS);
     }
 
     #[test]
@@ -122,6 +118,6 @@ mod tests {
         state.calculate_last_frame_time();
         sleep(Duration::from_millis(16)); // 1000ms / 60 = 16ms. We have around 16ms for each frame to get 60 fps.
         let second_delta = state.calculate_last_frame_time();
-        assert!(second_delta >= 0.015 && second_delta <= 0.1);
+        assert!(second_delta >= 0.015 && second_delta <= AppState::MIN_TIME_IN_SECONDS);
     }
 }

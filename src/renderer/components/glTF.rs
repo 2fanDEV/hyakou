@@ -23,7 +23,7 @@ impl GLTFLoader {
         let gltf = match gltf::Gltf::from_slice(&slice) {
             Ok(gltf) => gltf,
             Err(_) => {
-                //TODO: better error message;
+                //TODO: Better error message;
                 panic!("ERROR while parsing gltf/glb");
             }
         };

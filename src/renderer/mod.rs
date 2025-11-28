@@ -34,13 +34,14 @@ pub struct Renderer {
 
 impl Renderer {
     pub async fn new(window: Arc<Window>) -> Result<Self> {
+        const CAMERA_SPEED_UNITS_PER_SECOND: f32 = 20.0;
         let ctx = RenderContext::new(Some(WinitSurfaceProvider {
             window: window.clone(),
         }))
         .await
         .unwrap();
 
-        let assets_dir = env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
+        let assets_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
 
         let mut asset_manager = AssetManager::new(ctx.device.clone());
         asset_manager.add_from_path(
@@ -57,7 +58,7 @@ impl Renderer {
             ctx,
             asset_manager,
             frame_idx: 0,
-            camera_controller: CameraController::new(20.0),
+            camera_controller: CameraController::new(CAMERA_SPEED_UNITS_PER_SECOND),
             window,
         })
     }
@@ -65,7 +66,7 @@ impl Renderer {
     pub fn update(&mut self, delta_time: f32) {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
-            .update_camera(&mut self.ctx.camera, &delta_time);
+            .update_camera(&mut self.ctx.camera, delta_time);
         self.ctx.camera_uniform.update(&self.ctx.camera);
         self.ctx.queue.write_buffer(
             &self.ctx.camera_uniform_buffer,

@@ -223,7 +223,7 @@ fn init_surface_configuration(
 
             let surface_configuration = SurfaceConfiguration {
                 usage: TextureUsages::RENDER_ATTACHMENT,
-                format: format,
+                format,
                 width: size.width,
                 height: size.height,
                 present_mode: capabilities.present_modes[0],
