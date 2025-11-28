@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc, time::Instant};
+use std::{path::Path, sync::Arc};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
@@ -39,19 +39,22 @@ impl Renderer {
         }))
         .await
         .unwrap();
+
+        let assets_dir = env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
+
         let mut asset_manager = AssetManager::new(ctx.device.clone());
         asset_manager.add_from_path(
             "Monkey".to_string(),
             LightType::LIGHT,
-            &Path::new("/Users/zapzap/Projects/hyako/assets/gltf/Suzanne.gltf"),
+            &Path::new(&assets_dir).join("assets/gltf/Suzanne.gltf"),
         );
         asset_manager.add_from_path(
             "Light".to_string(),
             LightType::NO_LIGHT,
-            &Path::new("/Users/zapzap/Projects/hyako/assets/gltf/Cube.gltf"),
+            &Path::new(&assets_dir).join("assets/gltf/Cube.gltf"),
         );
         Ok(Self {
-            ctx: ctx,
+            ctx,
             asset_manager,
             frame_idx: 0,
             camera_controller: CameraController::new(20.0),

@@ -120,7 +120,7 @@ mod tests {
     fn test_accurate_calculation() {
         let mut state = setup();
         state.calculate_last_frame_time();
-        sleep(Duration::from_millis(16)); // 1000ms / 60 = 16ms. We have aroung 16ms for each frame to get 60 fps.
+        sleep(Duration::from_millis(16)); // 1000ms / 60 = 16ms. We have around 16ms for each frame to get 60 fps.
         let second_delta = state.calculate_last_frame_time();
         assert!(second_delta >= 0.015 && second_delta <= 0.1);
     }
