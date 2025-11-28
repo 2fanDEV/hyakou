@@ -4,6 +4,8 @@ use wgpu::{
     TextureViewDescriptor,
 };
 
+use crate::renderer::util::Size;
+
 #[derive(Debug, Clone)]
 pub struct Texture {
     pub texture: wgpu::Texture,
@@ -14,16 +16,10 @@ pub struct Texture {
 impl Texture {
     pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 
-    pub fn create_depth_texture(
-        label: &str,
-        device: &Device,
-        config: &SurfaceConfiguration,
-    ) -> Texture {
-        let width = config.width;
-        let height = config.height;
+    pub fn create_depth_texture(label: &str, device: &Device, size: &Size) -> Texture {
         let extent_size = Extent3d {
-            width,
-            height,
+            width: size.width,
+            height: size.height,
             depth_or_array_layers: 1,
         };
 

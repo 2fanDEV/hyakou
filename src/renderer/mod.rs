@@ -54,14 +54,15 @@ impl Renderer {
             ctx: ctx,
             asset_manager,
             frame_idx: 0,
-            camera_controller: CameraController::new(0.2),
+            camera_controller: CameraController::new(20.0),
             window,
         })
     }
 
     pub fn update(&mut self, delta_time: f32) {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
-        self.camera_controller.update_camera(&mut self.ctx.camera);
+        self.camera_controller
+            .update_camera(&mut self.ctx.camera, &delta_time);
         self.ctx.camera_uniform.update(&self.ctx.camera);
         self.ctx.queue.write_buffer(
             &self.ctx.camera_uniform_buffer,

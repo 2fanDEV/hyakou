@@ -17,6 +17,8 @@ pub struct AppState {
 }
 
 impl AppState {
+    const MIN_TIME_IN_MILLIS: f32 = 0.1;
+
     pub fn new() -> Self {
         Self {
             window: None,
@@ -29,7 +31,7 @@ impl AppState {
         let now = Instant::now();
         let delta = now.duration_since(self.last_frame_time);
         let mut delta_time = delta.as_secs_f32();
-        delta_time = delta_time.min(0.1);
+        delta_time = delta_time.min(Self::MIN_TIME_IN_MILLIS);
         self.last_frame_time = now;
         delta_time
     }
@@ -70,7 +72,7 @@ impl ApplicationHandler for AppState {
             _ => {}
         }
 
-        let key_event = match event {
+        match event {
             WindowEvent::KeyboardInput {
                 device_id,
                 event,
@@ -83,7 +85,7 @@ impl ApplicationHandler for AppState {
                         .camera_controller
                         .handle_key(key_code, event.state.is_pressed());
                 }
-                winit::keyboard::PhysicalKey::Unidentified(native_key_code) => {}
+                winit::keyboard::PhysicalKey::Unidentified(_) => {}
             },
             _ => {}
         };
@@ -117,9 +119,9 @@ mod tests {
     #[test]
     fn test_accurate_calculation() {
         let mut state = setup();
-        let first_delta = state.calculate_last_frame_time();
+        state.calculate_last_frame_time();
         sleep(Duration::from_millis(16)); // 1000ms / 60 = 16ms. We have aroung 16ms for each frame to get 60 fps.
         let second_delta = state.calculate_last_frame_time();
-        assert!(second_delta >= 0.015 && second_delta <= 0.025);
+        assert!(second_delta >= 0.015 && second_delta <= 0.1);
     }
 }

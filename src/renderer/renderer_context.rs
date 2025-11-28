@@ -88,7 +88,15 @@ impl RenderContext {
 
         let device = Arc::new(device);
 
-        let size = provider.unwrap().get_size();
+        let size = if provider.is_some() {
+            provider.unwrap().get_size()
+        } else {
+            Size {
+                width: 800,
+                height: 600,
+            }
+        };
+
         let surface_configuration = match surface.as_ref() {
             Some(surface_ref) => {
                 init_surface_configuration(Some(surface_ref), adapter, size, &device)
@@ -122,11 +130,7 @@ impl RenderContext {
             usage: BufferUsages::UNIFORM,
         });
 
-        let depth_texture = Texture::create_depth_texture(
-            "Depth Texture",
-            &device,
-            surface_configuration.as_ref().unwrap(),
-        );
+        let depth_texture = Texture::create_depth_texture("Depth Texture", &device, &size);
 
         // let (mesh_bind_group_layout, meshes_bind_group) = Vertex::create_bind_group(&device, &depth_texture.view, &depth_texture.sampler);
         let (camera_bind_group_layout, camera_bind_group) =
@@ -147,11 +151,17 @@ impl RenderContext {
                 }],
             });
 
+        let format = if surface_configuration.is_some() {
+            surface_configuration.as_ref().unwrap().format
+        } else {
+            TextureFormat::Bgra8UnormSrgb
+        };
+
         let no_light_render_pipeline = create_render_pipeline(
             &device,
             "no light render pass",
             &render_pipeline_layout,
-            surface_configuration.as_ref().unwrap().format,
+            format,
             no_light_vertex_shader,
             Some(TextureFormat::Depth32Float),
         );
@@ -160,7 +170,7 @@ impl RenderContext {
             &device,
             "light render pass",
             &render_pipeline_layout,
-            surface_configuration.as_ref().unwrap().format,
+            format,
             vertex_shader,
             Some(TextureFormat::Depth32Float),
         );
@@ -236,10 +246,8 @@ mod tests {
 
     #[test]
     fn create_context() {
-        /*
         let mut mock = MockSurfaceProvider::new();
         let ctx = pollster::block_on(RenderContext::new::<MockSurfaceProvider>(None));
         assert!(ctx.is_ok());
-        */
     }
 }
