@@ -22,7 +22,7 @@ impl GLTFLoader {
         let mut mesh_nodes: Vec<MeshNode> = vec![];
         let gltf = match gltf::Gltf::from_slice(&slice) {
             Ok(gltf) => gltf,
-            Err(err) => {
+            Err(_err) => {
                 //todo!();
                 panic!("ERROR while parsing gltf/glb");
             }

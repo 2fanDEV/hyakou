@@ -1,7 +1,4 @@
-use nalgebra::Matrix4;
-use wgpu::{
-    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Device, TextureView, VertexBufferLayout
-};
+use wgpu::{BindGroupLayout, Device, VertexBufferLayout};
 
 pub mod mesh;
 pub mod render_object;

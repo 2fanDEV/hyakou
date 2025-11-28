@@ -1,4 +1,3 @@
-use gltf::json::extensions::mesh;
 use nalgebra::Matrix4;
 use uuid::Uuid;
 use wgpu::{
@@ -34,7 +33,7 @@ impl RenderMesh {
             contents: bytemuck::cast_slice(&mesh_node.vertices),
             usage: BufferUsages::VERTEX,
         });
-        
+
         let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Index Buffer: ".to_string().concat(&id)),
             contents: bytemuck::cast_slice(&mesh_node.indices),

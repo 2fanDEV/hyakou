@@ -1,7 +1,8 @@
-use std::iter::Filter;
-
-use gltf::json::texture::CLAMP_TO_EDGE;
-use wgpu::{CompareFunction, Device, Extent3d, FilterMode, Sampler, SamplerDescriptor, SurfaceConfiguration, TextureDescriptor, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor, naga::back::msl::sampler::CompareFunc};
+use wgpu::{
+    CompareFunction, Device, Extent3d, FilterMode, Sampler, SamplerDescriptor,
+    SurfaceConfiguration, TextureDescriptor, TextureFormat, TextureUsages, TextureView,
+    TextureViewDescriptor,
+};
 
 #[derive(Debug, Clone)]
 pub struct Texture {
@@ -29,7 +30,7 @@ impl Texture {
         let desc = TextureDescriptor {
             label: Some(label),
             size: extent_size,
-            mip_level_count: 1, 
+            mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: Self::DEPTH_FORMAT,
@@ -47,7 +48,7 @@ impl Texture {
             min_filter: FilterMode::Linear,
             mipmap_filter: FilterMode::Nearest,
             lod_min_clamp: 0.0,
-            lod_max_clamp: 100.0, 
+            lod_max_clamp: 100.0,
             compare: Some(CompareFunction::Less),
 
             ..Default::default()
@@ -56,7 +57,7 @@ impl Texture {
         Texture {
             texture,
             view,
-            sampler
+            sampler,
         }
     }
 }

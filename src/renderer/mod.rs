@@ -2,9 +2,8 @@ use std::{path::Path, sync::Arc, time::Instant};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
-use log::debug;
 use wgpu::{
-    BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations, Queue,
+    BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
     RenderPipeline, ShaderStages, TextureView, TextureViewDescriptor,
 };
@@ -12,8 +11,7 @@ use winit::{dpi::PhysicalPosition, window::Window};
 
 use crate::renderer::{
     components::{
-        LightType, asset_manager::AssetManager, camera::CameraController, glTF::GLTFLoader, light,
-        render_mesh::RenderMesh,
+        LightType, asset_manager::AssetManager, camera::CameraController, render_mesh::RenderMesh,
     },
     renderer_context::RenderContext,
     wrappers::WinitSurfaceProvider,
@@ -26,15 +24,12 @@ pub mod renderer_context;
 pub mod util;
 pub mod wrappers;
 
-const FRAME_TOTAL: u8 = 2;
-
 pub struct Renderer {
     ctx: RenderContext,
     window: Arc<Window>,
     frame_idx: u8,
     pub camera_controller: CameraController,
     pub asset_manager: AssetManager,
-    render_delta: Instant,
 }
 
 impl Renderer {
@@ -55,18 +50,17 @@ impl Renderer {
             LightType::NO_LIGHT,
             &Path::new("/Users/zapzap/Projects/hyako/assets/gltf/Cube.gltf"),
         );
-        debug!("{:?}", asset_manager);
         Ok(Self {
             ctx: ctx,
             asset_manager,
             frame_idx: 0,
             camera_controller: CameraController::new(0.2),
-            render_delta: Instant::now(),
             window,
         })
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, delta_time: f32) {
+        // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller.update_camera(&mut self.ctx.camera);
         self.ctx.camera_uniform.update(&self.ctx.camera);
         self.ctx.queue.write_buffer(
@@ -78,7 +72,6 @@ impl Renderer {
 
     pub fn render(&mut self, mouse_pos: PhysicalPosition<f64>) -> Result<()> {
         self.window.request_redraw();
-        self.render_delta = Instant::now();
         if self.ctx.surface_configuration.is_none() {
             return Ok(());
         }
@@ -101,7 +94,7 @@ impl Renderer {
                 label: Some("Rendering Encoder"),
             });
         let depth_texture = self.ctx.depth_texture.clone();
-        
+
         {
             clear_encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Main Command Buffer"),
@@ -131,7 +124,7 @@ impl Renderer {
                 }),
             });
         }
-        
+
         self.asset_manager
             .get_all_visible_assets_with_modifier(&LightType::LIGHT)
             .for_each(|elem| {
