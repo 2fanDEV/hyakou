@@ -4,7 +4,7 @@ use mockall::automock;
 use wgpu::{Instance, Surface};
 use winit::window::Window;
 
-use crate::renderer::util::{Height, Size, Width};
+use crate::renderer::util::Size;
 
 #[automock]
 pub trait SurfaceProvider {
@@ -32,4 +32,3 @@ impl SurfaceProvider for WinitSurfaceProvider {
         }
     }
 }
-
