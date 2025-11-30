@@ -17,7 +17,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    const MIN_TIME_IN_SECONDS: f32 = 0.33;
+    const MIN_TIME_IN_SECONDS: f32 = 0.05;
 
     pub fn new() -> Self {
         Self {

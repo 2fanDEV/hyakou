@@ -206,7 +206,7 @@ impl Renderer {
         render_pass.set_push_constants(
             ShaderStages::VERTEX,
             0,
-            bytemuck::bytes_of(&render_mesh.mesh_matrix),
+            bytemuck::bytes_of(&render_mesh.get_matrix()),
         );
         render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
         render_pass.set_bind_group(1, light_bind_group, &[]);

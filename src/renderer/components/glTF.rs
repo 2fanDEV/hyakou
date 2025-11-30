@@ -1,10 +1,10 @@
 use std::{iter::zip, path::Path};
 
 use anyhow::Result;
-use nalgebra::{Vector2, Vector3, Vector4};
+use nalgebra::{Quaternion, UnitQuaternion, Vector2, Vector3, Vector4};
 
 use crate::renderer::{
-    components::mesh_node::MeshNode,
+    components::{mesh_node::MeshNode, render_mesh::Transform},
     geometry::{mesh::Mesh, vertices::Vertex},
 };
 
@@ -40,6 +40,15 @@ impl GLTFLoader {
             .collect();
 
         for node in gltf.nodes() {
+            let (translation, rotation, scale) = node.transform().decomposed();
+            let translation = Vector3::new(translation[0], translation[1], translation[2]);
+            let rotation = UnitQuaternion::new_normalize(Quaternion::new(
+                rotation[0],
+                rotation[1],
+                rotation[2],
+                rotation[3],
+            ));
+            let scale = Vector3::new(scale[0], scale[1], scale[2]);
             let matrix = node.transform().matrix();
             let mesh = match node.mesh() {
                 Some(mesh) => mesh,
@@ -102,9 +111,16 @@ impl GLTFLoader {
                     }
                 })
                 .collect::<Vec<_>>();
-            meshes
-                .into_iter()
-                .for_each(|mesh| mesh_nodes.push(MeshNode::new(mesh, matrix)));
+            meshes.into_iter().for_each(|mesh| {
+                mesh_nodes.push(MeshNode::new(
+                    mesh,
+                    Transform {
+                        position: translation,
+                        rotation,
+                        scale,
+                    },
+                ))
+            });
         }
         Ok(mesh_nodes)
     }
