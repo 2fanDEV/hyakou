@@ -40,7 +40,7 @@ impl AssetManager {
             } else {
                 id.clone()
             };
-            let render_mesh = RenderMesh::new(&self.device, &node, &light_type, Some(id.clone()));
+            let render_mesh = RenderMesh::new(&self.device, node, &light_type, Some(id.clone()));
             self.memory_loaded_assets.insert(id.clone(), render_mesh);
             self.visible_assets.insert(id);
             idx += 1;

@@ -2,8 +2,8 @@ use std::{ops::Range, sync::Arc};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
+use glam::Vec3;
 use log::debug;
-use nalgebra::{Point3, Vector3};
 use wgpu::{
     Backends, BindGroup, Buffer, BufferUsages, Device, DeviceDescriptor, ExperimentalFeatures,
     Features, FeaturesWGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
@@ -106,9 +106,9 @@ impl RenderContext {
 
         debug!("SIZE: {:?}, {:?}", size.width, size.height);
         let camera = Camera::new(
-            Point3::new(0.0, 0.0, 5.0),
-            Point3::new(0.0, 0.0, -1.0),
-            Vector3::y_axis().into_inner(),
+            Vec3::new(0.0, 0.0, 5.0),
+            Vec3::new(0.0, 0.0, -1.0),
+            Vec3::Y,
             (size.width / size.height) as f32,
             45.0_f32.to_radians(),
             0.1,
@@ -123,7 +123,7 @@ impl RenderContext {
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
-        let light = LightSource::new(Vector3::new(0.0, 3.0, 3.0), Vector3::new(1.0, 1.0, 1.0));
+        let light = LightSource::new(Vec3::new(0.0, 3.0, 3.0), Vec3::new(1.0, 1.0, 1.0));
         let light_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Light Source Buffer"),
             contents: bytemuck::bytes_of(&light),

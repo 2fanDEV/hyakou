@@ -1,4 +1,4 @@
-use nalgebra::{Matrix4, Quaternion, UnitQuaternion, Vector3, Vector4};
+use glam::{Mat4, Quat, Vec3};
 use uuid::Uuid;
 use wgpu::{
     Buffer, BufferUsages, Device,
@@ -12,9 +12,9 @@ use crate::renderer::{
 
 #[derive(Debug, Clone)]
 pub struct Transform {
-    pub position: Vector3<f32>,
-    pub rotation: UnitQuaternion<f32>,
-    pub scale: Vector3<f32>,
+    pub position: Vec3,
+    pub rotation: Quat,
+    pub scale: Vec3,
 }
 
 #[derive(Debug, Clone)]
@@ -56,11 +56,11 @@ impl RenderMesh {
         }
     }
 
-    pub fn get_matrix(&self) -> Matrix4<f32> {
-        self.transform.position * self.transform.rotation.to_homogeneous() * self.transform.scale
+    pub fn get_matrix(&self) -> Mat4 {
+        Mat4::IDENTITY
     }
 
-    pub fn calculate_matrix(transform: Transform) -> Matrix4<f32> {
-        Matrix4::
+    pub fn calculate_matrix(transform: Transform) -> Mat4 {
+        Mat4::IDENTITY
     }
 }

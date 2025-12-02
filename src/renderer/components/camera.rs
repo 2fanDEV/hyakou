@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use nalgebra::{Matrix4, Point3, Vector3};
+use glam::{Mat4, Vec3};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,
@@ -52,7 +52,7 @@ impl CameraController {
     pub fn update_camera(&mut self, camera: &mut Camera, delta_time: f32) {
         let forward = camera.target - camera.eye;
         let forward_norm = forward.normalize();
-        let forward_mag = forward.magnitude();
+        let forward_mag = forward.length();
         let speed = self.speed * delta_time;
 
         if self.is_forward_pressed && forward_mag > speed {
@@ -62,7 +62,7 @@ impl CameraController {
             camera.eye -= forward_norm * speed;
         }
 
-        let right = forward_norm.cross(&camera.up);
+        let right = forward_norm.cross(camera.up);
         if self.is_right_pressed {
             camera.eye = camera.target - (forward + right * speed).normalize() * forward_mag;
         }
@@ -75,13 +75,13 @@ impl CameraController {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 pub struct CameraUniform {
-    pub view_projection_matrix: Matrix4<f32>,
+    pub view_projection_matrix: Mat4,
 }
 
 impl CameraUniform {
     pub fn new() -> CameraUniform {
         Self {
-            view_projection_matrix: Matrix4::identity(),
+            view_projection_matrix: Mat4::IDENTITY,
         }
     }
 
@@ -128,9 +128,9 @@ impl BindGroupProvider for CameraUniform {
 }
 
 pub struct Camera {
-    eye: Point3<f32>,
-    target: Point3<f32>,
-    up: Vector3<f32>,
+    eye: Vec3,
+    target: Vec3,
+    up: Vec3,
     aspect: f32,
     fovy: f32,
     znear: f32,
@@ -139,9 +139,9 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(
-        eye: Point3<f32>,
-        target: Point3<f32>,
-        up: Vector3<f32>,
+        eye: Vec3,
+        target: Vec3,
+        up: Vec3,
         aspect: f32,
         fovy: f32,
         znear: f32,
@@ -158,9 +158,9 @@ impl Camera {
         }
     }
 
-    pub fn build_proj_matrix(&self) -> Matrix4<f32> {
-        let view = Matrix4::look_at_rh(&self.eye, &self.target, &self.up);
-        let proj = Matrix4::new_perspective(self.aspect, self.fovy, self.znear, self.zfar);
+    pub fn build_proj_matrix(&self) -> Mat4 {
+        let view = Mat4::look_at_rh(self.eye, self.target, self.up);
+        let proj = Mat4::perspective_rh(self.aspect, self.fovy, self.znear, self.zfar);
         proj * view
     }
 }

@@ -1,14 +1,14 @@
 use std::{iter::zip, path::Path};
 
 use anyhow::Result;
-use nalgebra::{Quaternion, UnitQuaternion, Vector2, Vector3, Vector4};
+use glam::{Vec2, Vec3, Vec4};
 
 use crate::renderer::{
     components::{mesh_node::MeshNode, render_mesh::Transform},
     geometry::{mesh::Mesh, vertices::Vertex},
 };
 
-static BASE_PATH: &str = "/Users/zapzap/Projects/hyako/assets/gltf";
+static BASE_PATH: &str = "/Users/zapzap/Projects/hyakou/assets/gltf";
 
 pub struct GLTFLoader {}
 
@@ -34,6 +34,7 @@ impl GLTFLoader {
                 gltf::buffer::Source::Uri(uri) => {
                     let base_path = Path::new(BASE_PATH);
                     let uri = base_path.join(uri);
+                    println!("{:?}", uri);
                     std::fs::read(uri).unwrap()
                 }
             })
@@ -41,14 +42,9 @@ impl GLTFLoader {
 
         for node in gltf.nodes() {
             let (translation, rotation, scale) = node.transform().decomposed();
-            let translation = Vector3::new(translation[0], translation[1], translation[2]);
-            let rotation = UnitQuaternion::new_normalize(Quaternion::new(
-                rotation[0],
-                rotation[1],
-                rotation[2],
-                rotation[3],
-            ));
-            let scale = Vector3::new(scale[0], scale[1], scale[2]);
+            let translation = Vec3::new(translation[0], translation[1], translation[2]);
+            let rotation = glam::Quat::from_array(rotation).normalize();
+            let scale = Vec3::new(scale[0], scale[1], scale[2]);
             let matrix = node.transform().matrix();
             let mesh = match node.mesh() {
                 Some(mesh) => mesh,
@@ -66,7 +62,7 @@ impl GLTFLoader {
                     let positions = reader
                         .read_positions()
                         .unwrap()
-                        .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
+                        .map(|vec| Vec3::new(vec[0], vec[1], vec[2]))
                         .collect::<Vec<_>>();
 
                     let indices = reader
@@ -78,24 +74,24 @@ impl GLTFLoader {
                     let normals = reader
                         .read_normals()
                         .unwrap()
-                        .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
+                        .map(|vec| Vec3::new(vec[0], vec[1], vec[2]))
                         .collect::<Vec<_>>();
 
                     let tex_coords = reader
                         .read_tex_coords(0)
                         .unwrap()
                         .into_f32()
-                        .map(|vec| Vector2::new(vec[0], vec[1]))
+                        .map(|vec| Vec2::new(vec[0], vec[1]))
                         .collect::<Vec<_>>();
 
                     let gltf_colors = reader.read_colors(0);
 
-                    let colors: Vec<Vector4<f32>> = match gltf_colors {
+                    let colors: Vec<Vec4> = match gltf_colors {
                         Some(read_colors) => read_colors
                             .into_rgba_f32()
-                            .map(|v| Vector4::new(v[0], v[1], v[2], v[3]))
+                            .map(|v| Vec4::new(v[0], v[1], v[2], v[3]))
                             .collect::<Vec<_>>(),
-                        None => vec![Vector4::new(0.0, 0.0, 0.0, 0.0)],
+                        None => vec![Vec4::new(0.0, 0.0, 0.0, 0.0)],
                     };
 
                     let vertices = zip(zip(positions, normals), tex_coords)

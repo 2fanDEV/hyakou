@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use nalgebra::{Vector2, Vector3, Vector4};
+use glam::{Vec2, Vec3, Vec4};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, Device, Sampler, ShaderStages, TextureSampleType,
@@ -11,19 +11,14 @@ use crate::renderer::geometry::{BindGroupProvider, BufferLayoutProvider};
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable, Default)]
 pub struct Vertex {
-    pub position: Vector3<f32>,
-    pub tex_coords: Vector2<f32>,
-    pub normals: Vector3<f32>,
-    pub colors: Vector4<f32>,
+    pub position: Vec3,
+    pub tex_coords: Vec2,
+    pub normals: Vec3,
+    pub colors: Vec4,
 }
 
 impl Vertex {
-    pub fn new(
-        position: Vector3<f32>,
-        tex_coords: Vector2<f32>,
-        normals: Vector3<f32>,
-        colors: Vector4<f32>,
-    ) -> Self {
+    pub fn new(position: Vec3, tex_coords: Vec2, normals: Vec3, colors: Vec4) -> Self {
         Self {
             position,
             tex_coords,
