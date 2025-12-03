@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Instant};
 use log::debug;
 use winit::{
     application::ApplicationHandler,
-    dpi::PhysicalPosition,
+    dpi::{PhysicalPosition, PhysicalSize, Size},
     event::WindowEvent,
     window::{Window, WindowAttributes},
 };
@@ -39,7 +39,9 @@ impl AppState {
 
 impl ApplicationHandler for AppState {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        let window = match event_loop.create_window(WindowAttributes::default()) {
+        let window = match event_loop.create_window(
+            WindowAttributes::default().with_inner_size(PhysicalSize::new(1920, 1080)),
+        ) {
             Ok(window) => Arc::new(window),
             Err(e) => {
                 debug!("{:?}", e);

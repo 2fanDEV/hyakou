@@ -2,6 +2,8 @@ use std::{path::Path, sync::Arc};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
+use glam::Vec3;
+use log::debug;
 use wgpu::{
     BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
@@ -54,6 +56,8 @@ impl Renderer {
             LightType::NO_LIGHT,
             &Path::new(&assets_dir).join("assets/gltf/Cube.gltf"),
         );
+        debug!("{:?}", asset_manager.get_all_loaded_asset_ids());
+
         Ok(Self {
             ctx,
             asset_manager,
@@ -67,6 +71,8 @@ impl Renderer {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
             .update_camera(&mut self.ctx.camera, delta_time);
+        let mesh = self.asset_manager.get_visible_asset_by_id("Light_0");
+        mesh.transform.translate(Vec3::new(0.01, 0.0, -0.01));
         self.ctx.camera_uniform.update(&self.ctx.camera);
         self.ctx.queue.write_buffer(
             &self.ctx.camera_uniform_buffer,

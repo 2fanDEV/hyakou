@@ -17,6 +17,27 @@ pub struct Transform {
     pub scale: Vec3,
 }
 
+impl Transform {
+    pub fn new(position: Vec3, rotation: Quat, scale: Vec3) -> Transform {
+        Self {
+            position,
+            rotation,
+            scale,
+        }
+    }
+
+    pub fn translate(&mut self, delta: Vec3) {
+        self.position += delta;
+    }
+
+    pub fn rotation(&mut self, delta: Quat) {
+        self.rotation *= delta;
+    }
+    pub fn scale(&mut self, delta: Vec3) {
+        self.scale += delta;
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RenderMesh {
     pub id: String,
@@ -57,10 +78,8 @@ impl RenderMesh {
     }
 
     pub fn get_matrix(&self) -> Mat4 {
-        Mat4::IDENTITY
-    }
-
-    pub fn calculate_matrix(transform: Transform) -> Mat4 {
-        Mat4::IDENTITY
+        Mat4::from_translation(self.transform.position)
+            * Mat4::from_quat(self.transform.rotation)
+            * Mat4::from_scale(self.transform.scale)
     }
 }

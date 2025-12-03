@@ -92,8 +92,8 @@ impl RenderContext {
             provider.unwrap().get_size()
         } else {
             Size {
-                width: 800,
-                height: 600,
+                width: 1920,
+                height: 1080,
             }
         };
 
@@ -104,7 +104,6 @@ impl RenderContext {
             None => None,
         };
 
-        debug!("SIZE: {:?}, {:?}", size.width, size.height);
         let camera = Camera::new(
             Vec3::new(0.0, 0.0, 5.0),
             Vec3::new(0.0, 0.0, -1.0),

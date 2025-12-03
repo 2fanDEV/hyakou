@@ -74,11 +74,15 @@ impl AssetManager {
     }
 
     pub fn get_all_visible_assets_with_modifier(
-        &self,
+        &mut self,
         light_type: &LightType,
     ) -> impl Iterator<Item = &RenderMesh> {
         self.get_visible_asset_ids()
             .map(|id| self.memory_loaded_assets.get(id).unwrap())
             .filter(move |rm| rm.light_type.eq(&light_type))
+    }
+
+    pub fn get_visible_asset_by_id(&mut self, id: &str) -> &mut RenderMesh {
+        self.memory_loaded_assets.get_mut(id).unwrap()
     }
 }
