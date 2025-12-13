@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet, hash_set::Iter},
     path::Path,
+    rc::Rc,
     sync::Arc,
 };
 
@@ -12,27 +13,34 @@ use crate::renderer::{
 };
 
 #[derive(Debug)]
-pub struct AssetManager {
+pub struct AssetHandler {
     device: Arc<Device>,
-    memory_loaded_assets: HashMap<String, RenderMesh>,
+    memory_loaded_assets: HashMap<String, Rc<RenderMesh>>,
     visible_assets: HashSet<String>,
 }
 
-impl AssetManager {
-    pub fn new(device: Arc<Device>) -> AssetManager {
-        AssetManager {
+impl AssetHandler {
+    pub fn new(device: Arc<Device>) -> AssetHandler {
+        AssetHandler {
             memory_loaded_assets: HashMap::new(),
             visible_assets: HashSet::new(),
             device,
         }
     }
 
-    pub fn add_from_path(&mut self, mut id: String, light_type: LightType, path: &Path) {
+    pub fn add_from_path(
+        &mut self,
+        mut id: String,
+        light_type: LightType,
+        path: &Path,
+    ) -> Option<Rc<RenderMesh>> {
+        //TODO make rendermesh be a node consisting of multiple nodes
         let mut idx = 0;
         let mesh_nodes = match GLTFLoader::load_from_path(path) {
             Ok(nodes) => nodes,
             Err(_) => panic!("Couldn't find model at path: {:?}", path),
         };
+        let mut render_mesh = None;
         for node in mesh_nodes {
             let id = if idx.eq(&0) {
                 id.concat("_".to_string().concat(&idx.to_string()))
@@ -40,11 +48,18 @@ impl AssetManager {
             } else {
                 id.clone()
             };
-            let render_mesh = RenderMesh::new(&self.device, node, &light_type, Some(id.clone()));
-            self.memory_loaded_assets.insert(id.clone(), render_mesh);
+            render_mesh = Some(Rc::new(RenderMesh::new(
+                &self.device,
+                node,
+                &light_type,
+                Some(id.clone()),
+            )));
+            self.memory_loaded_assets
+                .insert(id.clone(), render_mesh.as_ref().unwrap().clone());
             self.visible_assets.insert(id);
             idx += 1;
         }
+        render_mesh
     }
 
     pub fn get(&self, id: String) -> &RenderMesh {

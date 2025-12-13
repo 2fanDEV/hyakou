@@ -1,4 +1,4 @@
-use wgpu::{BindGroupLayout, Device, VertexBufferLayout};
+use wgpu::{BindGroup, BindGroupLayout, Buffer, Device, VertexBufferLayout};
 
 pub mod mesh;
 pub mod render_object;
@@ -9,4 +9,9 @@ pub trait BufferLayoutProvider {
 
 pub trait BindGroupProvider {
     fn bind_group_layout(device: &Device) -> BindGroupLayout;
+    fn bind_group(
+        device: &Device,
+        buffer: &Buffer,
+        bind_group_layout: &BindGroupLayout,
+    ) -> BindGroup;
 }

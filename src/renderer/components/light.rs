@@ -10,7 +10,7 @@ use crate::renderer::geometry::BindGroupProvider;
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct LightSource {
-    position: Vec3,
+    pub position: Vec3,
     _padding_1: f32,
     color: Vec3,
     _padding_2: f32,
@@ -24,25 +24,6 @@ impl LightSource {
             _padding_1: 0.0,
             _padding_2: 0.0,
         }
-    }
-
-    pub fn bind_group(device: &Device, buffer: &Buffer) -> (BindGroupLayout, BindGroup) {
-        let bind_group_layout = &Self::bind_group_layout(device);
-        (
-            bind_group_layout.clone(),
-            device.create_bind_group(&BindGroupDescriptor {
-                label: Some("Light Bind Group"),
-                layout: &bind_group_layout,
-                entries: &[BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(BufferBinding {
-                        buffer: &buffer,
-                        offset: 0,
-                        size: None,
-                    }),
-                }],
-            }),
-        )
     }
 }
 
@@ -59,6 +40,25 @@ impl BindGroupProvider for LightSource {
                     min_binding_size: None,
                 },
                 count: None,
+            }],
+        })
+    }
+
+    pub fn bind_group(
+        device: &Device,
+        buffer: &Buffer,
+        bind_group_layout: &BindGroupLayout,
+    ) -> BindGroup {
+        device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Light Bind Group"),
+            layout: bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::Buffer(BufferBinding {
+                    buffer: &buffer,
+                    offset: 0,
+                    size: None,
+                }),
             }],
         })
     }

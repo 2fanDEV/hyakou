@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::renderer::{
-    components::render_mesh::Transform,
+    components::transform::Transform,
     geometry::{BufferLayoutProvider, mesh::Mesh, vertices::Vertex},
 };
 

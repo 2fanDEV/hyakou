@@ -89,4 +89,12 @@ impl BindGroupProvider for Vertex {
             ],
         })
     }
+
+    fn bind_group(
+        device: &Device,
+        buffer: &wgpu::Buffer,
+        bind_group_layout: &BindGroupLayout,
+    ) -> BindGroup {
+        todo!()
+    }
 }

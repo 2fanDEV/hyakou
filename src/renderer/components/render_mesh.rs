@@ -1,4 +1,7 @@
-use glam::{Mat4, Quat, Vec3};
+use std::sync::{Arc, RwLock};
+
+use bytemuck::bytes_of;
+use glam::Mat4;
 use uuid::Uuid;
 use wgpu::{
     Buffer, BufferUsages, Device,
@@ -6,37 +9,9 @@ use wgpu::{
 };
 
 use crate::renderer::{
-    components::{LightType, mesh_node::MeshNode},
+    components::{LightType, mesh_node::MeshNode, transform::Transform},
     util::Concatable,
 };
-
-#[derive(Debug, Clone)]
-pub struct Transform {
-    pub position: Vec3,
-    pub rotation: Quat,
-    pub scale: Vec3,
-}
-
-impl Transform {
-    pub fn new(position: Vec3, rotation: Quat, scale: Vec3) -> Transform {
-        Self {
-            position,
-            rotation,
-            scale,
-        }
-    }
-
-    pub fn translate(&mut self, delta: Vec3) {
-        self.position += delta;
-    }
-
-    pub fn rotation(&mut self, delta: Quat) {
-        self.rotation *= delta;
-    }
-    pub fn scale(&mut self, delta: Vec3) {
-        self.scale += delta;
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct RenderMesh {
@@ -45,7 +20,7 @@ pub struct RenderMesh {
     pub index_buffer: Buffer,
     pub index_count: u32,
     pub light_type: LightType,
-    pub transform: Transform,
+    pub transform: Arc<RwLock<Transform>>,
 }
 
 impl RenderMesh {
@@ -73,13 +48,7 @@ impl RenderMesh {
             index_buffer,
             light_type: light_type.clone(),
             index_count: mesh_node.indices.len() as u32,
-            transform: mesh_node.transform,
+            transform: Arc::new(RwLock::new(mesh_node.transform)),
         }
-    }
-
-    pub fn get_matrix(&self) -> Mat4 {
-        Mat4::from_translation(self.transform.position)
-            * Mat4::from_quat(self.transform.rotation)
-            * Mat4::from_scale(self.transform.scale)
     }
 }
