@@ -1,13 +1,16 @@
-use std::{path::Path, sync::Arc};
+use std::{
+    path::Path,
+    sync::{Arc, RwLock},
+};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
 use glam::Vec3;
+use log::debug;
 use wgpu::{
-    BindGroup, BufferUsages, Color, CommandEncoder, CommandEncoderDescriptor, Operations,
+    BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
     RenderPipeline, ShaderStages, TextureView, TextureViewDescriptor,
-    util::{BufferInitDescriptor, DeviceExt},
 };
 use winit::{dpi::PhysicalPosition, window::Window};
 
@@ -17,14 +20,12 @@ use crate::renderer::{
         camera::{Camera, CameraUniform},
         light::LightSource,
         render_mesh::RenderMesh,
+        transform::Transform,
     },
     geometry::BindGroupProvider,
     handlers::{asset_handler::AssetHandler, camera_controller::CameraController},
     renderer_context::RenderContext,
-    types::{
-        ids::{UniformBufferId, UniformResourceId},
-        uniform::UniformBuffer,
-    },
+    types::{ids::UniformBufferId, uniform::UniformBuffer},
     wrappers::WinitSurfaceProvider,
 };
 
@@ -45,6 +46,7 @@ pub struct Renderer {
     camera_uniform_buffer: UniformBuffer,
     camera_bind_group: BindGroup,
     light: LightSource,
+    light_uniform_buffer: UniformBuffer,
     light_bind_group: BindGroup,
     pub camera_controller: CameraController,
     pub asset_manager: AssetHandler,
@@ -58,7 +60,6 @@ impl Renderer {
         }))
         .await
         .unwrap();
-        let light_bind_group = LightSource::bind_group(&device, &light_uniform_buffer);
 
         let assets_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
 
@@ -68,11 +69,25 @@ impl Renderer {
             LightType::LIGHT,
             &Path::new(&assets_dir).join("assets/gltf/Suzanne.gltf"),
         );
-        let cube_mesh = asset_handler.add_from_path(
+        let cube_light_mesh = asset_handler.add_from_path(
             "Cube".to_string(),
             LightType::NO_LIGHT,
             &Path::new(&assets_dir).join("assets/gltf/Cube.gltf"),
         );
+
+        let light = LightSource::new(Vec3::new(0.0, 3.0, 3.0), Vec3::new(1.0, 1.0, 1.0));
+        let light_uniform_buffer = UniformBuffer::new(
+            UniformBufferId::new("Light Uniform Buffer".to_string()),
+            &ctx.device,
+            bytes_of(&light),
+            cube_light_mesh.unwrap().transform.clone(),
+        );
+        let light_bind_group = LightSource::bind_group(
+            &ctx.device,
+            &light_uniform_buffer,
+            &LightSource::bind_group_layout(&ctx.device),
+        );
+
         let camera = Camera::new(
             Vec3::new(0.0, 0.0, 5.0),
             Vec3::new(0.0, 0.0, -1.0),
@@ -86,12 +101,9 @@ impl Renderer {
         camera_uniform.update(&camera);
         let camera_uniform_buffer = UniformBuffer::new(
             UniformBufferId::new("Camera".to_string()),
-            ctx.device.create_buffer_init(&BufferIniDescriptor {
-                label: Some("Camera Uniform Buffer"),
-                contents: bytes_of(&camera_uniform),
-                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            }),
-            cube_mesh.unwrap().transform.clone(),
+            &ctx.device,
+            bytemuck::bytes_of(&camera_uniform),
+            Arc::new(RwLock::new(Transform::default())),
         );
         let camera_bind_group = CameraUniform::bind_group(
             &ctx.device,
@@ -108,6 +120,8 @@ impl Renderer {
             camera_uniform,
             camera_uniform_buffer,
             camera_bind_group,
+            light,
+            light_uniform_buffer,
             light_bind_group,
             camera_controller: CameraController::new(CAMERA_SPEED_UNITS_PER_SECOND),
             window,
@@ -193,8 +207,8 @@ impl Renderer {
                     &mut encoder,
                     elem,
                     &self.ctx.light_render_pipeline,
-                    &self.ctx.camera_bind_group,
-                    &self.ctx.light_bind_group,
+                    &self.camera_bind_group,
+                    &self.light_bind_group,
                     &view,
                     &depth_texture.view,
                     mouse_pos,
@@ -208,8 +222,8 @@ impl Renderer {
                     &mut encoder,
                     elem,
                     &self.ctx.no_light_render_pipeline,
-                    &self.ctx.camera_bind_group,
-                    &self.ctx.light_bind_group,
+                    &self.camera_bind_group,
+                    &self.light_bind_group,
                     &view,
                     &depth_texture.view,
                     mouse_pos,
@@ -262,7 +276,7 @@ impl Renderer {
         render_pass.set_push_constants(
             ShaderStages::VERTEX,
             0,
-            bytemuck::bytes_of(&render_mesh.transform.get_matrix()),
+            bytemuck::bytes_of(&render_mesh.transform.read().unwrap().get_matrix()),
         );
         render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
         render_pass.set_bind_group(1, light_bind_group, &[]);

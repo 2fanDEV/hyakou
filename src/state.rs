@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Instant};
 use log::debug;
 use winit::{
     application::ApplicationHandler,
-    dpi::{PhysicalPosition, PhysicalSize, Size},
+    dpi::{PhysicalPosition, PhysicalSize},
     event::WindowEvent,
     window::{Window, WindowAttributes},
 };
@@ -55,8 +55,8 @@ impl ApplicationHandler for AppState {
 
     fn window_event(
         &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        _window_id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
         let mut mouse_pos = PhysicalPosition::new(0.0, 0.0);

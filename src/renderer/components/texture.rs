@@ -1,7 +1,6 @@
 use wgpu::{
-    CompareFunction, Device, Extent3d, FilterMode, Sampler, SamplerDescriptor,
-    SurfaceConfiguration, TextureDescriptor, TextureFormat, TextureUsages, TextureView,
-    TextureViewDescriptor,
+    CompareFunction, Device, Extent3d, FilterMode, Sampler, SamplerDescriptor, TextureDescriptor,
+    TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
 };
 
 use crate::renderer::util::Size;

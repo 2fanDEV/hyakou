@@ -90,6 +90,7 @@ impl BindGroupProvider for Vertex {
         })
     }
 
+    #[allow(unused)]
     fn bind_group(
         device: &Device,
         buffer: &wgpu::Buffer,

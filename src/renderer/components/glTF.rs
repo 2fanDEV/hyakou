@@ -4,7 +4,7 @@ use anyhow::Result;
 use glam::{Vec2, Vec3, Vec4};
 
 use crate::renderer::{
-    components::{mesh_node::MeshNode, render_mesh::Transform},
+    components::{mesh_node::MeshNode, transform::Transform},
     geometry::{mesh::Mesh, vertices::Vertex},
 };
 
@@ -45,7 +45,6 @@ impl GLTFLoader {
             let translation = Vec3::new(translation[0], translation[1], translation[2]);
             let rotation = glam::Quat::from_array(rotation).normalize();
             let scale = Vec3::new(scale[0], scale[1], scale[2]);
-            let matrix = node.transform().matrix();
             let mesh = match node.mesh() {
                 Some(mesh) => mesh,
                 None => continue,

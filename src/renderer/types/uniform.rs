@@ -1,7 +1,13 @@
-use std::{ops::Deref, sync::Arc};
+use std::{
+    ops::Deref,
+    sync::{Arc, RwLock},
+};
 
 use bytemuck::bytes_of;
-use wgpu::Buffer;
+use wgpu::{
+    Buffer, BufferUsages, Device,
+    util::{BufferInitDescriptor, DeviceExt},
+};
 
 use crate::renderer::{
     components::transform::Transform,
@@ -17,7 +23,7 @@ use super::Id;
 pub struct UniformBuffer {
     id: UniformBufferId,
     buffer: Buffer,
-    transform: Arc<Transform>,
+    transform: Arc<RwLock<Transform>>,
 }
 
 impl Deref for UniformBuffer {
@@ -29,10 +35,19 @@ impl Deref for UniformBuffer {
 }
 
 impl UniformBuffer {
-    pub fn new(id: UniformBufferId, buffer: Buffer, transform: Arc<Transform>) -> Self {
+    pub fn new(
+        id: UniformBufferId,
+        device: &Device,
+        contents: &[u8],
+        transform: Arc<RwLock<Transform>>,
+    ) -> Self {
         Self {
-            id,
-            buffer,
+            id: id.clone(),
+            buffer: device.create_buffer_init(&BufferInitDescriptor {
+                label: Some(id.get()),
+                contents,
+                usage: BufferUsages::COPY_DST | BufferUsages::UNIFORM,
+            }),
             transform,
         }
     }
@@ -52,12 +67,12 @@ impl BaseBuffer for UniformBuffer {
 }
 
 impl TransformBuffer for UniformBuffer {
-    fn get_transform(&self) -> Arc<Transform> {
+    fn get_transform(&self) -> Arc<RwLock<Transform>> {
         self.transform.clone()
     }
 
     fn update_buffer_transform(&mut self, queue: &wgpu::Queue) -> anyhow::Result<()> {
-        let matrix = self.transform.get_matrix();
+        let matrix = self.transform.read().unwrap().get_matrix();
         queue.write_buffer(&self.buffer, 0, bytes_of(&matrix));
         Ok(())
     }

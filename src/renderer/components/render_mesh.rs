@@ -1,7 +1,5 @@
 use std::sync::{Arc, RwLock};
 
-use bytemuck::bytes_of;
-use glam::Mat4;
 use uuid::Uuid;
 use wgpu::{
     Buffer, BufferUsages, Device,

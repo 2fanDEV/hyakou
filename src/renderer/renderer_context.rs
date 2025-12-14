@@ -12,9 +12,7 @@ use wgpu::{
 
 use crate::renderer::{
     components::{
-        camera::{Camera, CameraUniform},
-        light::LightSource,
-        render_pipeline::create_render_pipeline,
+        camera::CameraUniform, light::LightSource, render_pipeline::create_render_pipeline,
         texture::Texture,
     },
     geometry::BindGroupProvider,
@@ -216,7 +214,6 @@ mod tests {
 
     #[test]
     fn create_context() {
-        let mut mock = MockSurfaceProvider::new();
         let ctx = pollster::block_on(RenderContext::new::<MockSurfaceProvider>(None));
         assert!(ctx.is_ok());
     }

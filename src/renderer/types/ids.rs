@@ -2,12 +2,17 @@ use crate::renderer::types::Id;
 
 pub trait UniformResourceId: Id {
     fn get(&self) -> &str;
-    fn new(id: String) -> Self;
 }
 
 #[derive(Clone)]
 pub struct UniformBufferId {
     pub id: String,
+}
+
+impl UniformBufferId {
+    pub fn new(id: String) -> Self {
+        Self { id }
+    }
 }
 
 impl Id for UniformBufferId {
@@ -18,9 +23,5 @@ impl Id for UniformBufferId {
 impl UniformResourceId for UniformBufferId {
     fn get(&self) -> &str {
         self.get_id()
-    }
-
-    fn new(id: String) -> Self {
-        Self { id }
     }
 }

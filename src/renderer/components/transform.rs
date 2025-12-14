@@ -1,6 +1,6 @@
 use glam::{Mat4, Quat, Vec3};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Transform {
     pub position: Vec3,
     pub rotation: Quat,

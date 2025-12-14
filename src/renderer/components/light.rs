@@ -44,7 +44,7 @@ impl BindGroupProvider for LightSource {
         })
     }
 
-    pub fn bind_group(
+    fn bind_group(
         device: &Device,
         buffer: &Buffer,
         bind_group_layout: &BindGroupLayout,
