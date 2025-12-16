@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::Result;
 use bytemuck::bytes_of;
-use glam::Vec3;
+use glam::{Mat4, Vec3};
 use log::debug;
 use wgpu::{
     BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations,
@@ -25,7 +25,7 @@ use crate::renderer::{
     geometry::BindGroupProvider,
     handlers::{asset_handler::AssetHandler, camera_controller::CameraController},
     renderer_context::RenderContext,
-    types::{ids::UniformBufferId, uniform::UniformBuffer},
+    types::{TransformBuffer, ids::UniformBufferId, uniform::UniformBuffer},
     wrappers::WinitSurfaceProvider,
 };
 
@@ -82,6 +82,7 @@ impl Renderer {
             bytes_of(&light),
             cube_light_mesh.unwrap().transform.clone(),
         );
+
         let light_bind_group = LightSource::bind_group(
             &ctx.device,
             &light_uniform_buffer,
@@ -97,8 +98,10 @@ impl Renderer {
             0.1,
             1000.0,
         );
+
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update(&camera);
+
         let camera_uniform_buffer = UniformBuffer::new(
             UniformBufferId::new("Camera".to_string()),
             &ctx.device,
@@ -132,12 +135,11 @@ impl Renderer {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
             .update_camera(&mut self.camera, delta_time);
-        let mesh = self.asset_manager.get_visible_asset_by_id("Light_0");
-        mesh.transform
-            .write()
-            .unwrap()
-            .translate(Vec3::new(0.005, 0.0, -0.005));
+        let mesh = self.asset_manager.get_visible_asset_by_id("Cube_0");
         self.camera_uniform.update(&self.camera);
+        self.light_uniform_buffer
+            .update_buffer_transform(&self.ctx.queue, bytes_of(&self.light))
+            .unwrap();
         self.ctx.queue.write_buffer(
             &self.camera_uniform_buffer,
             0,
@@ -200,12 +202,20 @@ impl Renderer {
             });
         }
 
+        let light_matrix = self
+            .light_uniform_buffer
+            .get_transform()
+            .read()
+            .unwrap()
+            .get_matrix();
+
         self.asset_manager
             .get_all_visible_assets_with_modifier(&LightType::LIGHT)
             .for_each(|elem| {
                 Self::record_scene_pass_command_encoder(
                     &mut encoder,
                     elem,
+                    &light_matrix,
                     &self.ctx.light_render_pipeline,
                     &self.camera_bind_group,
                     &self.light_bind_group,
@@ -221,6 +231,7 @@ impl Renderer {
                 Self::record_scene_pass_command_encoder(
                     &mut encoder,
                     elem,
+                    &light_matrix,
                     &self.ctx.no_light_render_pipeline,
                     &self.camera_bind_group,
                     &self.light_bind_group,
@@ -242,6 +253,7 @@ impl Renderer {
     fn record_scene_pass_command_encoder(
         encoder: &mut CommandEncoder,
         render_mesh: &RenderMesh,
+        light_transform: &Mat4,
         render_pipeline: &RenderPipeline,
         camera_bind_group: &BindGroup,
         light_bind_group: &BindGroup,
@@ -278,6 +290,8 @@ impl Renderer {
             0,
             bytemuck::bytes_of(&render_mesh.transform.read().unwrap().get_matrix()),
         );
+        debug!("{:?}", light_transform.col(3));
+        render_pass.set_push_constants(ShaderStages::FRAGMENT, 64, bytes_of(light_transform));
         render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
         render_pass.set_bind_group(1, light_bind_group, &[]);
         render_pass.set_bind_group(0, camera_bind_group, &[]);

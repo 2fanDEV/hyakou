@@ -2,8 +2,9 @@ struct Camera {
     view_projection_matrix: mat4x4<f32>
 }
 
-struct ModelMatrixPC {
-    m: mat4x4<f32>
+struct PushConstants {
+    model_matrix: mat4x4<f32>,      // bytes 0-64 (vertex stage)
+    light_transform: mat4x4<f32>,   // bytes 64-128 (fragment stage)
 }
 
 struct Light {
@@ -34,7 +35,7 @@ var texture: texture_depth_2d;
 var sampler_s: sampler_comparison; */
 @group(0) @binding(0)
 var<uniform> camera: Camera;
-var<push_constant> model_matrix: ModelMatrixPC;
+var<push_constant> pc: PushConstants;
 
 @vertex
 fn vs_main(
@@ -44,14 +45,16 @@ fn vs_main(
     out.tex_coords = mesh.tex_coords;
     out.normals = mesh.normals;
     out.position = mesh.position;
-    out.clip_position =  camera.view_projection_matrix * model_matrix.m * vec4<f32>(mesh.position, 1.0);
+    out.clip_position =  camera.view_projection_matrix * pc.model_matrix * vec4<f32>(mesh.position, 1.0);
     return out;
 }
 
 // Fragment shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var position = light.position;
+    // Test: Extract translation from light_transform matrix
+    var light_offset = pc.light_transform[3].xyz;
+    var position = light.position + light_offset;
     var color = light.color;
     var diffuse_power = 0.3;
     var distance = length(position);

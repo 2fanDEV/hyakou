@@ -48,7 +48,6 @@ impl CameraController {
         let forward_norm = forward.normalize();
         let forward_mag = forward.length();
         let speed = self.speed * delta_time;
-
         if self.is_forward_pressed && forward_mag > speed {
             camera.eye += forward_norm * speed;
         }

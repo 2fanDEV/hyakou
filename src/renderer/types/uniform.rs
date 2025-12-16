@@ -70,10 +70,4 @@ impl TransformBuffer for UniformBuffer {
     fn get_transform(&self) -> Arc<RwLock<Transform>> {
         self.transform.clone()
     }
-
-    fn update_buffer_transform(&mut self, queue: &wgpu::Queue) -> anyhow::Result<()> {
-        let matrix = self.transform.read().unwrap().get_matrix();
-        queue.write_buffer(&self.buffer, 0, bytes_of(&matrix));
-        Ok(())
-    }
 }

@@ -22,12 +22,11 @@ trait BaseBuffer {
     fn get_id_as_string(&self) -> &str;
 }
 
-trait TransformBuffer: Deref + BaseBuffer {
+pub trait TransformBuffer: Deref + BaseBuffer {
     fn get_transform(&self) -> Arc<RwLock<Transform>>;
-    fn update_buffer_transform(&mut self, queue: &Queue) -> Result<()> {
+    fn update_buffer_transform(&mut self, queue: &Queue, data: &[u8]) -> Result<()> {
         let buffer = self.get_buffer();
-        let current_transform = self.get_transform().read().unwrap().get_matrix();
-        queue.write_buffer(buffer, 0, bytes_of(&current_transform));
+        queue.write_buffer(buffer, 0, data);
         Ok(())
     }
 }
