@@ -4,7 +4,6 @@ use std::{
 };
 
 use anyhow::Result;
-use bytemuck::bytes_of;
 use wgpu::{Buffer, Queue};
 
 use crate::renderer::components::transform::Transform;

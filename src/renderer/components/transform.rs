@@ -1,10 +1,14 @@
+use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Quat, Vec3};
 
-#[derive(Debug, Default, Clone)]
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, Pod, Zeroable)]
 pub struct Transform {
     pub position: Vec3,
+    _padding1: f32,
     pub rotation: Quat,
     pub scale: Vec3,
+    _padding2: f32,
 }
 
 impl Transform {
@@ -13,6 +17,7 @@ impl Transform {
             position,
             rotation,
             scale,
+            ..Default::default()
         }
     }
 

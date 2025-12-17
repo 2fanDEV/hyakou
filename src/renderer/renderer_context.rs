@@ -1,13 +1,11 @@
 use std::{ops::Range, sync::Arc};
 
 use anyhow::Result;
-use glam::Vec3;
 use wgpu::{
-    Backends, BindGroupLayout, BufferUsages, Device, DeviceDescriptor, ExperimentalFeatures,
-    Features, FeaturesWGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
+    Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features,
+    FeaturesWGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
     PushConstantRange, Queue, RenderPipeline, RequestAdapterOptions, ShaderStages, Surface,
     SurfaceConfiguration, TextureFormat, TextureUsages, include_wgsl,
-    util::{BufferInitDescriptor, DeviceExt},
 };
 
 use crate::renderer::{
@@ -97,13 +95,6 @@ impl RenderContext {
             None => None,
         };
 
-        let light = LightSource::new(Vec3::new(0.0, 3.0, 3.0), Vec3::new(1.0, 1.0, 1.0));
-        let light_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Light Source Buffer"),
-            contents: bytemuck::bytes_of(&light),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-
         let depth_texture = Texture::create_depth_texture("Depth Texture", &device, &size);
 
         let camera_bind_group_layout = CameraUniform::bind_group_layout(&device);
@@ -117,7 +108,10 @@ impl RenderContext {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
-                push_constant_ranges: &[],
+                push_constant_ranges: &[PushConstantRange {
+                    stages: ShaderStages::VERTEX,
+                    range: Range { start: 0, end: 64 },
+                }],
             });
 
         let format = if surface_configuration.is_some() {

@@ -3,7 +3,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use bytemuck::bytes_of;
 use wgpu::{
     Buffer, BufferUsages, Device,
     util::{BufferInitDescriptor, DeviceExt},

@@ -74,12 +74,21 @@ impl Renderer {
             LightType::NO_LIGHT,
             &Path::new(&assets_dir).join("assets/gltf/Cube.gltf"),
         );
-
-        let light = LightSource::new(Vec3::new(0.0, 3.0, 3.0), Vec3::new(1.0, 1.0, 1.0));
+        cube_light_mesh
+            .as_ref()
+            .unwrap()
+            .transform
+            .write()
+            .unwrap()
+            .translate(Vec3::new(0.0, 1.0, 1.0));
+        let light = LightSource::new(
+            cube_light_mesh.as_ref().unwrap().transform.clone(),
+            Vec3::new(1.0, 1.0, 1.0),
+        );
         let light_uniform_buffer = UniformBuffer::new(
             UniformBufferId::new("Light Uniform Buffer".to_string()),
             &ctx.device,
-            bytes_of(&light),
+            bytes_of(&light.to_gpu()),
             cube_light_mesh.unwrap().transform.clone(),
         );
 
@@ -134,10 +143,14 @@ impl Renderer {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
             .update_camera(&mut self.camera, delta_time);
-        let mesh = self.asset_manager.get_visible_asset_by_id("Cube_0");
+        self.light
+            .transform
+            .write()
+            .unwrap()
+            .translate(Vec3::new(0.01, 0.0, 0.0));
         self.camera_uniform.update(&self.camera);
         self.light_uniform_buffer
-            .update_buffer_transform(&self.ctx.queue, bytes_of(&self.light))
+            .update_buffer_transform(&self.ctx.queue, bytes_of(&self.light.to_gpu()))
             .unwrap();
         self.ctx.queue.write_buffer(
             &self.camera_uniform_buffer,
@@ -276,7 +289,7 @@ impl Renderer {
             depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
                 view: &depth_view,
                 depth_ops: Some(Operations {
-                    load: wgpu::LoadOp::Clear(1.0),
+                    load: wgpu::LoadOp::Load,
                     store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
@@ -289,8 +302,6 @@ impl Renderer {
             0,
             bytemuck::bytes_of(&render_mesh.transform.read().unwrap().get_matrix()),
         );
-        debug!("{:?}", light_transform.col(3));
-        render_pass.set_push_constants(ShaderStages::FRAGMENT, 64, bytes_of(light_transform));
         render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
         render_pass.set_bind_group(1, light_bind_group, &[]);
         render_pass.set_bind_group(0, camera_bind_group, &[]);

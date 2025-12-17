@@ -109,11 +109,7 @@ impl GLTFLoader {
             meshes.into_iter().for_each(|mesh| {
                 mesh_nodes.push(MeshNode::new(
                     mesh,
-                    Transform {
-                        position: translation,
-                        rotation,
-                        scale,
-                    },
+                    Transform::new(translation, rotation, scale),
                 ))
             });
         }

@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use wgpu::{
@@ -5,23 +7,35 @@ use wgpu::{
     BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,
 };
 
-use crate::renderer::geometry::BindGroupProvider;
+use crate::renderer::{components::transform::Transform, geometry::BindGroupProvider};
+
+#[derive(Debug, Clone)]
+pub struct LightSource {
+    pub transform: Arc<RwLock<Transform>>,
+    color: Vec3,
+}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
-pub struct LightSource {
-    pub position: Vec3,
-    _padding_1: f32,
+pub struct GpuLightSource {
+    transform: Transform,
     color: Vec3,
     _padding_2: f32,
 }
 
 impl LightSource {
-    pub fn new(position: Vec3, color: Vec3) -> LightSource {
-        Self {
-            position,
-            color,
-            _padding_1: 0.0,
+    pub fn new(transform: Arc<RwLock<Transform>>, color: Vec3) -> LightSource {
+        Self { transform, color }
+    }
+
+    pub fn update_color(&mut self, color: Vec3) {
+        self.color = color;
+    }
+
+    pub fn to_gpu(&self) -> GpuLightSource {
+        GpuLightSource {
+            transform: *self.transform.read().unwrap(),
+            color: self.color,
             _padding_2: 0.0,
         }
     }
