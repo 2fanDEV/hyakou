@@ -7,6 +7,10 @@ struct PushConstants {
     light_transform: mat4x4<f32>,   // bytes 64-128 (fragment stage)
 }
 
+struct MeshInformation {
+    mvp_matrix
+}
+
 struct Light {
     position: vec3<f32>,
     color: vec3<f32>,

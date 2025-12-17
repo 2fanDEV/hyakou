@@ -117,19 +117,7 @@ impl RenderContext {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
-                push_constant_ranges: &[
-                    PushConstantRange {
-                        stages: ShaderStages::VERTEX,
-                        range: Range { start: 0, end: 64 },
-                    },
-                    PushConstantRange {
-                        stages: ShaderStages::FRAGMENT,
-                        range: Range {
-                            start: 64,
-                            end: 128,
-                        },
-                    },
-                ],
+                push_constant_ranges: &[],
             });
 
         let format = if surface_configuration.is_some() {

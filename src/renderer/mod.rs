@@ -113,7 +113,6 @@ impl Renderer {
             &camera_uniform_buffer,
             &ctx.camera_bind_group_layout,
         );
-        debug!("{:?}", asset_handler.get_all_loaded_asset_ids());
 
         Ok(Self {
             ctx,

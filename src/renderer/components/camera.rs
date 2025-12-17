@@ -95,7 +95,7 @@ impl Camera {
 
     pub fn build_proj_matrix(&self) -> Mat4 {
         let view = Mat4::look_at_rh(self.eye, self.target, self.up);
-        let proj = Mat4::perspective_rh(self.aspect, self.fovy, self.znear, self.zfar);
+        let proj = Mat4::perspective_rh(self.fovy, self.aspect, self.znear, self.zfar);
         proj * view
     }
 }
