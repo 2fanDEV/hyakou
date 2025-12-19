@@ -1,4 +1,7 @@
+use std::path::PathBuf;
 
+use bytemuck::bytes_of;
+use glam::Mat4;
 
 pub type Width = u32;
 pub type Height = u32;
@@ -6,7 +9,7 @@ pub type Height = u32;
 #[derive(Debug, Clone, Copy)]
 pub struct Size {
     pub width: Width,
-    pub height: Height
+    pub height: Height,
 }
 
 pub trait Concatable {
@@ -18,4 +21,13 @@ impl Concatable for String {
         self.push_str(text);
         self.as_str()
     }
+}
+
+pub fn get_matrix_as_bytes(mat: &Mat4) -> &[u8] {
+    bytes_of(mat)
+}
+
+pub fn get_relative_path() -> PathBuf {
+    let path = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(path)
 }

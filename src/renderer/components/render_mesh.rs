@@ -1,4 +1,5 @@
-use nalgebra::Matrix4;
+use std::sync::{Arc, RwLock};
+
 use uuid::Uuid;
 use wgpu::{
     Buffer, BufferUsages, Device,
@@ -6,7 +7,7 @@ use wgpu::{
 };
 
 use crate::renderer::{
-    components::{LightType, mesh_node::MeshNode},
+    components::{LightType, mesh_node::MeshNode, transform::Transform},
     util::Concatable,
 };
 
@@ -17,13 +18,13 @@ pub struct RenderMesh {
     pub index_buffer: Buffer,
     pub index_count: u32,
     pub light_type: LightType,
-    pub mesh_matrix: Matrix4<f32>,
+    pub transform: Arc<RwLock<Transform>>,
 }
 
 impl RenderMesh {
     pub fn new(
         device: &Device,
-        mesh_node: &MeshNode,
+        mesh_node: MeshNode,
         light_type: &LightType,
         label: Option<String>,
     ) -> Self {
@@ -39,14 +40,13 @@ impl RenderMesh {
             contents: bytemuck::cast_slice(&mesh_node.indices),
             usage: BufferUsages::INDEX,
         });
-
         Self {
             id,
             vertex_buffer,
             index_buffer,
             light_type: light_type.clone(),
             index_count: mesh_node.indices.len() as u32,
-            mesh_matrix: mesh_node.model_matrix,
+            transform: Arc::new(RwLock::new(mesh_node.transform)),
         }
     }
 }

@@ -11,7 +11,7 @@ fn main() {
         .try_init()
         .unwrap();
     match event_loop.run_app(&mut app_state) {
-        Ok(a) => debug!("App exited succesfully"),
+        Ok(_) => debug!("App exited successfully"),
         Err(e) => {
             debug!("{:?}", e);
             panic!()

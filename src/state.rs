@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Instant};
 use log::debug;
 use winit::{
     application::ApplicationHandler,
-    dpi::PhysicalPosition,
+    dpi::{PhysicalPosition, PhysicalSize},
     event::WindowEvent,
     window::{Window, WindowAttributes},
 };
@@ -17,7 +17,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    const MIN_TIME_IN_SECONDS: f32 = 0.33;
+    const MIN_TIME_IN_SECONDS: f32 = 0.05;
 
     pub fn new() -> Self {
         Self {
@@ -39,7 +39,9 @@ impl AppState {
 
 impl ApplicationHandler for AppState {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        let window = match event_loop.create_window(WindowAttributes::default()) {
+        let window = match event_loop.create_window(
+            WindowAttributes::default().with_inner_size(PhysicalSize::new(1920, 1080)),
+        ) {
             Ok(window) => Arc::new(window),
             Err(e) => {
                 debug!("{:?}", e);
@@ -53,8 +55,8 @@ impl ApplicationHandler for AppState {
 
     fn window_event(
         &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        _window_id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
         let mut mouse_pos = PhysicalPosition::new(0.0, 0.0);

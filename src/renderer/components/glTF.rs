@@ -1,30 +1,40 @@
-use std::{iter::zip, path::Path};
-
-use anyhow::Result;
-use nalgebra::{Vector2, Vector3, Vector4};
-
-use crate::renderer::{
-    components::mesh_node::MeshNode,
-    geometry::{mesh::Mesh, vertices::Vertex},
+use std::{
+    iter::zip,
+    path::{Path, PathBuf},
 };
 
-static BASE_PATH: &str = "/Users/zapzap/Projects/hyako/assets/gltf";
+use anyhow::{Result, anyhow};
+use glam::{Vec2, Vec3, Vec4};
 
-pub struct GLTFLoader {}
+use crate::renderer::{
+    components::{mesh_node::MeshNode, transform::Transform},
+    geometry::{mesh::Mesh, vertices::Vertex},
+    util::Concatable,
+};
+
+#[derive(Debug)]
+pub struct GLTFLoader {
+    BASE_PATH: PathBuf,
+}
 
 impl GLTFLoader {
-    pub fn load_from_path(path: &Path) -> Result<Vec<MeshNode>> {
-        let slice = std::fs::read(path).unwrap();
-        Self::load_from_slice(slice)
+    pub fn new(p: PathBuf) -> Self {
+        Self { BASE_PATH: p }
     }
 
-    pub fn load_from_slice(slice: Vec<u8>) -> Result<Vec<MeshNode>> {
+    pub fn load_from_path(&self, path: &Path) -> Result<Vec<MeshNode>> {
+        let slice = std::fs::read(path).unwrap();
+        self.load_from_slice(slice)
+    }
+
+    pub fn load_from_slice(&self, slice: Vec<u8>) -> Result<Vec<MeshNode>> {
         let mut mesh_nodes: Vec<MeshNode> = vec![];
         let gltf = match gltf::Gltf::from_slice(&slice) {
             Ok(gltf) => gltf,
             Err(_) => {
-                //TODO: Better error message;
-                panic!("ERROR while parsing gltf/glb");
+                return Err(anyhow!(
+                    "The given slice does not contain any mesh or gltf object!"
+                ));
             }
         };
         let buffer_data: Vec<Vec<u8>> = gltf
@@ -32,15 +42,19 @@ impl GLTFLoader {
             .map(|buffer| match buffer.source() {
                 gltf::buffer::Source::Bin => gltf.blob.clone().unwrap(),
                 gltf::buffer::Source::Uri(uri) => {
-                    let base_path = Path::new(BASE_PATH);
-                    let uri = base_path.join(uri);
+                    let base_path = Path::new(&self.BASE_PATH);
+                    let uri = base_path.join("assets/gltf/".to_string().concat(uri));
+                    println!("{:?}", uri);
                     std::fs::read(uri).unwrap()
                 }
             })
             .collect();
 
         for node in gltf.nodes() {
-            let matrix = node.transform().matrix();
+            let (translation, rotation, scale) = node.transform().decomposed();
+            let translation = Vec3::new(translation[0], translation[1], translation[2]);
+            let rotation = glam::Quat::from_array(rotation).normalize();
+            let scale = Vec3::new(scale[0], scale[1], scale[2]);
             let mesh = match node.mesh() {
                 Some(mesh) => mesh,
                 None => continue,
@@ -57,7 +71,7 @@ impl GLTFLoader {
                     let positions = reader
                         .read_positions()
                         .unwrap()
-                        .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
+                        .map(|vec| Vec3::new(vec[0], vec[1], vec[2]))
                         .collect::<Vec<_>>();
 
                     let indices = reader
@@ -69,24 +83,24 @@ impl GLTFLoader {
                     let normals = reader
                         .read_normals()
                         .unwrap()
-                        .map(|vec| Vector3::new(vec[0], vec[1], vec[2]))
+                        .map(|vec| Vec3::new(vec[0], vec[1], vec[2]))
                         .collect::<Vec<_>>();
 
                     let tex_coords = reader
                         .read_tex_coords(0)
                         .unwrap()
                         .into_f32()
-                        .map(|vec| Vector2::new(vec[0], vec[1]))
+                        .map(|vec| Vec2::new(vec[0], vec[1]))
                         .collect::<Vec<_>>();
 
                     let gltf_colors = reader.read_colors(0);
 
-                    let colors: Vec<Vector4<f32>> = match gltf_colors {
+                    let colors: Vec<Vec4> = match gltf_colors {
                         Some(read_colors) => read_colors
                             .into_rgba_f32()
-                            .map(|v| Vector4::new(v[0], v[1], v[2], v[3]))
+                            .map(|v| Vec4::new(v[0], v[1], v[2], v[3]))
                             .collect::<Vec<_>>(),
-                        None => vec![Vector4::new(0.0, 0.0, 0.0, 0.0)],
+                        None => vec![Vec4::new(0.0, 0.0, 0.0, 0.0)],
                     };
 
                     let vertices = zip(zip(positions, normals), tex_coords)
@@ -102,9 +116,12 @@ impl GLTFLoader {
                     }
                 })
                 .collect::<Vec<_>>();
-            meshes
-                .into_iter()
-                .for_each(|mesh| mesh_nodes.push(MeshNode::new(mesh, matrix)));
+            meshes.into_iter().for_each(|mesh| {
+                mesh_nodes.push(MeshNode::new(
+                    mesh,
+                    Transform::new(translation, rotation, scale),
+                ))
+            });
         }
         Ok(mesh_nodes)
     }

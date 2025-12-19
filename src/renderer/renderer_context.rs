@@ -1,24 +1,19 @@
 use std::{ops::Range, sync::Arc};
 
 use anyhow::Result;
-use bytemuck::bytes_of;
-use log::debug;
-use nalgebra::{Point3, Vector3};
 use wgpu::{
-    Backends, BindGroup, Buffer, BufferUsages, Device, DeviceDescriptor, ExperimentalFeatures,
-    Features, FeaturesWGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
+    Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features,
+    FeaturesWGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
     PushConstantRange, Queue, RenderPipeline, RequestAdapterOptions, ShaderStages, Surface,
     SurfaceConfiguration, TextureFormat, TextureUsages, include_wgsl,
-    util::{BufferInitDescriptor, DeviceExt},
 };
 
 use crate::renderer::{
     components::{
-        camera::{Camera, CameraUniform},
-        light::LightSource,
-        render_pipeline::create_render_pipeline,
+        camera::CameraUniform, light::LightSource, render_pipeline::create_render_pipeline,
         texture::Texture,
     },
+    geometry::BindGroupProvider,
     util::Size,
     wrappers::SurfaceProvider,
 };
@@ -30,13 +25,9 @@ pub struct RenderContext {
     pub device: Arc<Device>,
     pub light_render_pipeline: RenderPipeline,
     pub no_light_render_pipeline: RenderPipeline,
-    pub camera: Camera,
-    pub camera_uniform: CameraUniform,
-    pub camera_uniform_buffer: Buffer,
-    pub camera_bind_group: BindGroup,
-    pub light: LightSource,
-    pub light_uniform_buffer: Buffer,
-    pub light_bind_group: BindGroup,
+    pub size: Size,
+    pub camera_bind_group_layout: BindGroupLayout,
+    pub light_bind_group_layout: BindGroupLayout,
     pub depth_texture: Texture,
     pub queue: Queue,
 }
@@ -92,8 +83,8 @@ impl RenderContext {
             provider.unwrap().get_size()
         } else {
             Size {
-                width: 800,
-                height: 600,
+                width: 1920,
+                height: 1080,
             }
         };
 
@@ -104,39 +95,11 @@ impl RenderContext {
             None => None,
         };
 
-        debug!("SIZE: {:?}, {:?}", size.width, size.height);
-        let camera = Camera::new(
-            Point3::new(0.0, 0.0, 5.0),
-            Point3::new(0.0, 0.0, -1.0),
-            Vector3::y_axis().into_inner(),
-            (size.width / size.height) as f32,
-            45.0_f32.to_radians(),
-            0.1,
-            1000.0,
-        );
-
-        let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update(&camera);
-        let camera_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Camera Uniform Buffer"),
-            contents: bytes_of(&camera_uniform),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-
-        let light = LightSource::new(Vector3::new(0.0, 3.0, 3.0), Vector3::new(1.0, 1.0, 1.0));
-        let light_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Light Source Buffer"),
-            contents: bytemuck::bytes_of(&light),
-            usage: BufferUsages::UNIFORM,
-        });
-
         let depth_texture = Texture::create_depth_texture("Depth Texture", &device, &size);
 
+        let camera_bind_group_layout = CameraUniform::bind_group_layout(&device);
+        let light_bind_group_layout = LightSource::bind_group_layout(&device);
         // let (mesh_bind_group_layout, meshes_bind_group) = Vertex::create_bind_group(&device, &depth_texture.view, &depth_texture.sampler);
-        let (camera_bind_group_layout, camera_bind_group) =
-            CameraUniform::bind_group(&device, &camera_uniform_buffer);
-        let (light_bind_group_layout, light_bind_group) =
-            LightSource::bind_group(&device, &light_uniform_buffer);
 
         let vertex_shader = device.create_shader_module(include_wgsl!("../../assets/vertex.wgsl"));
         let no_light_vertex_shader =
@@ -182,14 +145,10 @@ impl RenderContext {
             device,
             light_render_pipeline,
             no_light_render_pipeline,
-            camera,
-            camera_uniform,
-            camera_uniform_buffer,
-            light,
-            light_uniform_buffer,
+            size,
             depth_texture,
-            light_bind_group,
-            camera_bind_group,
+            light_bind_group_layout,
+            camera_bind_group_layout,
             queue,
         })
     }
@@ -246,7 +205,6 @@ mod tests {
 
     #[test]
     fn create_context() {
-        let mut mock = MockSurfaceProvider::new();
         let ctx = pollster::block_on(RenderContext::new::<MockSurfaceProvider>(None));
         assert!(ctx.is_ok());
     }

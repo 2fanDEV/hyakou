@@ -1,13 +1,19 @@
-struct Camera { 
+struct Camera {
     view_projection_matrix: mat4x4<f32>
 }
 
-struct ModelMatrixPC {
-    m: mat4x4<f32>
+struct PushConstants {
+    model_matrix: mat4x4<f32>,      // bytes 0-64 (vertex stage)
+}
+
+struct Transform {
+    translation: vec3<f32>,
+    rotation: vec4<f32>,
+    scale: vec3<f32>
 }
 
 struct Light {
-    position: vec3<f32>,
+    transform: Transform,
     color: vec3<f32>,
 }
 
@@ -34,7 +40,7 @@ var texture: texture_depth_2d;
 var sampler_s: sampler_comparison; */
 @group(0) @binding(0)
 var<uniform> camera: Camera;
-var<push_constant> model_matrix: ModelMatrixPC;
+var<push_constant> pc: PushConstants;
 
 @vertex
 fn vs_main(
@@ -44,14 +50,14 @@ fn vs_main(
     out.tex_coords = mesh.tex_coords;
     out.normals = mesh.normals;
     out.position = mesh.position;
-    out.clip_position =  camera.view_projection_matrix * model_matrix.m * vec4<f32>(mesh.position, 1.0);
+    out.clip_position =  camera.view_projection_matrix * pc.model_matrix * vec4<f32>(mesh.position, 1.0);
     return out;
 }
 
 // Fragment shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var position = light.position;
+    var position = light.transform.translation;
     var color = light.color;
     var diffuse_power = 0.3;
     var distance = length(position);
@@ -66,6 +72,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var NdotH = max(dot(H, in.normals), 0.0);
     var specular_intensity = pow(saturate(NdotH), 2.0);
     var specular = specular_intensity * color * 1.0 / distance;
-
     return vec4<f32>(specular, 1.0) + vec4(diffuse, 1.0) *  vec4<f32>(1.0, 1.0, 1.0, 1.0);
 }
