@@ -1,4 +1,7 @@
-use std::{iter::zip, path::Path};
+use std::{
+    iter::zip,
+    path::{Path, PathBuf},
+};
 
 use anyhow::Result;
 use glam::{Vec2, Vec3, Vec4};
@@ -6,19 +9,25 @@ use glam::{Vec2, Vec3, Vec4};
 use crate::renderer::{
     components::{mesh_node::MeshNode, transform::Transform},
     geometry::{mesh::Mesh, vertices::Vertex},
+    util::Concatable,
 };
 
-static BASE_PATH: &str = "/Users/zapzap/Projects/hyakou/assets/gltf";
-
-pub struct GLTFLoader {}
+#[derive(Debug)]
+pub struct GLTFLoader {
+    BASE_PATH: PathBuf,
+}
 
 impl GLTFLoader {
-    pub fn load_from_path(path: &Path) -> Result<Vec<MeshNode>> {
-        let slice = std::fs::read(path).unwrap();
-        Self::load_from_slice(slice)
+    pub fn new(p: PathBuf) -> Self {
+        Self { BASE_PATH: p }
     }
 
-    pub fn load_from_slice(slice: Vec<u8>) -> Result<Vec<MeshNode>> {
+    pub fn load_from_path(&self, path: &Path) -> Result<Vec<MeshNode>> {
+        let slice = std::fs::read(path).unwrap();
+        self.load_from_slice(slice)
+    }
+
+    pub fn load_from_slice(&self, slice: Vec<u8>) -> Result<Vec<MeshNode>> {
         let mut mesh_nodes: Vec<MeshNode> = vec![];
         let gltf = match gltf::Gltf::from_slice(&slice) {
             Ok(gltf) => gltf,
@@ -32,8 +41,8 @@ impl GLTFLoader {
             .map(|buffer| match buffer.source() {
                 gltf::buffer::Source::Bin => gltf.blob.clone().unwrap(),
                 gltf::buffer::Source::Uri(uri) => {
-                    let base_path = Path::new(BASE_PATH);
-                    let uri = base_path.join(uri);
+                    let base_path = Path::new(&self.BASE_PATH);
+                    let uri = base_path.join("assets/gltf/".to_string().concat(uri));
                     println!("{:?}", uri);
                     std::fs::read(uri).unwrap()
                 }

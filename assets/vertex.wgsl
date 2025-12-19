@@ -34,7 +34,7 @@ fn transform_to_mat4(tr: Transform) -> mat4x4<f32> {
     let s = tr.scale;
 
     return mat4x4<f32>(
-        vec4<f32>((1-2*(yy*zz)) * s.x, 2*(x * y + w * z) * s.x, (2*(x*z - w*y)) * s.x, 0.0),
+        vec4<f32>((1-2*(yy+zz)) * s.x, 2*(x * y + w * z) * s.x, (2*(x*z - w*y)) * s.x, 0.0),
         vec4<f32>((2*(x*y-w*z) * s.y), (1-2*(xx+zz)) * s.y, (2*(y*z + w * x)) * s.y, 0.0),
         vec4<f32>(2*(x*z+w*y)*s.z, (2*(y*z + w*x) * s.z), (1-2*(xx + yy) * s.z), 0.0),
         vec4<f32>(t.x, t.y, t.z, 1.0)

@@ -32,12 +32,12 @@ impl LightSource {
         self.color = color;
     }
 
-    pub fn to_gpu(&self) -> GpuLightSource {
-        GpuLightSource {
-            transform: *self.transform.read().unwrap(),
+    pub fn to_gpu(&self) -> Option<GpuLightSource> {
+        self.transform.try_read().ok().map(|t| GpuLightSource {
+            transform: *t,
             color: self.color,
             _padding_2: 0.0,
-        }
+        })
     }
 }
 

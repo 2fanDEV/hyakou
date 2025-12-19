@@ -5,8 +5,8 @@ use std::{
 
 use anyhow::Result;
 use bytemuck::bytes_of;
-use glam::{Mat4, Vec3};
-use log::debug;
+use glam::Vec3;
+use log::warn;
 use wgpu::{
     BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
@@ -61,10 +61,10 @@ impl Renderer {
         .await
         .unwrap();
 
-        let assets_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
+        let assets_dir = util::get_relative_path();
 
         let mut asset_handler = AssetHandler::new(ctx.device.clone());
-        let suzanne_mesh = asset_handler.add_from_path(
+        let _suzanne_mesh = asset_handler.add_from_path(
             "Suzanne".to_string(),
             LightType::LIGHT,
             &Path::new(&assets_dir).join("assets/gltf/Suzanne.gltf"),
@@ -72,7 +72,7 @@ impl Renderer {
         let cube_light_mesh = asset_handler.add_from_path(
             "Cube".to_string(),
             LightType::NO_LIGHT,
-            &Path::new(&assets_dir).join("assets/gltf/Cube.gltf"),
+            assets_dir.join("assets/gltf/Cube.gltf").as_path(),
         );
         cube_light_mesh
             .as_ref()
@@ -88,7 +88,7 @@ impl Renderer {
         let light_uniform_buffer = UniformBuffer::new(
             UniformBufferId::new("Light Uniform Buffer".to_string()),
             &ctx.device,
-            bytes_of(&light.to_gpu()),
+            bytes_of(&light.to_gpu().unwrap()),
             cube_light_mesh.unwrap().transform.clone(),
         );
 
@@ -149,9 +149,13 @@ impl Renderer {
             .unwrap()
             .translate(Vec3::new(0.01, 0.0, 0.0));
         self.camera_uniform.update(&self.camera);
-        self.light_uniform_buffer
-            .update_buffer_transform(&self.ctx.queue, bytes_of(&self.light.to_gpu()))
-            .unwrap();
+        if let Some(gpu_light_source) = self.light.to_gpu() {
+            self.light_uniform_buffer
+                .update_buffer_transform(&self.ctx.queue, bytes_of(&gpu_light_source))
+                .unwrap()
+        } else {
+            warn!("Skipping light buffer - Transform in Light is still locked");
+        }
         self.ctx.queue.write_buffer(
             &self.camera_uniform_buffer,
             0,
@@ -214,20 +218,12 @@ impl Renderer {
             });
         }
 
-        let light_matrix = self
-            .light_uniform_buffer
-            .get_transform()
-            .read()
-            .unwrap()
-            .get_matrix();
-
         self.asset_manager
             .get_all_visible_assets_with_modifier(&LightType::LIGHT)
             .for_each(|elem| {
                 Self::record_scene_pass_command_encoder(
                     &mut encoder,
                     elem,
-                    &light_matrix,
                     &self.ctx.light_render_pipeline,
                     &self.camera_bind_group,
                     &self.light_bind_group,
@@ -243,7 +239,6 @@ impl Renderer {
                 Self::record_scene_pass_command_encoder(
                     &mut encoder,
                     elem,
-                    &light_matrix,
                     &self.ctx.no_light_render_pipeline,
                     &self.camera_bind_group,
                     &self.light_bind_group,
@@ -265,13 +260,12 @@ impl Renderer {
     fn record_scene_pass_command_encoder(
         encoder: &mut CommandEncoder,
         render_mesh: &RenderMesh,
-        light_transform: &Mat4,
         render_pipeline: &RenderPipeline,
         camera_bind_group: &BindGroup,
         light_bind_group: &BindGroup,
         view: &TextureView,
         depth_view: &TextureView,
-        mouse_pos: PhysicalPosition<f64>,
+        _mouse_pos: PhysicalPosition<f64>,
     ) {
         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("Main Command Buffer"),

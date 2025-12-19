@@ -9,12 +9,13 @@ use wgpu::Device;
 
 use crate::renderer::{
     components::{LightType, glTF::GLTFLoader, render_mesh::RenderMesh},
-    util::Concatable,
+    util::{self, Concatable},
 };
 
 #[derive(Debug)]
 pub struct AssetHandler {
     device: Arc<Device>,
+    gltf_loader: GLTFLoader,
     memory_loaded_assets: HashMap<String, Rc<RenderMesh>>,
     visible_assets: HashSet<String>,
 }
@@ -23,6 +24,7 @@ impl AssetHandler {
     pub fn new(device: Arc<Device>) -> AssetHandler {
         AssetHandler {
             memory_loaded_assets: HashMap::new(),
+            gltf_loader: GLTFLoader::new(util::get_relative_path()),
             visible_assets: HashSet::new(),
             device,
         }
@@ -36,7 +38,7 @@ impl AssetHandler {
     ) -> Option<Rc<RenderMesh>> {
         //TODO make rendermesh be a node consisting of multiple nodes
         let mut idx = 0;
-        let mesh_nodes = match GLTFLoader::load_from_path(path) {
+        let mesh_nodes = match self.gltf_loader.load_from_path(path) {
             Ok(nodes) => nodes,
             Err(_) => panic!("Couldn't find model at path: {:?}", path),
         };
