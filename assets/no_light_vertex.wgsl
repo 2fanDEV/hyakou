@@ -22,7 +22,6 @@ var<uniform> camera: Camera;
 var<push_constant> pc: PushConstants;
 @group(1) @binding(0)
 var<uniform> light: Light;
-var<push_constant> model_matrix: PushConstants;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,

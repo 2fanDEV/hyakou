@@ -53,6 +53,7 @@ struct VertexOutput {
     @location(1) position: vec3<f32>,
     @location(2) tex_coords: vec2<f32>,
     @location(3) normals: vec3<f32>,
+    @location(4) light_matrix: mat4x4<f32>
 };
 
 /*@group(0) @binding(0)
@@ -72,13 +73,14 @@ fn vs_main(
     out.normals = mesh.normals;
     out.position = mesh.position;
     out.clip_position =  camera.view_projection_matrix * pc.model_matrix * vec4<f32>(mesh.position, 1.0);
+    out.light_matrix = transform_to_mat4(light.transform);
     return out;
 }
 
 // Fragment shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let light_matrix = transform_to_mat4(light.transform);
+    let light_matrix = in.light_matrix;;
     var position = light_matrix[3].xyz;
     var color = light.color;
     var diffuse_power = 0.3;
