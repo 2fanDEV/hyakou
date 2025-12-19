@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use glam::{Vec2, Vec3, Vec4};
 
 use crate::renderer::{
@@ -32,8 +32,9 @@ impl GLTFLoader {
         let gltf = match gltf::Gltf::from_slice(&slice) {
             Ok(gltf) => gltf,
             Err(_) => {
-                //TODO: Better error message;
-                panic!("ERROR while parsing gltf/glb");
+                return Err(anyhow!(
+                    "The given slice does not contain any mesh or gltf object!"
+                ));
             }
         };
         let buffer_data: Vec<Vec<u8>> = gltf

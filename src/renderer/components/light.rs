@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use bytemuck::{Pod, Zeroable};
-use glam::Vec3;
+use glam::{Mat4, Vec3};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,
@@ -21,6 +21,7 @@ pub struct GpuLightSource {
     transform: Transform,
     color: Vec3,
     _padding_2: f32,
+    trs_matrix: Mat4,
 }
 
 impl LightSource {
@@ -37,6 +38,7 @@ impl LightSource {
             transform: *t,
             color: self.color,
             _padding_2: 0.0,
+            trs_matrix: t.get_matrix(),
         })
     }
 }
