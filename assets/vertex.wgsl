@@ -15,7 +15,6 @@ struct Transform {
 struct Light {
     transform: Transform,
     color: vec3<f32>,
-    trs_matrix: mat4x4<f32>
 }
 
 @group(1) @binding(0)

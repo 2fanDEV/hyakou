@@ -25,7 +25,7 @@ impl Transform {
         self.position += delta;
     }
 
-    pub fn rotation(&mut self, delta: Quat) {
+    pub fn rotate(&mut self, delta: Quat) {
         self.rotation = (self.rotation * delta).normalize();
     }
     pub fn scale(&mut self, delta: Vec3) {
@@ -194,7 +194,7 @@ mod tests {
         let mut transform = Transform::new(Vec3::ZERO, Quat::IDENTITY, Vec3::ONE);
 
         let delta_rotation = Quat::from_rotation_y(PI / 4.0); // 45 degrees
-        transform.rotation(delta_rotation);
+        transform.rotate(delta_rotation);
 
         assert_quat_eq(
             transform.rotation,
@@ -209,8 +209,8 @@ mod tests {
 
         // Apply 45 degrees twice = 90 degrees total
         let delta = Quat::from_rotation_y(PI / 4.0);
-        transform.rotation(delta);
-        transform.rotation(delta);
+        transform.rotate(delta);
+        transform.rotate(delta);
 
         let expected = Quat::from_rotation_y(PI / 2.0);
         assert_quat_eq(transform.rotation, expected, "Accumulated rotation");
@@ -223,7 +223,7 @@ mod tests {
         // Apply many small rotations
         let delta = Quat::from_rotation_y(0.01);
         for _ in 0..1000 {
-            transform.rotation(delta);
+            transform.rotate(delta);
         }
 
         let length = transform.rotation.length();
@@ -285,7 +285,7 @@ mod tests {
         let delta_time = 0.5; // 500ms = half second
 
         let delta_rotation = Quat::from_rotation_y(angular_velocity * delta_time);
-        transform.rotation(delta_rotation);
+        transform.rotate(delta_rotation);
 
         // Should be 90 degrees
         let expected = Quat::from_rotation_y(PI / 2.0);

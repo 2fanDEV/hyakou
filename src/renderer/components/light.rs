@@ -21,7 +21,6 @@ pub struct GpuLightSource {
     transform: Transform,
     color: Vec3,
     _padding_2: f32,
-    trs_matrix: Mat4,
 }
 
 impl LightSource {
@@ -38,7 +37,6 @@ impl LightSource {
             transform: *t,
             color: self.color,
             _padding_2: 0.0,
-            trs_matrix: t.get_matrix(),
         })
     }
 }

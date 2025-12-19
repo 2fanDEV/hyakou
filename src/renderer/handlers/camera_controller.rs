@@ -69,7 +69,6 @@ impl CameraController {
 mod tests {
     use super::*;
     use glam::Vec3;
-    use log::debug;
 
     fn create_test_camera() -> Camera {
         Camera::new(
