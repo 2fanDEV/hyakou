@@ -11,6 +11,8 @@ use crate::renderer::components::transform::Transform;
 pub mod ids;
 pub mod uniform;
 
+pub type DeltaTime = f32;
+
 trait Id {
     fn get_id(&self) -> &str;
 }

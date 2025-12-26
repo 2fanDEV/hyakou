@@ -25,7 +25,8 @@ use crate::renderer::{
     geometry::BindGroupProvider,
     handlers::{asset_handler::AssetHandler, camera_controller::CameraController},
     renderer_context::RenderContext,
-    types::{TransformBuffer, ids::UniformBufferId, uniform::UniformBuffer},
+    trajectory::{Trajectory, circular::CircularTrajectory, linear::LinearTrajectory},
+    types::{DeltaTime, TransformBuffer, ids::UniformBufferId, uniform::UniformBuffer},
     wrappers::WinitSurfaceProvider,
 };
 
@@ -33,6 +34,7 @@ pub mod components;
 pub mod geometry;
 pub mod handlers;
 pub mod renderer_context;
+pub mod trajectory;
 pub mod types;
 pub mod util;
 pub mod wrappers;
@@ -48,6 +50,8 @@ pub struct Renderer {
     light: LightSource,
     light_uniform_buffer: UniformBuffer,
     light_bind_group: BindGroup,
+    circular_trajectory: CircularTrajectory,
+    linear_trajectory: LinearTrajectory,
     pub camera_controller: CameraController,
     pub asset_manager: AssetHandler,
 }
@@ -99,7 +103,7 @@ impl Renderer {
         );
 
         let camera = Camera::new(
-            Vec3::new(0.0, 0.0, 5.0),
+            Vec3::new(0.0, 0.0, 15.0),
             Vec3::new(0.0, 0.0, -1.0),
             Vec3::Y,
             (ctx.size.width / ctx.size.height) as f32,
@@ -129,6 +133,16 @@ impl Renderer {
             frame_idx: 0,
             camera,
             camera_uniform,
+            circular_trajectory: CircularTrajectory::new(light.transform.clone(), 1.0),
+            linear_trajectory: LinearTrajectory::new(
+                light.transform.clone(),
+                Vec3::new(2.0, 0.0, 2.0),
+                0.0,
+                0.0,
+                3.0,
+                3.0,
+                true,
+            ),
             camera_uniform_buffer,
             camera_bind_group,
             light,
@@ -139,15 +153,26 @@ impl Renderer {
         })
     }
 
-    pub fn update(&mut self, delta_time: f32) {
+    pub fn update(&mut self, delta_time: DeltaTime) {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
             .update_camera(&mut self.camera, delta_time);
-        self.light
-            .transform
-            .write()
-            .unwrap()
-            .translate(Vec3::new(0.01, 0.0, 0.0));
+        /*c
+        self.circular_trajectory
+            .animate(
+                Some(
+                    &self
+                        .asset_manager
+                        .get("Suzanne_0".to_string())
+                        .transform
+                        .read()
+                        .unwrap(),
+                ),
+                delta_time,
+            )
+            .unwrap();
+            */
+        self.linear_trajectory.animate(None, delta_time).unwrap();
         self.camera_uniform.update(&self.camera);
         if let Some(gpu_light_source) = self.light.to_gpu() {
             self.light_uniform_buffer
