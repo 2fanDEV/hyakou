@@ -50,7 +50,6 @@ pub struct Renderer {
     light: LightSource,
     light_uniform_buffer: UniformBuffer,
     light_bind_group: BindGroup,
-    circular_trajectory: CircularTrajectory,
     linear_trajectory: LinearTrajectory,
     pub camera_controller: CameraController,
     pub asset_manager: AssetHandler,
@@ -133,7 +132,6 @@ impl Renderer {
             frame_idx: 0,
             camera,
             camera_uniform,
-            circular_trajectory: CircularTrajectory::new(light.transform.clone(), 1.0),
             linear_trajectory: LinearTrajectory::new(
                 light.transform.clone(),
                 Vec3::new(2.0, 0.0, 2.0),
@@ -157,21 +155,6 @@ impl Renderer {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
             .update_camera(&mut self.camera, delta_time);
-        /*c
-        self.circular_trajectory
-            .animate(
-                Some(
-                    &self
-                        .asset_manager
-                        .get("Suzanne_0".to_string())
-                        .transform
-                        .read()
-                        .unwrap(),
-                ),
-                delta_time,
-            )
-            .unwrap();
-            */
         self.linear_trajectory.animate(None, delta_time).unwrap();
         self.camera_uniform.update(&self.camera);
         if let Some(gpu_light_source) = self.light.to_gpu() {

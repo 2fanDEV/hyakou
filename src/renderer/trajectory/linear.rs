@@ -9,14 +9,25 @@ use crate::renderer::{
     trajectory::{Direction, Trajectory, calculate_direction_vector},
 };
 
+/// LinearTrajectory is an animation that allows the
+/// objects transformation to move a linear path. Back/Forwards. Diagonally an so on and so forth
+/// Yaw, Pitch are supposed to be passed in as radians.
+/// Speed is in units/second, distance is in units
+///
+#[derive(Debug, Clone)]
 pub struct LinearTrajectory {
     transform: Arc<RwLock<Transform>>,
     start_position: Vec3,
     yaw: f32,
+    /// in radians
     pitch: f32,
+    /// in radians
     distance: f32,
+    /// in Units
     speed: f32,
+    /// in units/second
     progress: f32,
+    /// between -1.0 and 1.0
     looping: bool,
     direction: Direction,
 }
@@ -27,15 +38,18 @@ impl LinearTrajectory {
         start_position: Vec3,
         yaw: f32,
         pitch: f32,
-        distance: f32,
+        mut distance: f32,
         speed: f32,
         looping: bool,
     ) -> Self {
+        if distance == 0.0 {
+            distance = 1.0;
+        }
         Self {
             transform,
             start_position,
-            yaw,
-            pitch,
+            yaw: yaw.to_radians(),
+            pitch: pitch.to_radians(),
             distance,
             speed,
             progress: 0.0,
@@ -76,6 +90,8 @@ impl Trajectory for LinearTrajectory {
             if self.progress <= -1.0 {
                 self.direction = Direction::FORWARDS;
             }
+        } else {
+            return Err(anyhow!("Failed to acquire lock on transform"));
         }
         Ok(())
     }

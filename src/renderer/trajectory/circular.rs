@@ -27,15 +27,14 @@ impl Trajectory for CircularTrajectory {
     fn animate(&mut self, target: Option<&Transform>, delta: DeltaTime) -> Result<()> {
         if let Some(mut transform) = self.target_transform.try_write().ok() {
             if let Some(t) = target {
-                transform.position.x =
-                    t.position.x + self.radius * f32::cos(self.angle.to_radians());
-                transform.position.z =
-                    t.position.z + self.radius * f32::sin(self.angle.to_radians());
+                transform.position.x = t.position.x + self.radius * f32::cos(self.angle);
+                transform.position.z = t.position.z + self.radius * f32::sin(self.angle);
             } else {
-                transform.position.x = self.radius * f32::cos(self.angle.to_radians());
-                transform.position.z = self.radius * f32::sin(self.angle.to_radians());
+                transform.position.x = self.radius * f32::cos(self.angle);
+                transform.position.z = self.radius * f32::sin(self.angle);
             }
             self.angle += self.speed * delta;
+            self.angle = self.angle.to_radians();
             Ok(())
         } else {
             return Err(anyhow!(
