@@ -33,8 +33,7 @@ impl Trajectory for CircularTrajectory {
                 transform.position.x = self.radius * f32::cos(self.angle);
                 transform.position.z = self.radius * f32::sin(self.angle);
             }
-            self.angle += self.speed * delta;
-            self.angle = self.angle.to_radians();
+            self.angle += (self.speed * delta).to_radians();
             Ok(())
         } else {
             return Err(anyhow!(

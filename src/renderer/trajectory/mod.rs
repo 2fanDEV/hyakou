@@ -18,9 +18,9 @@ pub trait Trajectory {
 
 pub fn calculate_direction_vector(yaw_radians: f32, pitch_radians: f32) -> Vec3 {
     let x = pitch_radians.cos() * yaw_radians.cos();
-    let y = pitch_radians.cos() * yaw_radians.sin();
-    let z = pitch_radians.sin();
-    Vec3 { x, y, z }
+    let y = pitch_radians.sin();
+    let z = pitch_radians.cos() * yaw_radians.sin();
+    Vec3 { x, y, z }.normalize()
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -45,29 +45,29 @@ mod tests {
 
     #[test]
     fn test_direction_vector_90_yaw() {
-        let dir = calculate_direction_vector(90.0, 0.0);
+        let dir = calculate_direction_vector(90.0_f32.to_radians(), 0.0);
         assert!(dir.x.abs() < 0.001);
-        assert!((dir.y - 1.0).abs() < 0.001);
-        assert!(dir.z.abs() < 0.001);
+        assert!((dir.z - 1.0).abs() < 0.001);
+        assert!(dir.y.abs() < 0.001);
     }
 
     #[test]
     fn test_direction_vector_90_pitch() {
-        let dir = calculate_direction_vector(0.0, 90.0);
+        let dir = calculate_direction_vector(0.0, 90.0_f32.to_radians());
         assert!(dir.x.abs() < 0.001);
-        assert!(dir.y.abs() < 0.001);
-        assert!((dir.z - 1.0).abs() < 0.001);
+        assert!(dir.z.abs() < 0.001);
+        assert!((dir.y - 1.0).abs() < 0.001);
     }
 
     #[test]
     fn test_direction_vector_90_pitch_90_yaw() {
-        let dir = calculate_direction_vector(90.0, 90.0);
-        assert!(dir.x.abs() < 0.21, "x: {:?} < 0.21", dir.x.abs());
-        assert!(dir.y.abs() < 0.00000005, "y: {:?} < 0.004", dir.y.abs());
+        let dir = calculate_direction_vector(90.0_f32.to_radians(), 90.0_f32.to_radians());
+        assert!(dir.x.abs() < 0.001, "x: {:?} < 0.001", dir.x.abs());
+        assert!(dir.z.abs() < 0.001, "z: {:?} < 0.001", dir.z.abs());
         assert!(
-            dir.z.abs() - 1.0 < 0.001,
-            "z: {:?} - 1.0 < 0.001",
-            dir.z.abs()
+            (dir.y - 1.0).abs() < 0.001,
+            "y: {:?} - 1.0 < 0.001",
+            dir.y.abs()
         );
     }
 }
