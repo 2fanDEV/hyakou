@@ -132,6 +132,7 @@ impl Renderer {
             frame_idx: 0,
             camera,
             camera_uniform,
+            // TODO: Don't hardcode this, however will be resolved in a different ticket
             linear_trajectory: LinearTrajectory::new(
                 light.transform.clone(),
                 Vec3::new(0.0, 1.0, 0.0),
@@ -140,7 +141,7 @@ impl Renderer {
                 3.0,
                 3.0,
                 true,
-                false,
+                true,
             ),
             camera_uniform_buffer,
             camera_bind_group,

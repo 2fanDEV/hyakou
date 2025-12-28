@@ -40,8 +40,8 @@ impl LinearTrajectory {
         pitch_radians: f32,
         mut distance: f32,
         mut speed: f32,
-        reversing: bool,
         looping: bool,
+        reversing: bool,
     ) -> Self {
         if distance == 0.0 {
             distance = 1.0;
@@ -154,11 +154,11 @@ mod tests {
         let mut trajectory = LinearTrajectory::new(
             transform.clone(),
             start_pos,
-            90.0, // yaw: move along Y axis
-            0.0,  // pitch
-            4.0,  // distance: 4 units
-            2.0,  // speed: 2 units per second
-            true, // looping enabled
+            f32::to_radians(90.0), // yaw: move along Y axis
+            f32::to_radians(0.0),  // pitch
+            4.0,                   // distance: 4 units
+            2.0,                   // speed: 2 units per second
+            true,                  // looping enabled
             true,
         );
 

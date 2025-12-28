@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    f32::consts::PI,
+    sync::{Arc, RwLock},
+};
 
 use anyhow::{Result, anyhow};
 
@@ -18,7 +21,7 @@ impl CircularTrajectory {
             target_transform: transform,
             radius,
             speed,
-            ..Default::default()
+            angle: 0.0,
         }
     }
 }
@@ -28,12 +31,13 @@ impl Trajectory for CircularTrajectory {
         if let Some(mut transform) = self.target_transform.try_write().ok() {
             if let Some(t) = target {
                 transform.position.x = t.position.x + self.radius * f32::cos(self.angle);
+                transform.position.y = t.position.y;
                 transform.position.z = t.position.z + self.radius * f32::sin(self.angle);
             } else {
                 transform.position.x = self.radius * f32::cos(self.angle);
                 transform.position.z = self.radius * f32::sin(self.angle);
             }
-            self.angle += (self.speed * delta).to_radians();
+            self.angle += ((self.speed * delta) % (2.0 * PI)).to_radians();
             Ok(())
         } else {
             return Err(anyhow!(

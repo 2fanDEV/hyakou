@@ -10,8 +10,8 @@ pub struct StationaryTrajectory {}
 impl Trajectory for StationaryTrajectory {
     fn animate(
         &mut self,
-        t: Option<&transform::Transform>,
-        delta: crate::renderer::types::DeltaTime,
+        _t: Option<&transform::Transform>,
+        _delta: crate::renderer::types::DeltaTime,
     ) -> anyhow::Result<()> {
         Ok(())
     }
