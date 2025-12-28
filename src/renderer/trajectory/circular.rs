@@ -1,14 +1,17 @@
-use std::{
-    f32::consts::PI,
-    sync::{Arc, RwLock},
-};
+use parking_lot::RwLock;
+use std::{f32::consts::PI, sync::Arc};
 
 use anyhow::{Result, anyhow};
 
-use crate::renderer::{components::transform::Transform, trajectory::Trajectory, types::DeltaTime};
+use crate::renderer::{
+    components::{render_mesh::RenderMesh, transform::Transform},
+    trajectory::Trajectory,
+    types::DeltaTime,
+};
 
 #[derive(Default, Clone)]
 pub struct CircularTrajectory {
+    id: String,
     target_transform: Arc<RwLock<Transform>>,
     radius: f32,
     angle: f32,
@@ -16,19 +19,34 @@ pub struct CircularTrajectory {
 }
 
 impl CircularTrajectory {
-    pub fn new(transform: Arc<RwLock<Transform>>, radius: f32, speed: f32) -> Self {
-        Self {
-            target_transform: transform,
+    pub fn new_deconstructed_mesh(
+        id: String,
+        transform: Arc<RwLock<Transform>>,
+        radius: f32,
+        speed: f32,
+    ) -> Result<Self> {
+        Ok(Self {
+            id,
+            target_transform: transform.clone(),
             radius,
             speed,
             angle: 0.0,
+        })
+    }
+
+    pub fn new(render_mesh: RenderMesh, radius: f32, speed: f32) -> Result<Self> {
+        if radius <= 0.0 && speed <= 0.0 {
+            return Err(anyhow!(
+                "Radius and speed have to be non-negative/non-zero!"
+            ));
         }
+        Self::new_deconstructed_mesh(render_mesh.id, render_mesh.transform, radius, speed)
     }
 }
 
 impl Trajectory for CircularTrajectory {
     fn animate(&mut self, target: Option<&Transform>, delta: DeltaTime) -> Result<()> {
-        if let Some(mut transform) = self.target_transform.try_write().ok() {
+        if let Some(mut transform) = self.target_transform.try_write() {
             if let Some(t) = target {
                 transform.position.x = t.position.x + self.radius * f32::cos(self.angle);
                 transform.position.y = t.position.y;
@@ -37,12 +55,12 @@ impl Trajectory for CircularTrajectory {
                 transform.position.x = self.radius * f32::cos(self.angle);
                 transform.position.z = self.radius * f32::sin(self.angle);
             }
-            self.angle += ((self.speed * delta) % (2.0 * PI)).to_radians();
+            self.angle += (self.speed * delta) % (2.0 * PI);
             Ok(())
         } else {
             return Err(anyhow!(
                 "Failed to acquire lock on mesh transform {:?}",
-                self.target_transform
+                self.id
             ));
         }
     }
@@ -61,11 +79,17 @@ mod tests {
     fn test_circular_trajectory_rotation_without_target() {
         let transform = Arc::new(RwLock::new(Transform::default()));
         let radius = 5.0;
-        let mut trajectory = CircularTrajectory::new(transform.clone(), radius, 100f32);
+        let mut trajectory = CircularTrajectory::new_deconstructed_mesh(
+            "TEST".to_string(),
+            transform.clone(),
+            radius,
+            100f32,
+        )
+        .unwrap();
 
         // Initial position should be at angle 0 (radius units along X axis)
         trajectory.animate(None, 0.0).unwrap();
-        let pos = transform.read().unwrap().position;
+        let pos = transform.read().position;
         assert!((pos.x - radius).abs() < 0.001);
         assert!(pos.z.abs() < 0.001);
 
@@ -75,7 +99,7 @@ mod tests {
         assert!(trajectory.angle > initial_angle);
 
         // Position should still be on the circle (distance from origin = radius)
-        let pos = transform.read().unwrap().position;
+        let pos = transform.read().position;
         let distance_from_origin = (pos.x * pos.x + pos.z * pos.z).sqrt();
         assert!((distance_from_origin - radius).abs() < 0.001);
     }
@@ -87,13 +111,19 @@ mod tests {
         target_transform.position = Vec3::new(10.0, 0.0, 20.0);
 
         let radius = 3.0;
-        let mut trajectory = CircularTrajectory::new(transform.clone(), radius, 100f32);
+        let mut trajectory = CircularTrajectory::new_deconstructed_mesh(
+            "TEST".to_string(),
+            transform.clone(),
+            radius,
+            100f32,
+        )
+        .unwrap();
 
         // Animate around target
         trajectory.animate(Some(&target_transform), 0.0).unwrap();
 
         // Position should be offset from target by radius
-        let pos = transform.read().unwrap().position;
+        let pos = transform.read().position;
         let offset_x = pos.x - target_transform.position.x;
         let offset_z = pos.z - target_transform.position.z;
         let distance_from_target = (offset_x * offset_x + offset_z * offset_z).sqrt();
@@ -105,7 +135,13 @@ mod tests {
     #[test]
     fn test_circular_trajectory_reset() {
         let transform = Arc::new(RwLock::new(Transform::default()));
-        let mut trajectory = CircularTrajectory::new(transform.clone(), 7.0, 100f32);
+        let mut trajectory = CircularTrajectory::new_deconstructed_mesh(
+            "TEST".to_string(),
+            transform.clone(),
+            7.0,
+            100f32,
+        )
+        .unwrap();
 
         // Rotate for some time
         trajectory.animate(None, 1.0).unwrap();

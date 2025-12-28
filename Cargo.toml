@@ -17,3 +17,4 @@ image = { version =  "0.25.8", features = ["jpeg", "png"] }
 gltf = "1.4.1"
 uuid = { version = "1.18.1", features = ["v4"] }
 glam = { version = "0.30.9", features = ["bytemuck"] }
+parking_lot = "0.12.5"

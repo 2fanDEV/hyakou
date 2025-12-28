@@ -16,6 +16,7 @@ impl Trajectory for StationaryTrajectory {
         Ok(())
     }
 
+    // Empty as you don't need this to do anything as it's stationary.
     fn reset(&mut self) {}
 }
 

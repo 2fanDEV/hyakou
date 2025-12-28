@@ -1,10 +1,11 @@
-use std::sync::{Arc, RwLock};
+use parking_lot::RwLock;
+use std::sync::Arc;
 
-use anyhow::anyhow;
+use anyhow::{Result, anyhow};
 use glam::Vec3;
 
 use crate::renderer::{
-    components::transform::Transform,
+    components::{render_mesh::RenderMesh, transform::Transform},
     trajectory::{Direction, Trajectory, calculate_direction_vector},
 };
 
@@ -15,6 +16,7 @@ use crate::renderer::{
 ///
 #[derive(Debug, Clone)]
 pub struct LinearTrajectory {
+    id: String,
     transform: Arc<RwLock<Transform>>,
     start_position: Vec3,
     yaw_radians: f32,
@@ -33,7 +35,11 @@ pub struct LinearTrajectory {
 }
 
 impl LinearTrajectory {
-    pub fn new(
+    const MIN_PROGRESS: f32 = -1.0;
+    const MAX_PROGRESS: f32 = 1.0;
+
+    pub fn new_deconstructed_mesh(
+        id: String,
         transform: Arc<RwLock<Transform>>,
         start_position: Vec3,
         yaw_radians: f32,
@@ -42,15 +48,10 @@ impl LinearTrajectory {
         mut speed: f32,
         looping: bool,
         reversing: bool,
-    ) -> Self {
-        if distance == 0.0 {
-            distance = 1.0;
-        }
-        if speed == 0.0 {
-            speed = 1.0;
-        }
-        Self {
-            transform,
+    ) -> Result<Self> {
+        Ok(Self {
+            id,
+            transform: transform,
             start_position,
             yaw_radians,
             pitch_radians,
@@ -60,7 +61,33 @@ impl LinearTrajectory {
             looping,
             reversing,
             direction: Direction::FORWARDS,
+        })
+    }
+
+    pub fn new(
+        render_mesh: RenderMesh,
+        start_position: Vec3,
+        yaw_radians: f32,
+        pitch_radians: f32,
+        mut distance: f32,
+        mut speed: f32,
+        looping: bool,
+        reversing: bool,
+    ) -> Result<Self> {
+        if distance == 0.0 || speed == 0.0 {
+            return Err(anyhow!("Distance and speed must be non-zero!"));
         }
+        Self::new_deconstructed_mesh(
+            render_mesh.id,
+            render_mesh.transform,
+            start_position,
+            yaw_radians,
+            pitch_radians,
+            distance,
+            speed,
+            looping,
+            reversing,
+        )
     }
 }
 
@@ -72,7 +99,7 @@ impl Trajectory for LinearTrajectory {
         _target: Option<&Transform>,
         delta: crate::renderer::types::DeltaTime,
     ) -> anyhow::Result<()> {
-        if let Some(mut transform) = self.transform.try_write().ok() {
+        if let Some(mut transform) = self.transform.try_write() {
             let direction_vector = calculate_direction_vector(self.yaw_radians, self.pitch_radians);
             match self.direction {
                 Direction::FORWARDS => {
@@ -80,11 +107,6 @@ impl Trajectory for LinearTrajectory {
                 }
                 Direction::BACKWARDS => {
                     self.progress -= (self.speed / self.distance) * delta;
-                }
-                _ => {
-                    return Err(anyhow!(
-                        "Only forwards or backwards movement allowed in linear trajectory"
-                    ));
                 }
             }
             self.progress = self.progress.clamp(-1.0, 1.0);
@@ -103,7 +125,10 @@ impl Trajectory for LinearTrajectory {
                 self.progress = 0.0;
             }
         } else {
-            return Err(anyhow!("Failed to acquire lock on transform"));
+            return Err(anyhow!(
+                "Failed to acquire lock on transform: {:?}",
+                self.id
+            ));
         }
         Ok(())
     }
@@ -111,7 +136,7 @@ impl Trajectory for LinearTrajectory {
     fn reset(&mut self) {
         self.progress = 0.0;
         self.direction = Direction::FORWARDS;
-        if let Some(mut transform) = self.transform.try_write().ok() {
+        if let Some(mut transform) = self.transform.try_write() {
             transform.position = self.start_position;
         }
     }
@@ -125,7 +150,8 @@ mod tests {
     fn test_linear_trajectory_forward_movement() {
         let transform = Arc::new(RwLock::new(Transform::default()));
         let start_pos = Vec3::new(0.0, 0.0, 0.0);
-        let mut trajectory = LinearTrajectory::new(
+        let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
+            "Test".to_string(),
             transform.clone(),
             start_pos,
             0.0,   // yaw: move along X axis
@@ -134,7 +160,8 @@ mod tests {
             5.0,   // speed: 5 units per second
             false, // not looping,
             true,
-        );
+        )
+        .unwrap();
 
         // Simulate 1 second of movement
         trajectory.animate(None, 1.0).unwrap();
@@ -143,7 +170,7 @@ mod tests {
         assert!((trajectory.progress - 0.5).abs() < 0.001);
 
         // Position should be halfway along the path
-        let pos = transform.read().unwrap().position;
+        let pos = transform.read().position;
         assert!((pos.x - 5.0).abs() < 0.001);
     }
 
@@ -151,7 +178,8 @@ mod tests {
     fn test_linear_trajectory_bounce_at_boundaries() {
         let transform = Arc::new(RwLock::new(Transform::default()));
         let start_pos = Vec3::new(0.0, 0.0, 0.0);
-        let mut trajectory = LinearTrajectory::new(
+        let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
+            "Test1".to_string(),
             transform.clone(),
             start_pos,
             f32::to_radians(90.0), // yaw: move along Y axis
@@ -160,7 +188,8 @@ mod tests {
             2.0,                   // speed: 2 units per second
             true,                  // looping enabled
             true,
-        );
+        )
+        .unwrap();
 
         // Animate forward to boundary (2 seconds to reach end)
         trajectory.animate(None, 3.5).unwrap();
@@ -181,7 +210,8 @@ mod tests {
     fn test_linear_trajectory_reset() {
         let transform = Arc::new(RwLock::new(Transform::default()));
         let start_pos = Vec3::new(5.0, 10.0, -3.0);
-        let mut trajectory = LinearTrajectory::new(
+        let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
+            "Test".to_string(),
             transform.clone(),
             start_pos,
             45.0,
@@ -190,7 +220,8 @@ mod tests {
             4.0,
             true,
             true,
-        );
+        )
+        .unwrap();
 
         // Move the trajectory
         trajectory.animate(None, 1.0).unwrap();
@@ -203,7 +234,7 @@ mod tests {
         assert_eq!(trajectory.progress, 0.0);
         assert_eq!(trajectory.direction, Direction::FORWARDS);
 
-        let pos = transform.read().unwrap().position;
+        let pos = transform.read().position;
         assert_eq!(pos, start_pos);
     }
 }
