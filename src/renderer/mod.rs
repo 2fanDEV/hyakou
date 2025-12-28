@@ -25,7 +25,7 @@ use crate::renderer::{
     geometry::BindGroupProvider,
     handlers::{asset_handler::AssetHandler, camera_controller::CameraController},
     renderer_context::RenderContext,
-    trajectory::{Trajectory, circular::CircularTrajectory, linear::LinearTrajectory},
+    trajectory::{Trajectory, linear::LinearTrajectory},
     types::{DeltaTime, TransformBuffer, ids::UniformBufferId, uniform::UniformBuffer},
     wrappers::WinitSurfaceProvider,
 };
@@ -135,11 +135,12 @@ impl Renderer {
             linear_trajectory: LinearTrajectory::new(
                 light.transform.clone(),
                 Vec3::new(0.0, 1.0, 0.0),
-                0.0,
-                0.0,
+                f32::to_radians(0.0),
+                f32::to_radians(0.0),
                 3.0,
                 3.0,
                 true,
+                false,
             ),
             camera_uniform_buffer,
             camera_bind_group,
@@ -155,7 +156,9 @@ impl Renderer {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
             .update_camera(&mut self.camera, delta_time);
-        self.linear_trajectory.animate(None, delta_time).unwrap();
+        self.linear_trajectory
+            .animate(None, delta_time)
+            .expect("Error while trying to update linear trajectory animation");
         self.camera_uniform.update(&self.camera);
         if let Some(gpu_light_source) = self.light.to_gpu() {
             self.light_uniform_buffer

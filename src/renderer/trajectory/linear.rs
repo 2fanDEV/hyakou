@@ -2,7 +2,6 @@ use std::sync::{Arc, RwLock};
 
 use anyhow::anyhow;
 use glam::Vec3;
-use log::debug;
 
 use crate::renderer::{
     components::transform::Transform,
@@ -18,9 +17,9 @@ use crate::renderer::{
 pub struct LinearTrajectory {
     transform: Arc<RwLock<Transform>>,
     start_position: Vec3,
-    yaw: f32,
+    yaw_radians: f32,
     /// in radians
-    pitch: f32,
+    pitch_radians: f32,
     /// in radians
     distance: f32,
     /// in Units
@@ -29,6 +28,7 @@ pub struct LinearTrajectory {
     progress: f32,
     /// between -1.0 and 1.0
     looping: bool,
+    reversing: bool,
     direction: Direction,
 }
 
@@ -36,37 +36,44 @@ impl LinearTrajectory {
     pub fn new(
         transform: Arc<RwLock<Transform>>,
         start_position: Vec3,
-        yaw: f32,
-        pitch: f32,
+        yaw_radians: f32,
+        pitch_radians: f32,
         mut distance: f32,
-        speed: f32,
+        mut speed: f32,
+        reversing: bool,
         looping: bool,
     ) -> Self {
         if distance == 0.0 {
             distance = 1.0;
         }
+        if speed == 0.0 {
+            speed = 1.0;
+        }
         Self {
             transform,
             start_position,
-            yaw: yaw.to_radians(),
-            pitch: pitch.to_radians(),
+            yaw_radians,
+            pitch_radians,
             distance,
             speed,
             progress: 0.0,
             looping,
+            reversing,
             direction: Direction::FORWARDS,
         }
     }
 }
 
 impl Trajectory for LinearTrajectory {
+    /// Currently ignoring target since there is no use for it yet.
+    /// Maybe sometime in the future this will cause the linear trajectory to be right above the target
     fn animate(
         &mut self,
         _target: Option<&Transform>,
         delta: crate::renderer::types::DeltaTime,
     ) -> anyhow::Result<()> {
         if let Some(mut transform) = self.transform.try_write().ok() {
-            let direction_vector = calculate_direction_vector(self.yaw, self.pitch);
+            let direction_vector = calculate_direction_vector(self.yaw_radians, self.pitch_radians);
             match self.direction {
                 Direction::FORWARDS => {
                     self.progress += (self.speed / self.distance) * delta;
@@ -84,11 +91,16 @@ impl Trajectory for LinearTrajectory {
             transform.position =
                 self.start_position + direction_vector * self.distance * self.progress;
 
-            if self.progress >= 1.0 {
+            if self.progress >= 1.0 && self.reversing {
                 self.direction = Direction::BACKWARDS;
             }
-            if self.progress <= -1.0 {
+            if self.progress <= -1.0 && self.looping {
                 self.direction = Direction::FORWARDS;
+            }
+
+            if self.progress >= 1.0 && self.looping && !self.reversing {
+                transform.position = self.start_position;
+                self.progress = 0.0;
             }
         } else {
             return Err(anyhow!("Failed to acquire lock on transform"));

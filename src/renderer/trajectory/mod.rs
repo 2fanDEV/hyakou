@@ -27,8 +27,6 @@ pub fn calculate_direction_vector(yaw_radians: f32, pitch_radians: f32) -> Vec3 
 pub enum Direction {
     FORWARDS,
     BACKWARDS,
-    LEFT,
-    RIGHT,
 }
 
 #[cfg(test)]

@@ -13,11 +13,11 @@ pub struct CircularTrajectory {
 }
 
 impl CircularTrajectory {
-    pub fn new(transform: Arc<RwLock<Transform>>, radius: f32) -> Self {
+    pub fn new(transform: Arc<RwLock<Transform>>, radius: f32, speed: f32) -> Self {
         Self {
             target_transform: transform,
             radius,
-            speed: 100f32,
+            speed,
             ..Default::default()
         }
     }
