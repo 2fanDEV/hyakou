@@ -57,7 +57,7 @@ mod tests {
     fn test_circular_trajectory_rotation_without_target() {
         let transform = Arc::new(RwLock::new(Transform::default()));
         let radius = 5.0;
-        let mut trajectory = CircularTrajectory::new(transform.clone(), radius);
+        let mut trajectory = CircularTrajectory::new(transform.clone(), radius, 100f32);
 
         // Initial position should be at angle 0 (radius units along X axis)
         trajectory.animate(None, 0.0).unwrap();
@@ -83,7 +83,7 @@ mod tests {
         target_transform.position = Vec3::new(10.0, 0.0, 20.0);
 
         let radius = 3.0;
-        let mut trajectory = CircularTrajectory::new(transform.clone(), radius);
+        let mut trajectory = CircularTrajectory::new(transform.clone(), radius, 100f32);
 
         // Animate around target
         trajectory.animate(Some(&target_transform), 0.0).unwrap();
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn test_circular_trajectory_reset() {
         let transform = Arc::new(RwLock::new(Transform::default()));
-        let mut trajectory = CircularTrajectory::new(transform.clone(), 7.0);
+        let mut trajectory = CircularTrajectory::new(transform.clone(), 7.0, 100f32);
 
         // Rotate for some time
         trajectory.animate(None, 1.0).unwrap();

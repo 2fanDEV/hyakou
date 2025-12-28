@@ -132,7 +132,8 @@ mod tests {
             0.0,   // pitch: no vertical component
             10.0,  // distance: 10 units
             5.0,   // speed: 5 units per second
-            false, // not looping
+            false, // not looping,
+            true,
         );
 
         // Simulate 1 second of movement
@@ -158,6 +159,7 @@ mod tests {
             4.0,  // distance: 4 units
             2.0,  // speed: 2 units per second
             true, // looping enabled
+            true,
         );
 
         // Animate forward to boundary (2 seconds to reach end)
@@ -179,8 +181,16 @@ mod tests {
     fn test_linear_trajectory_reset() {
         let transform = Arc::new(RwLock::new(Transform::default()));
         let start_pos = Vec3::new(5.0, 10.0, -3.0);
-        let mut trajectory =
-            LinearTrajectory::new(transform.clone(), start_pos, 45.0, 0.0, 8.0, 4.0, true);
+        let mut trajectory = LinearTrajectory::new(
+            transform.clone(),
+            start_pos,
+            45.0,
+            0.0,
+            8.0,
+            4.0,
+            true,
+            true,
+        );
 
         // Move the trajectory
         trajectory.animate(None, 1.0).unwrap();
