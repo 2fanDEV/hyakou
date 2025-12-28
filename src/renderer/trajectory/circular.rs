@@ -25,9 +25,14 @@ impl CircularTrajectory {
         radius: f32,
         speed: f32,
     ) -> Result<Self> {
+        if radius <= 0.0 || speed <= 0.0 {
+            return Err(anyhow!(
+                "Radius and speed have to be non-negative/non-zero!"
+            ));
+        }
         Ok(Self {
             id,
-            target_transform: transform.clone(),
+            target_transform: transform,
             radius,
             speed,
             angle: 0.0,
@@ -35,11 +40,6 @@ impl CircularTrajectory {
     }
 
     pub fn new(render_mesh: RenderMesh, radius: f32, speed: f32) -> Result<Self> {
-        if radius <= 0.0 && speed <= 0.0 {
-            return Err(anyhow!(
-                "Radius and speed have to be non-negative/non-zero!"
-            ));
-        }
         Self::new_deconstructed_mesh(render_mesh.id, render_mesh.transform, radius, speed)
     }
 }
@@ -55,7 +55,7 @@ impl Trajectory for CircularTrajectory {
                 transform.position.x = self.radius * f32::cos(self.angle);
                 transform.position.z = self.radius * f32::sin(self.angle);
             }
-            self.angle += (self.speed * delta) % (2.0 * PI);
+            self.angle = (self.angle + self.speed * delta) % (2.0 * PI);
             Ok(())
         } else {
             return Err(anyhow!(

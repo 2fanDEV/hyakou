@@ -37,6 +37,7 @@ pub struct LinearTrajectory {
 impl LinearTrajectory {
     const MIN_PROGRESS: f32 = -1.0;
     const MAX_PROGRESS: f32 = 1.0;
+    const ZERO_PROGRESS: f32 = 0.0;
 
     pub fn new_deconstructed_mesh(
         id: String,
@@ -44,20 +45,23 @@ impl LinearTrajectory {
         start_position: Vec3,
         yaw_radians: f32,
         pitch_radians: f32,
-        mut distance: f32,
-        mut speed: f32,
+        distance: f32,
+        speed: f32,
         looping: bool,
         reversing: bool,
     ) -> Result<Self> {
+        if distance == 0.0 || speed == 0.0 {
+            return Err(anyhow!("Distance and speed must be non-zero!"));
+        }
         Ok(Self {
             id,
-            transform: transform,
+            transform,
             start_position,
             yaw_radians,
             pitch_radians,
             distance,
             speed,
-            progress: 0.0,
+            progress: Self::ZERO_PROGRESS,
             looping,
             reversing,
             direction: Direction::FORWARDS,
@@ -69,14 +73,11 @@ impl LinearTrajectory {
         start_position: Vec3,
         yaw_radians: f32,
         pitch_radians: f32,
-        mut distance: f32,
-        mut speed: f32,
+        distance: f32,
+        speed: f32,
         looping: bool,
         reversing: bool,
     ) -> Result<Self> {
-        if distance == 0.0 || speed == 0.0 {
-            return Err(anyhow!("Distance and speed must be non-zero!"));
-        }
         Self::new_deconstructed_mesh(
             render_mesh.id,
             render_mesh.transform,
@@ -109,20 +110,20 @@ impl Trajectory for LinearTrajectory {
                     self.progress -= (self.speed / self.distance) * delta;
                 }
             }
-            self.progress = self.progress.clamp(-1.0, 1.0);
+            self.progress = self.progress.clamp(Self::MIN_PROGRESS, Self::MAX_PROGRESS);
             transform.position =
                 self.start_position + direction_vector * self.distance * self.progress;
 
-            if self.progress >= 1.0 && self.reversing {
+            if self.progress >= Self::MAX_PROGRESS && self.reversing {
                 self.direction = Direction::BACKWARDS;
             }
-            if self.progress <= -1.0 && self.looping {
+            if self.progress <= Self::MIN_PROGRESS && self.looping {
                 self.direction = Direction::FORWARDS;
             }
 
-            if self.progress >= 1.0 && self.looping && !self.reversing {
+            if self.progress >= Self::MAX_PROGRESS && self.looping && !self.reversing {
                 transform.position = self.start_position;
-                self.progress = 0.0;
+                self.progress = Self::ZERO_PROGRESS;
             }
         } else {
             return Err(anyhow!(
@@ -134,7 +135,7 @@ impl Trajectory for LinearTrajectory {
     }
 
     fn reset(&mut self) {
-        self.progress = 0.0;
+        self.progress = Self::ZERO_PROGRESS;
         self.direction = Direction::FORWARDS;
         if let Some(mut transform) = self.transform.try_write() {
             transform.position = self.start_position;
@@ -196,14 +197,18 @@ mod tests {
 
         // Should have bounced back and changed direction
         assert_eq!(trajectory.direction, Direction::BACKWARDS);
-        assert!(trajectory.progress <= 1.0, "{:?}", trajectory.progress);
+        assert!(
+            trajectory.progress <= LinearTrajectory::MAX_PROGRESS,
+            "{:?}",
+            trajectory.progress
+        );
 
         // Continue backward past start
         trajectory.animate(None, 5.0).unwrap();
 
         // Should bounce forward again
         assert_eq!(trajectory.direction, Direction::FORWARDS);
-        assert!(trajectory.progress >= -1.0);
+        assert!(trajectory.progress >= LinearTrajectory::MIN_PROGRESS);
     }
 
     #[test]
@@ -225,13 +230,13 @@ mod tests {
 
         // Move the trajectory
         trajectory.animate(None, 1.0).unwrap();
-        assert!(trajectory.progress > 0.0);
+        assert!(trajectory.progress > LinearTrajectory::ZERO_PROGRESS);
 
         // Reset
         trajectory.reset();
 
         // Check state is reset
-        assert_eq!(trajectory.progress, 0.0);
+        assert_eq!(trajectory.progress, LinearTrajectory::ZERO_PROGRESS);
         assert_eq!(trajectory.direction, Direction::FORWARDS);
 
         let pos = transform.read().position;
