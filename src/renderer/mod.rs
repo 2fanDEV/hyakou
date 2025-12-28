@@ -154,14 +154,11 @@ impl Renderer {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
             .update_camera(&mut self.camera, delta_time);
-        match self.linear_trajectory.animate(None, delta_time) {
-            Ok(_) => {}
-            Err(e) => {
-                error!(
-                    "Failed to animate linear trajectory: {:?} with error: {:?}",
-                    self.linear_trajectory.id, e
-                )
-            }
+        if let Err(e) = self.linear_trajectory.animate(None, delta_time) {
+            error!(
+                "Failed to animate linear trajectory: {:?} with error: {:?}",
+                self.linear_trajectory.id, e
+            )
         }
 
         self.camera_uniform.update(&self.camera);

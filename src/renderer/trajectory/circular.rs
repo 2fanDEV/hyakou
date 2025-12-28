@@ -12,7 +12,7 @@ use crate::renderer::{
 #[derive(Default, Clone)]
 pub struct CircularTrajectory {
     id: String,
-    target_transform: Arc<RwLock<Transform>>,
+    transform: Arc<RwLock<Transform>>,
     radius: f32,
     angle: f32,
     speed: f32,
@@ -32,7 +32,7 @@ impl CircularTrajectory {
         }
         Ok(Self {
             id,
-            target_transform: transform,
+            transform,
             radius,
             speed,
             angle: 0.0,
@@ -46,7 +46,7 @@ impl CircularTrajectory {
 
 impl Trajectory for CircularTrajectory {
     fn animate(&mut self, target: Option<&Transform>, delta: DeltaTime) -> Result<()> {
-        if let Some(mut transform) = self.target_transform.try_write() {
+        if let Some(mut transform) = self.transform.try_write() {
             if let Some(t) = target {
                 transform.position.x = t.position.x + self.radius * f32::cos(self.angle);
                 transform.position.y = t.position.y;
