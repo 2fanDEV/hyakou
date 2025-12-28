@@ -1,12 +1,10 @@
-use std::{
-    path::Path,
-    sync::{Arc, RwLock},
-};
+use parking_lot::RwLock;
+use std::{path::Path, sync::Arc};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
 use glam::Vec3;
-use log::warn;
+use log::{error, warn};
 use wgpu::{
     BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
@@ -25,7 +23,8 @@ use crate::renderer::{
     geometry::BindGroupProvider,
     handlers::{asset_handler::AssetHandler, camera_controller::CameraController},
     renderer_context::RenderContext,
-    types::{TransformBuffer, ids::UniformBufferId, uniform::UniformBuffer},
+    trajectory::{Trajectory, linear::LinearTrajectory},
+    types::{DeltaTime, TransformBuffer, ids::UniformBufferId, uniform::UniformBuffer},
     wrappers::WinitSurfaceProvider,
 };
 
@@ -33,6 +32,7 @@ pub mod components;
 pub mod geometry;
 pub mod handlers;
 pub mod renderer_context;
+pub mod trajectory;
 pub mod types;
 pub mod util;
 pub mod wrappers;
@@ -48,6 +48,7 @@ pub struct Renderer {
     light: LightSource,
     light_uniform_buffer: UniformBuffer,
     light_bind_group: BindGroup,
+    linear_trajectory: LinearTrajectory,
     pub camera_controller: CameraController,
     pub asset_manager: AssetHandler,
 }
@@ -79,7 +80,6 @@ impl Renderer {
             .unwrap()
             .transform
             .write()
-            .unwrap()
             .translate(Vec3::new(0.0, 1.0, 1.0));
         let light = LightSource::new(
             cube_light_mesh.as_ref().unwrap().transform.clone(),
@@ -89,7 +89,7 @@ impl Renderer {
             UniformBufferId::new("Light Uniform Buffer".to_string()),
             &ctx.device,
             bytes_of(&light.to_gpu().unwrap()),
-            cube_light_mesh.unwrap().transform.clone(),
+            cube_light_mesh.as_ref().unwrap().transform.clone(),
         );
 
         let light_bind_group = LightSource::bind_group(
@@ -99,7 +99,7 @@ impl Renderer {
         );
 
         let camera = Camera::new(
-            Vec3::new(0.0, 0.0, 5.0),
+            Vec3::new(0.0, 0.0, 15.0),
             Vec3::new(0.0, 0.0, -1.0),
             Vec3::Y,
             (ctx.size.width / ctx.size.height) as f32,
@@ -122,13 +122,24 @@ impl Renderer {
             &camera_uniform_buffer,
             &ctx.camera_bind_group_layout,
         );
-
         Ok(Self {
             ctx,
             asset_manager: asset_handler,
             frame_idx: 0,
             camera,
             camera_uniform,
+            // TODO: Don't hardcode this, however will be resolved in a different ticket
+            linear_trajectory: LinearTrajectory::new(
+                cube_light_mesh.as_ref().unwrap().as_ref().clone(),
+                Vec3::new(0.0, 1.0, 0.0),
+                f32::to_radians(0.0),
+                f32::to_radians(0.0),
+                3.0,
+                3.0,
+                true,
+                true,
+            )
+            .unwrap(),
             camera_uniform_buffer,
             camera_bind_group,
             light,
@@ -139,15 +150,17 @@ impl Renderer {
         })
     }
 
-    pub fn update(&mut self, delta_time: f32) {
+    pub fn update(&mut self, delta_time: DeltaTime) {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
             .update_camera(&mut self.camera, delta_time);
-        self.light
-            .transform
-            .write()
-            .unwrap()
-            .translate(Vec3::new(0.01, 0.0, 0.0));
+        if let Err(e) = self.linear_trajectory.animate(None, delta_time) {
+            error!(
+                "Failed to animate linear trajectory: {:?} with error: {:?}",
+                self.linear_trajectory.id, e
+            )
+        }
+
         self.camera_uniform.update(&self.camera);
         if let Some(gpu_light_source) = self.light.to_gpu() {
             self.light_uniform_buffer
@@ -294,7 +307,7 @@ impl Renderer {
         render_pass.set_push_constants(
             ShaderStages::VERTEX,
             0,
-            bytemuck::bytes_of(&render_mesh.transform.read().unwrap().get_matrix()),
+            bytemuck::bytes_of(&render_mesh.transform.read().get_matrix()),
         );
         render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
         render_pass.set_bind_group(1, light_bind_group, &[]);

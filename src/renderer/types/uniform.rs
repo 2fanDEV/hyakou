@@ -1,7 +1,8 @@
 use std::{
     ops::Deref,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
+use parking_lot::RwLock;
 
 use wgpu::{
     Buffer, BufferUsages, Device,

@@ -1,4 +1,5 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
@@ -33,7 +34,7 @@ impl LightSource {
     }
 
     pub fn to_gpu(&self) -> Option<GpuLightSource> {
-        self.transform.try_read().ok().map(|t| GpuLightSource {
+        self.transform.try_read().map(|t| GpuLightSource {
             transform: *t,
             color: self.color,
             _padding_2: 0.0,

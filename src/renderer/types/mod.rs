@@ -1,7 +1,8 @@
 use std::{
     ops::Deref,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
+use parking_lot::RwLock;
 
 use anyhow::Result;
 use wgpu::{Buffer, Queue};
@@ -10,6 +11,8 @@ use crate::renderer::components::transform::Transform;
 
 pub mod ids;
 pub mod uniform;
+
+pub type DeltaTime = f32;
 
 trait Id {
     fn get_id(&self) -> &str;
