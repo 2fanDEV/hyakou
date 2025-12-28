@@ -1,10 +1,10 @@
-use std::{path::Path, sync::Arc};
 use parking_lot::RwLock;
+use std::{path::Path, sync::Arc};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
 use glam::Vec3;
-use log::warn;
+use log::{error, warn};
 use wgpu::{
     BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
@@ -154,9 +154,16 @@ impl Renderer {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
             .update_camera(&mut self.camera, delta_time);
-        self.linear_trajectory
-            .animate(None, delta_time)
-            .expect("Error while trying to update linear trajectory animation");
+        match self.linear_trajectory.animate(None, delta_time) {
+            Ok(_) => {}
+            Err(e) => {
+                error!(
+                    "Failed to animate linear trajectory: {:?} with error: {:?}",
+                    self.linear_trajectory.id, e
+                )
+            }
+        }
+
         self.camera_uniform.update(&self.camera);
         if let Some(gpu_light_source) = self.light.to_gpu() {
             self.light_uniform_buffer

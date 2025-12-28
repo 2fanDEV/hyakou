@@ -16,7 +16,7 @@ use crate::renderer::{
 ///
 #[derive(Debug, Clone)]
 pub struct LinearTrajectory {
-    id: String,
+    pub id: String,
     transform: Arc<RwLock<Transform>>,
     start_position: Vec3,
     yaw_radians: f32,
