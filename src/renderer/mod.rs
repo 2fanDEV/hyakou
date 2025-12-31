@@ -25,7 +25,7 @@ use crate::renderer::{
     handlers::{asset_handler::AssetHandler, camera_controller::CameraController},
     renderer_context::RenderContext,
     types::{
-        DeltaTime, DeltaTime64, Id, TransformBuffer,
+        DeltaTime64, TransformBuffer,
         ids::{MeshId, UniformBufferId},
         uniform::UniformBuffer,
     },

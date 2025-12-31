@@ -10,11 +10,15 @@ pub mod trajectory;
 pub const NEUTRAL_SPEED: f32 = 1.0;
 
 /// A trait to implement when specific trajectory path are to be implemented.
-/// The animate(...) most likely uses a try_wtite on a Arc<RwLock<Transform>> which could
+/// The animate(...) most likely uses a try_write on a Arc<RwLock<Transform>> which could
 /// panic but should be handled gracefully. Nonetheless you can match the result to get the
 /// error that occurs when try_write fails to acquire the lock.
 pub trait Animation: Send {
     fn get_id(&self) -> &MeshId;
+    /// t: Option<&Transform> is a target transform
+    /// when an animation allows an animated object to hover around another
+    /// or travel towards a different object. In some cases its supposed to be None and
+    /// in other it can be a different Transform from a different object.
     fn animate(&mut self, t: Option<&Transform>, delta: DeltaTime) -> Result<()>;
     fn reset(&mut self);
 }
@@ -158,8 +162,7 @@ mod tests {
         animator.pause();
         animator.play(0.016).unwrap();
 
-        // Time should still accumulate even when paused
-        assert!((animator.get_elapsed_time() - 0.032).abs() < 0.017);
+        assert!((animator.get_elapsed_time() - 0.032).abs().eq(&0.016));
     }
 
     #[test]
@@ -198,7 +201,7 @@ mod tests {
         let (mock, animate_calls, _) = MockAnimation::new();
         let mut animator = Animator::new(NEUTRAL_SPEED, Box::new(mock)).unwrap();
 
-        assert_eq!(animator.is_currently_playing, true);
+        assert_eq!(animator.is_currently_playing(), true);
         animator.play(0.016).unwrap();
         assert_eq!(animate_calls.lock().unwrap().len(), 1);
     }
@@ -310,6 +313,6 @@ mod tests {
         animator.pause();
         animator.reset();
 
-        assert_eq!(animator.is_currently_playing, false);
+        assert_eq!(animator.is_currently_playing(), false);
     }
 }

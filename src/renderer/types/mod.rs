@@ -16,7 +16,8 @@ pub trait Id {
     fn get_id(&self) -> &str;
 }
 
-trait BaseBuffer {
+#[allow(unused)]
+pub trait BaseBuffer {
     fn get_buffer(&self) -> &Buffer;
     fn get_id_cloned(&self) -> Box<dyn Id>;
     fn get_id_as_string(&self) -> &str;

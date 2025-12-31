@@ -1,3 +1,4 @@
+use log::error;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
@@ -143,6 +144,8 @@ impl Animation for LinearTrajectory {
         self.direction = Direction::FORWARDS;
         if let Some(mut transform) = self.transform.try_write() {
             transform.position = self.start_position;
+        } else {
+            error!("Failed to reset animation with id: {:?}", self.id);
         }
     }
 
