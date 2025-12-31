@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 
 use crate::renderer::{
     components::transform::Transform,
-    types::{DeltaTime, ids::MeshId},
+    types::{DeltaTime, DeltaTime64, ids::MeshId},
 };
 
 pub mod trajectory;
@@ -20,10 +20,10 @@ pub trait Animation: Send {
 }
 
 pub struct Animator {
-    pub id: MeshId,
-    elapsed_time: f32,
+    id: MeshId,
+    elapsed_time: DeltaTime64,
     speed_multiplier: f32,
-    pub is_currently_playing: bool,
+    is_currently_playing: bool,
     animation: Box<dyn Animation>,
 }
 
@@ -38,12 +38,12 @@ impl Animator {
         })
     }
 
-    pub fn play(&mut self, delta_time: DeltaTime) -> Result<()> {
+    pub fn play(&mut self, delta_time: DeltaTime64) -> Result<()> {
         if self.is_currently_playing {
             self.elapsed_time += delta_time;
             if let Err(e) = self
                 .animation
-                .animate(None, self.speed_multiplier * delta_time)
+                .animate(None, self.speed_multiplier * delta_time as f32)
             {
                 return Err(anyhow!(
                     "Error at animator {:?} with the following message: {:?}",
@@ -68,12 +68,20 @@ impl Animator {
         self.animation.reset();
     }
 
-    pub fn get_elapsed_time(&self) -> f32 {
+    pub fn get_elapsed_time(&self) -> f64 {
         self.elapsed_time
     }
 
     pub fn get_speed_multiplier(&self) -> f32 {
         self.speed_multiplier
+    }
+
+    pub fn is_currently_playing(&self) -> bool {
+        self.is_currently_playing
+    }
+
+    pub fn get_id(&self) -> &MeshId {
+        &self.id
     }
 }
 

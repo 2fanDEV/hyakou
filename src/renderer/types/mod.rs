@@ -10,6 +10,7 @@ pub mod ids;
 pub mod uniform;
 
 pub type DeltaTime = f32;
+pub type DeltaTime64 = f64;
 
 pub trait Id {
     fn get_id(&self) -> &str;

@@ -17,7 +17,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    const MIN_TIME_IN_SECONDS: f32 = 0.05;
+    const MIN_TIME_IN_SECONDS: f64 = 0.05;
 
     pub fn new() -> Self {
         Self {
@@ -27,10 +27,10 @@ impl AppState {
         }
     }
 
-    fn calculate_last_frame_time(&mut self) -> f32 {
+    fn calculate_last_frame_time(&mut self) -> f64 {
         let now = Instant::now();
         let delta = now.duration_since(self.last_frame_time);
-        let mut delta_time = delta.as_secs_f32();
+        let mut delta_time = delta.as_secs_f64();
         delta_time = delta_time.min(Self::MIN_TIME_IN_SECONDS);
         self.last_frame_time = now;
         delta_time

@@ -24,7 +24,11 @@ use crate::renderer::{
     geometry::BindGroupProvider,
     handlers::{asset_handler::AssetHandler, camera_controller::CameraController},
     renderer_context::RenderContext,
-    types::{DeltaTime, Id, TransformBuffer, ids::UniformBufferId, uniform::UniformBuffer},
+    types::{
+        DeltaTime, DeltaTime64, Id, TransformBuffer,
+        ids::{MeshId, UniformBufferId},
+        uniform::UniformBuffer,
+    },
     wrappers::WinitSurfaceProvider,
 };
 
@@ -48,7 +52,7 @@ pub struct Renderer {
     light: LightSource,
     light_uniform_buffer: UniformBuffer,
     light_bind_group: BindGroup,
-    animators: HashMap<String, Animator>,
+    animators: HashMap<MeshId, Animator>,
     pub camera_controller: CameraController,
     pub asset_manager: AssetHandler,
 }
@@ -135,11 +139,12 @@ impl Renderer {
         )
         .unwrap();
 
-        let mut animators = HashMap::<String, Animator>::new();
+        let mut animators = HashMap::<MeshId, Animator>::new();
         animators.insert(
-            (**test_trajectory.get_id()).clone(),
+            test_trajectory.get_id().clone(),
             Animator::new(NEUTRAL_SPEED, Box::new(test_trajectory)).unwrap(),
         );
+
         Ok(Self {
             ctx,
             asset_manager: asset_handler,
@@ -158,10 +163,10 @@ impl Renderer {
         })
     }
 
-    pub fn update(&mut self, delta_time: DeltaTime) {
+    pub fn update(&mut self, delta_time: DeltaTime64) {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
-            .update_camera(&mut self.camera, delta_time);
+            .update_camera(&mut self.camera, delta_time as f32);
 
         self.animators.values_mut().for_each(|animator| {
             if let Err(animator_error) = animator.play(delta_time) {

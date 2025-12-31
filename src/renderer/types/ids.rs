@@ -28,7 +28,7 @@ impl UniformResourceId for UniformBufferId {
     }
 }
 
-#[derive(Default, Debug, Eq, PartialEq, Clone)]
+#[derive(Default, Debug, Eq, PartialEq, Clone, Hash)]
 pub struct MeshId(pub String);
 
 impl Deref for MeshId {
