@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 use uuid::Uuid;
 use wgpu::{
@@ -9,12 +9,13 @@ use wgpu::{
 
 use crate::renderer::{
     components::{LightType, mesh_node::MeshNode, transform::Transform},
+    types::ids::MeshId,
     util::Concatable,
 };
 
 #[derive(Debug, Clone)]
 pub struct RenderMesh {
-    pub id: String,
+    pub id: MeshId,
     pub vertex_buffer: Buffer,
     pub index_buffer: Buffer,
     pub index_count: u32,
@@ -27,9 +28,9 @@ impl RenderMesh {
         device: &Device,
         mesh_node: MeshNode,
         light_type: &LightType,
-        label: Option<String>,
+        label: Option<MeshId>,
     ) -> Self {
-        let id = label.unwrap_or(Uuid::new_v4().to_string());
+        let id = label.unwrap_or(MeshId(Uuid::new_v4().to_string()));
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex Buffer: ".to_string().concat(&id)),
             contents: bytemuck::cast_slice(&mesh_node.vertices),

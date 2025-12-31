@@ -5,8 +5,12 @@ use anyhow::{Result, anyhow};
 use glam::Vec3;
 
 use crate::renderer::{
+    animator::{
+        Animation,
+        trajectory::{Direction, calculate_direction_vector},
+    },
     components::{render_mesh::RenderMesh, transform::Transform},
-    trajectory::{Direction, Trajectory, calculate_direction_vector},
+    types::ids::MeshId,
 };
 
 /// LinearTrajectory is an animation that allows the
@@ -16,7 +20,7 @@ use crate::renderer::{
 ///
 #[derive(Debug, Clone)]
 pub struct LinearTrajectory {
-    pub id: String,
+    pub id: MeshId,
     transform: Arc<RwLock<Transform>>,
     start_position: Vec3,
     yaw_radians: f32,
@@ -40,7 +44,7 @@ impl LinearTrajectory {
     const ZERO_PROGRESS: f32 = 0.0;
 
     pub fn new_deconstructed_mesh(
-        id: String,
+        id: MeshId,
         transform: Arc<RwLock<Transform>>,
         start_position: Vec3,
         yaw_radians: f32,
@@ -92,7 +96,7 @@ impl LinearTrajectory {
     }
 }
 
-impl Trajectory for LinearTrajectory {
+impl Animation for LinearTrajectory {
     /// Currently ignoring target since there is no use for it yet.
     /// Maybe sometime in the future this will cause the linear trajectory to be right above the target
     fn animate(
@@ -141,6 +145,10 @@ impl Trajectory for LinearTrajectory {
             transform.position = self.start_position;
         }
     }
+
+    fn get_id(&self) -> &MeshId {
+        &self.id
+    }
 }
 
 #[cfg(test)]
@@ -152,7 +160,7 @@ mod tests {
         let transform = Arc::new(RwLock::new(Transform::default()));
         let start_pos = Vec3::new(0.0, 0.0, 0.0);
         let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
-            "Test".to_string(),
+            MeshId("Test".to_string()),
             transform.clone(),
             start_pos,
             0.0,   // yaw: move along X axis
@@ -180,7 +188,7 @@ mod tests {
         let transform = Arc::new(RwLock::new(Transform::default()));
         let start_pos = Vec3::new(0.0, 0.0, 0.0);
         let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
-            "Test1".to_string(),
+            MeshId("Test1".to_string()),
             transform.clone(),
             start_pos,
             f32::to_radians(90.0), // yaw: move along Y axis
@@ -216,7 +224,7 @@ mod tests {
         let transform = Arc::new(RwLock::new(Transform::default()));
         let start_pos = Vec3::new(5.0, 10.0, -3.0);
         let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
-            "Test".to_string(),
+            MeshId("Test".to_string()),
             transform.clone(),
             start_pos,
             45.0,

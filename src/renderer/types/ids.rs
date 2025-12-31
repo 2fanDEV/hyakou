@@ -1,10 +1,12 @@
+use std::ops::Deref;
+
 use crate::renderer::types::Id;
 
 pub trait UniformResourceId: Id {
     fn get(&self) -> &str;
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct UniformBufferId {
     pub id: String,
 }
@@ -23,5 +25,22 @@ impl Id for UniformBufferId {
 impl UniformResourceId for UniformBufferId {
     fn get(&self) -> &str {
         self.get_id()
+    }
+}
+
+#[derive(Default, Debug, Eq, PartialEq, Clone)]
+pub struct MeshId(pub String);
+
+impl Deref for MeshId {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Id for MeshId {
+    fn get_id(&self) -> &str {
+        &self.0
     }
 }

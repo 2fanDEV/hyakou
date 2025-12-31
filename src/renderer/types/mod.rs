@@ -1,8 +1,5 @@
-use std::{
-    ops::Deref,
-    sync::Arc,
-};
 use parking_lot::RwLock;
+use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
 use wgpu::{Buffer, Queue};
@@ -14,7 +11,7 @@ pub mod uniform;
 
 pub type DeltaTime = f32;
 
-trait Id {
+pub trait Id {
     fn get_id(&self) -> &str;
 }
 

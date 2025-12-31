@@ -9,6 +9,7 @@ use wgpu::Device;
 
 use crate::renderer::{
     components::{LightType, glTF::GLTFLoader, render_mesh::RenderMesh},
+    types::ids::MeshId,
     util::{self, Concatable},
 };
 
@@ -54,7 +55,7 @@ impl AssetHandler {
                 &self.device,
                 node,
                 &light_type,
-                Some(id.clone()),
+                Some(MeshId(id.clone())),
             )));
             self.memory_loaded_assets
                 .insert(id.clone(), render_mesh.as_ref().unwrap().clone());

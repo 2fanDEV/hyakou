@@ -4,14 +4,14 @@ use std::{f32::consts::PI, sync::Arc};
 use anyhow::{Result, anyhow};
 
 use crate::renderer::{
+    animator::Animation,
     components::{render_mesh::RenderMesh, transform::Transform},
-    trajectory::Trajectory,
-    types::DeltaTime,
+    types::{DeltaTime, ids::MeshId},
 };
 
 #[derive(Default, Clone)]
 pub struct CircularTrajectory {
-    id: String,
+    id: MeshId,
     transform: Arc<RwLock<Transform>>,
     radius: f32,
     angle: f32,
@@ -20,7 +20,7 @@ pub struct CircularTrajectory {
 
 impl CircularTrajectory {
     pub fn new_deconstructed_mesh(
-        id: String,
+        id: MeshId,
         transform: Arc<RwLock<Transform>>,
         radius: f32,
         speed: f32,
@@ -44,7 +44,7 @@ impl CircularTrajectory {
     }
 }
 
-impl Trajectory for CircularTrajectory {
+impl Animation for CircularTrajectory {
     fn animate(&mut self, target: Option<&Transform>, delta: DeltaTime) -> Result<()> {
         if let Some(mut transform) = self.transform.try_write() {
             if let Some(t) = target {
@@ -68,6 +68,10 @@ impl Trajectory for CircularTrajectory {
     fn reset(&mut self) {
         self.angle = 0f32;
     }
+
+    fn get_id(&self) -> &MeshId {
+        &self.id
+    }
 }
 
 #[cfg(test)]
@@ -80,7 +84,7 @@ mod tests {
         let transform = Arc::new(RwLock::new(Transform::default()));
         let radius = 5.0;
         let mut trajectory = CircularTrajectory::new_deconstructed_mesh(
-            "TEST".to_string(),
+            MeshId("TEST".to_string()),
             transform.clone(),
             radius,
             100f32,
@@ -112,7 +116,7 @@ mod tests {
 
         let radius = 3.0;
         let mut trajectory = CircularTrajectory::new_deconstructed_mesh(
-            "TEST".to_string(),
+            MeshId("TEST".to_string()),
             transform.clone(),
             radius,
             100f32,
@@ -136,7 +140,7 @@ mod tests {
     fn test_circular_trajectory_reset() {
         let transform = Arc::new(RwLock::new(Transform::default()));
         let mut trajectory = CircularTrajectory::new_deconstructed_mesh(
-            "TEST".to_string(),
+            MeshId("TEST".to_string()),
             transform.clone(),
             7.0,
             100f32,

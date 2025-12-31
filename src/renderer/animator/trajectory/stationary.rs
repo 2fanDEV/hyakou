@@ -1,13 +1,16 @@
 use anyhow::Ok;
 
 use crate::renderer::{
+    animator::Animation,
     components::transform::{self},
-    trajectory::Trajectory,
+    types::ids::MeshId,
 };
 
-pub struct StationaryTrajectory {}
+pub struct StationaryTrajectory {
+    pub id: MeshId,
+}
 
-impl Trajectory for StationaryTrajectory {
+impl Animation for StationaryTrajectory {
     fn animate(
         &mut self,
         _t: Option<&transform::Transform>,
@@ -18,21 +21,31 @@ impl Trajectory for StationaryTrajectory {
 
     // Empty as you don't need this to do anything as it's stationary.
     fn reset(&mut self) {}
+
+    fn get_id(&self) -> &MeshId {
+        &self.id
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use super::*;
 
     #[test]
     fn test_stationary_trajectory_creation() {
-        let _trajectory = StationaryTrajectory {};
+        let _trajectory = StationaryTrajectory {
+            id: MeshId(Uuid::new_v4().to_string()),
+        };
         // Just verify it can be created
     }
 
     #[test]
     fn test_stationary_trajectory_animate_returns_ok() {
-        let mut trajectory = StationaryTrajectory {};
+        let mut trajectory = StationaryTrajectory {
+            id: MeshId(Uuid::new_v4().to_string()),
+        };
         let result = trajectory.animate(None, 1.0);
         assert!(result.is_ok());
 
@@ -44,7 +57,9 @@ mod tests {
 
     #[test]
     fn test_stationary_trajectory_reset_does_nothing() {
-        let mut trajectory = StationaryTrajectory {};
+        let mut trajectory = StationaryTrajectory {
+            id: MeshId(Uuid::new_v4().to_string()),
+        };
 
         // Reset should not panic or fail
         trajectory.reset();
