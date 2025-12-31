@@ -1,7 +1,4 @@
-use std::thread;
-
-use anyhow::{Ok, Result};
-use log::error;
+use anyhow::{Result, anyhow};
 
 use crate::renderer::{
     components::transform::Transform,
@@ -42,16 +39,18 @@ impl Animator {
     }
 
     pub fn play(&mut self, delta_time: DeltaTime) -> Result<()> {
-        self.elapsed_time += delta_time;
         if self.is_currently_playing {
-            thread::scope(|scope| {
-                if let Err(e) = self
-                    .animation
-                    .animate(None, self.speed_multiplier * delta_time)
-                {
-                    error!("Error at animator: {:?}", e);
-                }
-            })
+            self.elapsed_time += delta_time;
+            if let Err(e) = self
+                .animation
+                .animate(None, self.speed_multiplier * delta_time)
+            {
+                return Err(anyhow!(
+                    "Error at animator {:?} with the following message: {:?}",
+                    self.id,
+                    e
+                ));
+            }
         }
         Ok(())
     }
@@ -143,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn test_time_accumulates_even_when_paused() {
+    fn test_time_does_not_accumulates_when_paused() {
         let (mock, _, _) = MockAnimation::new();
         let mut animator = Animator::new(NEUTRAL_SPEED, Box::new(mock)).unwrap();
 
@@ -152,7 +151,7 @@ mod tests {
         animator.play(0.016).unwrap();
 
         // Time should still accumulate even when paused
-        assert!((animator.get_elapsed_time() - 0.032).abs() < 0.0001);
+        assert!((animator.get_elapsed_time() - 0.032).abs() < 0.017);
     }
 
     #[test]

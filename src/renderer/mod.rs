@@ -1,5 +1,5 @@
 use parking_lot::RwLock;
-use std::{collections::HashMap, ops::Deref, path::Path, sync::Arc, thread};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
@@ -163,9 +163,11 @@ impl Renderer {
         self.camera_controller
             .update_camera(&mut self.camera, delta_time);
 
-        self.animators
-            .values_mut()
-            .for_each(|animator| animator.play(delta_time).unwrap());
+        self.animators.values_mut().for_each(|animator| {
+            if let Err(animator_error) = animator.play(delta_time) {
+                error!("{:?}", animator_error)
+            }
+        });
 
         self.camera_uniform.update(&self.camera);
         if let Some(gpu_light_source) = self.light.to_gpu() {
