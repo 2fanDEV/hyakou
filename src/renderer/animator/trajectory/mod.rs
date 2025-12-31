@@ -1,20 +1,8 @@
-use anyhow::Result;
 use glam::Vec3;
-
-use crate::renderer::{components::transform::Transform, types::DeltaTime};
 
 pub mod circular;
 pub mod linear;
 pub mod stationary;
-
-/// A trait to implement when specific trajectory path are to be implemented.
-/// The animate(...) most likely uses a try_wtite on a Arc<RwLock<Transform>> which could
-/// panic but should be handled gracefully. Nonetheless you can match the result to get the
-/// error that occurs when try_write fails to acquire the lock.
-pub trait Trajectory {
-    fn animate(&mut self, t: Option<&Transform>, delta: DeltaTime) -> Result<()>;
-    fn reset(&mut self);
-}
 
 pub fn calculate_direction_vector(yaw_radians: f32, pitch_radians: f32) -> Vec3 {
     let x = pitch_radians.cos() * yaw_radians.cos();

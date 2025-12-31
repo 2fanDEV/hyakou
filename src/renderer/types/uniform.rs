@@ -1,8 +1,5 @@
-use std::{
-    ops::Deref,
-    sync::Arc,
-};
 use parking_lot::RwLock;
+use std::{ops::Deref, sync::Arc};
 
 use wgpu::{
     Buffer, BufferUsages, Device,
@@ -20,6 +17,7 @@ use crate::renderer::{
 use super::Id;
 
 #[derive(Clone)]
+#[allow(unused)]
 pub struct UniformBuffer {
     id: UniformBufferId,
     buffer: Buffer,

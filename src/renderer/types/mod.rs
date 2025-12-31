@@ -1,8 +1,5 @@
-use std::{
-    ops::Deref,
-    sync::Arc,
-};
 use parking_lot::RwLock;
+use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
 use wgpu::{Buffer, Queue};
@@ -13,12 +10,14 @@ pub mod ids;
 pub mod uniform;
 
 pub type DeltaTime = f32;
+pub type DeltaTime64 = f64;
 
-trait Id {
+pub trait Id {
     fn get_id(&self) -> &str;
 }
 
-trait BaseBuffer {
+#[allow(unused)]
+pub trait BaseBuffer {
     fn get_buffer(&self) -> &Buffer;
     fn get_id_cloned(&self) -> Box<dyn Id>;
     fn get_id_as_string(&self) -> &str;

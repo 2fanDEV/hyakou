@@ -1,5 +1,5 @@
 use parking_lot::RwLock;
-use std::{path::Path, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
@@ -13,6 +13,7 @@ use wgpu::{
 use winit::{dpi::PhysicalPosition, window::Window};
 
 use crate::renderer::{
+    animator::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
     components::{
         LightType,
         camera::{Camera, CameraUniform},
@@ -23,16 +24,19 @@ use crate::renderer::{
     geometry::BindGroupProvider,
     handlers::{asset_handler::AssetHandler, camera_controller::CameraController},
     renderer_context::RenderContext,
-    trajectory::{Trajectory, linear::LinearTrajectory},
-    types::{DeltaTime, TransformBuffer, ids::UniformBufferId, uniform::UniformBuffer},
+    types::{
+        DeltaTime64, TransformBuffer,
+        ids::{MeshId, UniformBufferId},
+        uniform::UniformBuffer,
+    },
     wrappers::WinitSurfaceProvider,
 };
 
+pub mod animator;
 pub mod components;
 pub mod geometry;
 pub mod handlers;
 pub mod renderer_context;
-pub mod trajectory;
 pub mod types;
 pub mod util;
 pub mod wrappers;
@@ -48,7 +52,7 @@ pub struct Renderer {
     light: LightSource,
     light_uniform_buffer: UniformBuffer,
     light_bind_group: BindGroup,
-    linear_trajectory: LinearTrajectory,
+    animators: HashMap<MeshId, Animator>,
     pub camera_controller: CameraController,
     pub asset_manager: AssetHandler,
 }
@@ -122,6 +126,25 @@ impl Renderer {
             &camera_uniform_buffer,
             &ctx.camera_bind_group_layout,
         );
+
+        let test_trajectory = LinearTrajectory::new(
+            cube_light_mesh.as_ref().unwrap().as_ref().clone(),
+            Vec3::new(0.0, 1.0, 0.0),
+            f32::to_radians(0.0),
+            f32::to_radians(0.0),
+            3.0,
+            3.0,
+            true,
+            true,
+        )
+        .unwrap();
+
+        let mut animators = HashMap::<MeshId, Animator>::new();
+        animators.insert(
+            test_trajectory.get_id().clone(),
+            Animator::new(NEUTRAL_SPEED, Box::new(test_trajectory)).unwrap(),
+        );
+
         Ok(Self {
             ctx,
             asset_manager: asset_handler,
@@ -129,37 +152,27 @@ impl Renderer {
             camera,
             camera_uniform,
             // TODO: Don't hardcode this, however will be resolved in a different ticket
-            linear_trajectory: LinearTrajectory::new(
-                cube_light_mesh.as_ref().unwrap().as_ref().clone(),
-                Vec3::new(0.0, 1.0, 0.0),
-                f32::to_radians(0.0),
-                f32::to_radians(0.0),
-                3.0,
-                3.0,
-                true,
-                true,
-            )
-            .unwrap(),
             camera_uniform_buffer,
             camera_bind_group,
             light,
             light_uniform_buffer,
             light_bind_group,
+            animators,
             camera_controller: CameraController::new(CAMERA_SPEED_UNITS_PER_SECOND),
             window,
         })
     }
 
-    pub fn update(&mut self, delta_time: DeltaTime) {
+    pub fn update(&mut self, delta_time: DeltaTime64) {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
-            .update_camera(&mut self.camera, delta_time);
-        if let Err(e) = self.linear_trajectory.animate(None, delta_time) {
-            error!(
-                "Failed to animate linear trajectory: {:?} with error: {:?}",
-                self.linear_trajectory.id, e
-            )
-        }
+            .update_camera(&mut self.camera, delta_time as f32);
+
+        self.animators.values_mut().for_each(|animator| {
+            if let Err(animator_error) = animator.play(delta_time) {
+                error!("{:?}", animator_error)
+            }
+        });
 
         self.camera_uniform.update(&self.camera);
         if let Some(gpu_light_source) = self.light.to_gpu() {
