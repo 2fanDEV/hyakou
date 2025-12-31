@@ -47,6 +47,15 @@ jobs:
             - Security concerns
             - Test coverage
 
+            Always rate the pr's state on a scale from 0/10 based on:
+            - Code Quality
+            - On Test coverage
+            - Performance
+            - Security
+            - and whatever you think is reasonable
+
+            Also then say if its mergeable in that current state or needs urgent revision.
+
             Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
 
             Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
@@ -54,4 +63,3 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://docs.claude.com/en/docs/claude-code/cli-reference for available options
           claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
-
