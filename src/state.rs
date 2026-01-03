@@ -110,7 +110,6 @@ impl ApplicationHandler for AppState {
         match event {
             DeviceEvent::MouseMotion { delta } => {
                 self.mouse_delta.delta_position = MovementDelta::new(delta.0, delta.1);
-                //  debug!("{:?}", self.mouddse_delta.delta_position);
                 renderer
                     .camera_controller
                     .rotate(&self.mouse_delta)
@@ -142,7 +141,6 @@ impl ApplicationHandler for AppState {
                             }
                         },
                     );
-                    debug!("{:?}", self.mouse_delta.state);
                 }
             }
             _ => {}

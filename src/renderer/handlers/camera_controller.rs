@@ -20,7 +20,8 @@ pub struct CameraController {
     yaw: Yaw,
     pitch: Pitch,
     sensitivity: f32,
-    smoothing_factor: Rc<f32>,
+    smoothing_factor: f32,
+    precalculated_smoothing: f32,
     is_forward_pressed: bool,
     is_backward_pressed: bool,
     is_left_pressed: bool,
@@ -28,15 +29,17 @@ pub struct CameraController {
 }
 
 impl CameraController {
+    const SMOOTHING_FACTOR: f32 = 0.35;
+
     pub fn new(camera_speed: f32, sensitivity: f32, camera: Camera) -> CameraController {
-        let SMOOTHING_FACTOR = Rc::new(0.35);
         Self {
             speed: camera_speed,
             is_backward_pressed: false,
             is_forward_pressed: false,
-            yaw: Yaw::new(-PI / 2.0, SMOOTHING_FACTOR.clone()),
-            pitch: Pitch::new(F32_ZERO, SMOOTHING_FACTOR.clone()),
-            smoothing_factor: SMOOTHING_FACTOR,
+            yaw: Yaw::new(-PI / 2.0),
+            pitch: Pitch::new(F32_ZERO),
+            precalculated_smoothing: 1.0 - Self::SMOOTHING_FACTOR,
+            smoothing_factor: Self::SMOOTHING_FACTOR,
             sensitivity,
             camera,
             is_left_pressed: false,
@@ -52,11 +55,17 @@ impl CameraController {
         if mouse_delta.is_mouse_on_window
             && mouse_delta.state.get_action().eq(&MouseAction::CLICKED)
         {
-            self.yaw
-                .add(mouse_delta.delta_position.x() as f32 * self.sensitivity);
-            self.pitch
-                .add(mouse_delta.delta_position.y() as f32 * self.sensitivity);
-            self.camera.fps_camera(&self.yaw, &self.pitch);
+            self.yaw.add(
+                mouse_delta.delta_position.x() as f32 * self.sensitivity,
+                self.precalculated_smoothing,
+                self.smoothing_factor,
+            );
+            self.pitch.add(
+                mouse_delta.delta_position.y() as f32 * self.sensitivity,
+                self.precalculated_smoothing,
+                self.smoothing_factor,
+            );
+            self.camera.move_camera_with_mouse(&self.yaw, &self.pitch);
         }
         Ok(())
     }
@@ -110,10 +119,10 @@ impl CameraController {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use glam::Vec3;
     use crate::renderer::types::mouse_delta::{
         MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
     };
+    use glam::Vec3;
 
     fn create_test_camera() -> Camera {
         Camera::new(
@@ -252,11 +261,8 @@ mod tests {
     #[test]
     fn test_update_camera_forward_movement() {
         let camera = create_test_camera();
-        let mut controller = CameraController::new(5.0, 0.5, camera);
-
-        let mut camera = create_test_camera();
         let initial_eye = camera.eye;
-
+        let mut controller = CameraController::new(5.0, 0.5, camera);
         controller.is_forward_pressed = true;
         controller.update_camera(1.0);
 

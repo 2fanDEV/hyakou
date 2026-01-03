@@ -1,5 +1,3 @@
-use std::ops::Add;
-
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
 use log::debug;
@@ -104,15 +102,8 @@ impl Camera {
         }
     }
 
-    pub fn orbit_camera(&mut self, delta: &MovementDelta) {
-        let delta_x = delta.x();
-        let delta_y = delta.y();
-    }
-
-    pub fn fps_camera(&mut self, yaw: &Yaw, pitch: &Pitch) {
+    pub fn move_camera_with_mouse(&mut self, yaw: &Yaw, pitch: &Pitch) {
         let forward = calculate_direction_vector(**yaw, **pitch);
-        let right = forward.cross(self.up);
-        let up = right.cross(forward);
         self.target = self.eye + forward;
     }
 

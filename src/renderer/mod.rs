@@ -58,8 +58,8 @@ pub struct Renderer {
 
 impl Renderer {
     pub async fn new(window: Arc<Window>) -> Result<Self> {
-        let mut CAMERA_SPEED_UNITS_PER_SECOND: f32 = 20.0;
-        let mut CAMERA_SENSITIVITY: f32 = 0.001;
+        const CAMERA_SPEED_UNITS_PER_SECOND: f32 = 20.0;
+        const CAMERA_SENSITIVITY: f32 = 0.001;
         let ctx = RenderContext::new(Some(WinitSurfaceProvider {
             window: window.clone(),
         }))
