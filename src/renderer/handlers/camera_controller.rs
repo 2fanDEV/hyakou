@@ -1,7 +1,6 @@
-use std::{cell::RefCell, f32::consts::PI, rc::Rc, sync::Arc};
+use std::f32::consts::PI;
 
 use anyhow::{Ok, Result};
-use log::debug;
 use winit::keyboard::KeyCode;
 
 use crate::renderer::{
@@ -9,7 +8,7 @@ use crate::renderer::{
     types::{
         F32_ZERO,
         camera::{Pitch, Yaw},
-        mouse_delta::{MouseAction, MouseDelta, MouseState},
+        mouse_delta::{MouseAction, MouseDelta},
     },
 };
 
@@ -275,7 +274,7 @@ mod tests {
         let camera = create_test_camera();
         let mut controller = CameraController::new(5.0, 0.5, camera);
 
-        let mut camera = create_test_camera();
+        let camera = create_test_camera();
         let initial_eye = camera.eye;
 
         controller.is_backward_pressed = true;
@@ -290,7 +289,7 @@ mod tests {
         let camera = create_test_camera();
         let mut controller = CameraController::new(5.0, 0.5, camera);
 
-        let mut camera = create_test_camera();
+        let camera = create_test_camera();
         let initial_eye = camera.eye;
 
         controller.is_left_pressed = true;

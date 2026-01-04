@@ -11,6 +11,7 @@ pub enum MouseAction {
     CLICKED,
     RELEASED,
     #[default]
+    #[allow(non_camel_case_types)]
     NO_ACTION,
 }
 

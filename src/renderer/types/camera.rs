@@ -1,6 +1,6 @@
-use std::{ops::Deref, rc::Rc};
+use std::ops::Deref;
 
-use crate::renderer::types::{F32_ZERO, F64_ZERO};
+use crate::renderer::types::F32_ZERO;
 
 fn smoothing_interpolation(
     prev_value: f32,
@@ -8,7 +8,7 @@ fn smoothing_interpolation(
     precalculated_smoothing_factor: f32,
     smoothing_factor: f32,
 ) -> f32 {
-    prev_value * (1.0 - smoothing_factor) + delta * smoothing_factor
+    prev_value * precalculated_smoothing_factor + delta * smoothing_factor
 }
 
 #[derive(Debug, Default)]
@@ -63,8 +63,8 @@ impl Pitch {
         let smoothed_interpolation_value = smoothing_interpolation(
             self.previous_delta,
             value,
-            self.one_minus_smoothing_factor,
-            *self.smoothing_factor,
+            precalculated_smoothing_value,
+            smoothing_factor,
         );
         self.value = (self.value - smoothed_interpolation_value)
             .clamp(-89.0_f32.to_radians(), 89.0_f32.to_radians());

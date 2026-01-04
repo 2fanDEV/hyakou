@@ -11,7 +11,7 @@ use winit::{
 use crate::renderer::{
     Renderer,
     types::mouse_delta::{
-        self, MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
+        MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
     },
 };
 
@@ -72,13 +72,16 @@ impl ApplicationHandler for AppState {
                 self.renderer.as_mut().unwrap().update(delta);
                 self.renderer.as_mut().unwrap().render().unwrap();
             }
+            #[allow(unused)]
             WindowEvent::CursorEntered { device_id } => {
                 self.mouse_delta.set_is_mouse_on_window(true);
             }
+            #[allow(unused)]
             WindowEvent::CursorMoved {
                 device_id,
                 position,
             } => self.mouse_delta.position = MousePosition::new(position.x, position.y),
+            #[allow(unused)]
             WindowEvent::CursorLeft { device_id } => {
                 self.mouse_delta.set_is_mouse_on_window(false);
             }
@@ -102,8 +105,8 @@ impl ApplicationHandler for AppState {
 
     fn device_event(
         &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        device_id: winit::event::DeviceId,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
         event: winit::event::DeviceEvent,
     ) {
         let renderer = self.renderer.as_mut().unwrap();

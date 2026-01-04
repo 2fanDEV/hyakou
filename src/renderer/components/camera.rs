@@ -1,6 +1,5 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
-use log::debug;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,
@@ -9,10 +8,7 @@ use wgpu::{
 use crate::renderer::{
     animator::trajectory::calculate_direction_vector,
     geometry::BindGroupProvider,
-    types::{
-        camera::{Pitch, Yaw},
-        mouse_delta::MovementDelta,
-    },
+    types::camera::{Pitch, Yaw},
 };
 
 #[repr(C)]
