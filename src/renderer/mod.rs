@@ -10,7 +10,7 @@ use wgpu::{
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
     RenderPipeline, ShaderStages, TextureView, TextureViewDescriptor,
 };
-use winit::{dpi::PhysicalPosition, window::Window};
+use winit::window::Window;
 
 use crate::renderer::{
     animator::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
@@ -45,7 +45,6 @@ pub struct Renderer {
     ctx: RenderContext,
     window: Arc<Window>,
     frame_idx: u8,
-    camera: Camera,
     camera_uniform: CameraUniform,
     camera_uniform_buffer: UniformBuffer,
     camera_bind_group: BindGroup,
@@ -59,7 +58,8 @@ pub struct Renderer {
 
 impl Renderer {
     pub async fn new(window: Arc<Window>) -> Result<Self> {
-        const CAMERA_SPEED_UNITS_PER_SECOND: f32 = 20.0;
+        let mut CAMERA_SPEED_UNITS_PER_SECOND: f32 = 20.0;
+        let mut CAMERA_SENSITIVITY: f32 = 0.001;
         let ctx = RenderContext::new(Some(WinitSurfaceProvider {
             window: window.clone(),
         }))
@@ -104,7 +104,7 @@ impl Renderer {
 
         let camera = Camera::new(
             Vec3::new(0.0, 0.0, 15.0),
-            Vec3::new(0.0, 0.0, -1.0),
+            Vec3::new(0.0, 0.0, 0.0),
             Vec3::Y,
             (ctx.size.width / ctx.size.height) as f32,
             45.0_f32.to_radians(),
@@ -149,7 +149,6 @@ impl Renderer {
             ctx,
             asset_manager: asset_handler,
             frame_idx: 0,
-            camera,
             camera_uniform,
             // TODO: Don't hardcode this, however will be resolved in a different ticket
             camera_uniform_buffer,
@@ -158,15 +157,18 @@ impl Renderer {
             light_uniform_buffer,
             light_bind_group,
             animators,
-            camera_controller: CameraController::new(CAMERA_SPEED_UNITS_PER_SECOND),
+            camera_controller: CameraController::new(
+                CAMERA_SPEED_UNITS_PER_SECOND,
+                CAMERA_SENSITIVITY,
+                camera,
+            ),
             window,
         })
     }
 
     pub fn update(&mut self, delta_time: DeltaTime64) {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
-        self.camera_controller
-            .update_camera(&mut self.camera, delta_time as f32);
+        self.camera_controller.update_camera(delta_time as f32);
 
         self.animators.values_mut().for_each(|animator| {
             if let Err(animator_error) = animator.play(delta_time) {
@@ -174,7 +176,8 @@ impl Renderer {
             }
         });
 
-        self.camera_uniform.update(&self.camera);
+        self.camera_uniform
+            .update(&self.camera_controller.get_camera());
         if let Some(gpu_light_source) = self.light.to_gpu() {
             self.light_uniform_buffer
                 .update_buffer_transform(&self.ctx.queue, bytes_of(&gpu_light_source))
@@ -189,7 +192,7 @@ impl Renderer {
         );
     }
 
-    pub fn render(&mut self, mouse_pos: PhysicalPosition<f64>) -> Result<()> {
+    pub fn render(&mut self) -> Result<()> {
         self.window.request_redraw();
         if self.ctx.surface_configuration.is_none() {
             return Ok(());
@@ -255,7 +258,6 @@ impl Renderer {
                     &self.light_bind_group,
                     &view,
                     &depth_texture.view,
-                    mouse_pos,
                 );
             });
 
@@ -270,7 +272,6 @@ impl Renderer {
                     &self.light_bind_group,
                     &view,
                     &depth_texture.view,
-                    mouse_pos,
                 );
             });
 
@@ -291,7 +292,6 @@ impl Renderer {
         light_bind_group: &BindGroup,
         view: &TextureView,
         depth_view: &TextureView,
-        _mouse_pos: PhysicalPosition<f64>,
     ) {
         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("Main Command Buffer"),

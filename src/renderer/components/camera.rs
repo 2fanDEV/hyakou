@@ -1,11 +1,21 @@
+use std::ops::Add;
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
+use log::debug;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,
 };
 
-use crate::renderer::geometry::BindGroupProvider;
+use crate::renderer::{
+    animator::trajectory::calculate_direction_vector,
+    geometry::BindGroupProvider,
+    types::{
+        camera::{Pitch, Yaw},
+        mouse_delta::MovementDelta,
+    },
+};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
@@ -62,6 +72,7 @@ impl BindGroupProvider for CameraUniform {
     }
 }
 
+#[derive(Debug, Default)]
 pub struct Camera {
     pub eye: Vec3,
     pub target: Vec3,
@@ -91,6 +102,18 @@ impl Camera {
             znear,
             zfar,
         }
+    }
+
+    pub fn orbit_camera(&mut self, delta: &MovementDelta) {
+        let delta_x = delta.x();
+        let delta_y = delta.y();
+    }
+
+    pub fn fps_camera(&mut self, yaw: &Yaw, pitch: &Pitch) {
+        let forward = calculate_direction_vector(**yaw, **pitch);
+        let right = forward.cross(self.up);
+        let up = right.cross(forward);
+        self.target = self.eye + forward;
     }
 
     pub fn build_proj_matrix(&self) -> Mat4 {
