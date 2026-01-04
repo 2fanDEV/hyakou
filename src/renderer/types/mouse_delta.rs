@@ -1,18 +1,17 @@
 #[derive(Default, Debug)]
 pub enum MouseButton {
     #[default]
-    RIGHT,
-    LEFT,
-    MIDDLE,
+    Right,
+    Left,
+    Middle,
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub enum MouseAction {
-    CLICKED,
-    RELEASED,
+    Clicked,
+    Released,
     #[default]
-    #[allow(non_camel_case_types)]
-    NO_ACTION,
+    NoAction,
 }
 
 #[derive(Default, Debug)]

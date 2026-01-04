@@ -52,7 +52,7 @@ impl CameraController {
 
     pub fn rotate(&mut self, mouse_delta: &MouseDelta) -> Result<()> {
         if mouse_delta.is_mouse_on_window
-            && mouse_delta.state.get_action().eq(&MouseAction::CLICKED)
+            && mouse_delta.state.get_action().eq(&MouseAction::Clicked)
         {
             self.yaw.add(
                 mouse_delta.delta_position.x() as f32 * self.sensitivity,
@@ -395,11 +395,11 @@ mod tests {
         MouseDelta {
             delta_position: MovementDelta::new(delta_x, delta_y),
             state: MouseState::new(
-                MouseButton::LEFT,
+                MouseButton::Left,
                 if is_clicked {
-                    MouseAction::CLICKED
+                    MouseAction::Clicked
                 } else {
-                    MouseAction::RELEASED
+                    MouseAction::Released
                 },
             ),
             is_mouse_on_window: true,

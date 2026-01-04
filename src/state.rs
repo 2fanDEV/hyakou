@@ -122,10 +122,10 @@ impl ApplicationHandler for AppState {
                 if let Some(window) = self.window.clone() {
                     self.mouse_delta.state = MouseState::new(
                         match button {
-                            0 => MouseButton::LEFT,
-                            1 => MouseButton::RIGHT,
-                            2 => MouseButton::MIDDLE,
-                            _ => MouseButton::LEFT,
+                            0 => MouseButton::Left,
+                            1 => MouseButton::Right,
+                            2 => MouseButton::Middle,
+                            _ => MouseButton::Left,
                         },
                         match state {
                             ElementState::Pressed => {
@@ -133,14 +133,14 @@ impl ApplicationHandler for AppState {
                                     log::error!("External Error: {:?}", e)
                                 }
                                 window.set_cursor_visible(false);
-                                MouseAction::CLICKED
+                                MouseAction::Clicked
                             }
                             ElementState::Released => {
                                 if let Err(e) = window.set_cursor_grab(CursorGrabMode::None) {
                                     log::error!("External Error: {:?}", e)
                                 }
                                 window.set_cursor_visible(true);
-                                MouseAction::RELEASED
+                                MouseAction::Released
                             }
                         },
                     );
