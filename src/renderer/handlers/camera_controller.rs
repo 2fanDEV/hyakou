@@ -69,6 +69,11 @@ impl CameraController {
         Ok(())
     }
 
+    pub fn update_smoothing_factor(&mut self, smoothing_factor: f32) {
+        self.smoothing_factor = smoothing_factor;
+        self.precalculated_smoothing = 1.0 - smoothing_factor;
+    }
+
     pub fn handle_key(&mut self, key_code: KeyCode, is_pressed: bool) -> bool {
         match key_code {
             KeyCode::KeyW | KeyCode::ArrowUp => {
@@ -122,6 +127,14 @@ mod tests {
         MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
     };
     use glam::Vec3;
+
+    #[test]
+    fn test_smoothing_factor() {
+        let mut camera_controller = CameraController::new(0.0, 0.0, create_test_camera());
+        camera_controller.update_smoothing_factor(0.5);
+        assert!(camera_controller.smoothing_factor.eq(&0.5));
+        assert!(camera_controller.precalculated_smoothing.eq(&0.5))
+    }
 
     fn create_test_camera() -> Camera {
         Camera::new(
@@ -272,10 +285,8 @@ mod tests {
     #[test]
     fn test_update_camera_backward_movement() {
         let camera = create_test_camera();
-        let mut controller = CameraController::new(5.0, 0.5, camera);
-
-        let camera = create_test_camera();
         let initial_eye = camera.eye;
+        let mut controller = CameraController::new(5.0, 0.5, camera);
 
         controller.is_backward_pressed = true;
         controller.update_camera(1.0);
@@ -287,10 +298,8 @@ mod tests {
     #[test]
     fn test_update_camera_left_strafe() {
         let camera = create_test_camera();
-        let mut controller = CameraController::new(5.0, 0.5, camera);
-
-        let camera = create_test_camera();
         let initial_eye = camera.eye;
+        let mut controller = CameraController::new(5.0, 0.5, camera);
 
         controller.is_left_pressed = true;
         controller.update_camera(1.0);
