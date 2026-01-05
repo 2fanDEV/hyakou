@@ -72,6 +72,7 @@ impl Pitch {
             -Self::PITCH_CLAMP.to_radians(),
             Self::PITCH_CLAMP.to_radians(),
         );
+
         self.previous_delta = smoothed_interpolation_value;
     }
 }
