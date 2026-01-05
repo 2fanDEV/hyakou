@@ -11,7 +11,7 @@ fn smoothing_interpolation(
     prev_value * precalculated_smoothing_factor + delta * smoothing_factor
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub struct Yaw {
     value: f32,
     previous_delta: f32,
@@ -45,7 +45,7 @@ impl Deref for Yaw {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub struct Pitch {
     value: f32,
     previous_delta: f32,

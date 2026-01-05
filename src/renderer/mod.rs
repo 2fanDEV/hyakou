@@ -1,5 +1,5 @@
 use parking_lot::RwLock;
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, f32::consts::PI, path::Path, sync::Arc};
 
 use anyhow::Result;
 use bytemuck::bytes_of;
@@ -26,6 +26,7 @@ use crate::renderer::{
     renderer_context::RenderContext,
     types::{
         DeltaTime64, TransformBuffer,
+        camera::{Pitch, Yaw},
         ids::{MeshId, UniformBufferId},
         uniform::UniformBuffer,
     },
@@ -45,6 +46,7 @@ pub struct Renderer {
     ctx: RenderContext,
     window: Arc<Window>,
     frame_idx: u8,
+    pub camera: Camera,
     camera_uniform: CameraUniform,
     camera_uniform_buffer: UniformBuffer,
     camera_bind_group: BindGroup,
@@ -110,6 +112,11 @@ impl Renderer {
             45.0_f32.to_radians(),
             0.1,
             1000.0,
+            Yaw::new(-PI / 2.0),
+            Pitch::new(0.0),
+            CAMERA_SPEED_UNITS_PER_SECOND,
+            CAMERA_SENSITIVITY,
+            0.5,
         );
 
         let mut camera_uniform = CameraUniform::new();
@@ -150,34 +157,29 @@ impl Renderer {
             asset_manager: asset_handler,
             frame_idx: 0,
             camera_uniform,
-            // TODO: Don't hardcode this, however will be resolved in a different ticket
+            camera,
             camera_uniform_buffer,
             camera_bind_group,
             light,
             light_uniform_buffer,
             light_bind_group,
             animators,
-            camera_controller: CameraController::new(
-                CAMERA_SPEED_UNITS_PER_SECOND,
-                CAMERA_SENSITIVITY,
-                camera,
-            ),
+            camera_controller: CameraController::new(),
             window,
         })
     }
 
     pub fn update(&mut self, delta_time: DeltaTime64) {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
-        self.camera_controller.update_camera(delta_time as f32);
-
+        self.camera_controller
+            .update_camera(&mut self.camera, delta_time as f32);
         self.animators.values_mut().for_each(|animator| {
             if let Err(animator_error) = animator.play(delta_time) {
                 error!("{:?}", animator_error)
             }
         });
 
-        self.camera_uniform
-            .update(&self.camera_controller.get_camera());
+        self.camera_uniform.update(&self.camera);
         if let Some(gpu_light_source) = self.light.to_gpu() {
             self.light_uniform_buffer
                 .update_buffer_transform(&self.ctx.queue, bytes_of(&gpu_light_source))

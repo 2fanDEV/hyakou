@@ -115,7 +115,7 @@ impl ApplicationHandler for AppState {
                 self.mouse_delta.delta_position = MovementDelta::new(delta.0, delta.1);
                 renderer
                     .camera_controller
-                    .rotate(&self.mouse_delta)
+                    .rotate(&mut renderer.camera, &self.mouse_delta)
                     .unwrap();
             }
             DeviceEvent::Button { button, state } => {
