@@ -77,6 +77,7 @@ impl ApplicationHandler for AppState {
                 self.mouse_delta.set_is_mouse_on_window(true);
             }
             #[allow(unused)]
+            /// We are tracking this for future implementation where this might be needed.
             WindowEvent::CursorMoved {
                 device_id,
                 position,

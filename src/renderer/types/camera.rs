@@ -37,7 +37,7 @@ impl Yaw {
         );
 
         if self.value > PI {
-            self.value -= TAU;
+            self.value = self.value - TAU + smoothed_delta_interpolation;
         } else {
             self.value += smoothed_delta_interpolation;
         }

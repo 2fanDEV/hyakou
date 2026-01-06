@@ -1,12 +1,9 @@
 use anyhow::{Ok, Result};
 use winit::keyboard::KeyCode;
 
-use crate::renderer::{
-    components::camera::Camera,
-    types::mouse_delta::{MouseAction, MouseDelta},
-};
+use crate::renderer::{components::camera::Camera, types::mouse_delta::MouseDelta};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct CameraController {
     is_forward_pressed: bool,
     is_backward_pressed: bool,
