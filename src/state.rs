@@ -3,17 +3,23 @@ use std::{sync::Arc, time::Instant};
 use log::debug;
 use winit::{
     application::ApplicationHandler,
-    dpi::{PhysicalPosition, PhysicalSize},
-    event::WindowEvent,
-    window::{Window, WindowAttributes},
+    dpi::PhysicalSize,
+    event::{DeviceEvent, ElementState, WindowEvent},
+    window::{CursorGrabMode, Window, WindowAttributes},
 };
 
-use crate::renderer::Renderer;
+use crate::renderer::{
+    Renderer,
+    types::mouse_delta::{
+        MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
+    },
+};
 
 pub struct AppState {
     window: Option<Arc<Window>>,
     renderer: Option<Renderer>,
     last_frame_time: Instant,
+    mouse_delta: MouseDelta,
 }
 
 impl AppState {
@@ -24,6 +30,7 @@ impl AppState {
             window: None,
             renderer: None,
             last_frame_time: Instant::now(),
+            mouse_delta: MouseDelta::default(),
         }
     }
 
@@ -59,17 +66,25 @@ impl ApplicationHandler for AppState {
         _window_id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
-        let mut mouse_pos = PhysicalPosition::new(0.0, 0.0);
         match event {
-            WindowEvent::CursorMoved {
-                device_id,
-                position,
-            } => {
-                mouse_pos = position;
-            }
             WindowEvent::RedrawRequested => {
                 let delta = self.calculate_last_frame_time();
                 self.renderer.as_mut().unwrap().update(delta);
+                self.renderer.as_mut().unwrap().render().unwrap();
+            }
+            #[allow(unused)]
+            WindowEvent::CursorEntered { device_id } => {
+                self.mouse_delta.set_is_mouse_on_window(true);
+            }
+            #[allow(unused)]
+            /// We are tracking this for future implementation where this might be needed.
+            WindowEvent::CursorMoved {
+                device_id,
+                position,
+            } => self.mouse_delta.position = MousePosition::new(position.x, position.y),
+            #[allow(unused)]
+            WindowEvent::CursorLeft { device_id } => {
+                self.mouse_delta.set_is_mouse_on_window(false);
             }
             WindowEvent::KeyboardInput {
                 device_id: _device_id,
@@ -87,8 +102,53 @@ impl ApplicationHandler for AppState {
             },
             _ => {}
         }
+    }
 
-        self.renderer.as_mut().unwrap().render(mouse_pos).unwrap();
+    fn device_event(
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
+        let renderer = self.renderer.as_mut().unwrap();
+        match event {
+            DeviceEvent::MouseMotion { delta } => {
+                self.mouse_delta.delta_position = MovementDelta::new(delta.0, delta.1);
+                renderer
+                    .camera_controller
+                    .rotate(&mut renderer.camera, &self.mouse_delta)
+                    .unwrap();
+            }
+            DeviceEvent::Button { button, state } => {
+                if let Some(window) = self.window.clone() {
+                    self.mouse_delta.state = MouseState::new(
+                        match button {
+                            0 => MouseButton::Left,
+                            1 => MouseButton::Right,
+                            2 => MouseButton::Middle,
+                            _ => MouseButton::Left,
+                        },
+                        match state {
+                            ElementState::Pressed => {
+                                if let Err(e) = window.set_cursor_grab(CursorGrabMode::Locked) {
+                                    log::error!("External Error: {:?}", e)
+                                }
+                                window.set_cursor_visible(false);
+                                MouseAction::Clicked
+                            }
+                            ElementState::Released => {
+                                if let Err(e) = window.set_cursor_grab(CursorGrabMode::None) {
+                                    log::error!("External Error: {:?}", e)
+                                }
+                                window.set_cursor_visible(true);
+                                MouseAction::Released
+                            }
+                        },
+                    );
+                }
+            }
+            _ => {}
+        }
     }
 }
 

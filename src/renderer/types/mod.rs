@@ -6,11 +6,16 @@ use wgpu::{Buffer, Queue};
 
 use crate::renderer::components::transform::Transform;
 
+pub mod camera;
 pub mod ids;
+pub mod mouse_delta;
 pub mod uniform;
 
 pub type DeltaTime = f32;
 pub type DeltaTime64 = f64;
+
+pub const F32_ZERO: f32 = 0.0;
+pub const F64_ZERO: f64 = 0.0;
 
 pub trait Id {
     fn get_id(&self) -> &str;
