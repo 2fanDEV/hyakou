@@ -8,6 +8,7 @@ use crate::renderer::components::transform::Transform;
 
 pub mod camera;
 pub mod ids;
+pub mod keys;
 pub mod mouse_delta;
 pub mod uniform;
 
