@@ -121,6 +121,7 @@ impl Camera {
     pub fn move_camera_with_mouse(&mut self, mouse_delta: &MouseDelta) {
         if mouse_delta.state.get_action().eq(&MouseAction::Clicked)
             && mouse_delta.state.get_button().eq(&MouseButton::Left)
+            && mouse_delta.is_mouse_on_window()
         {
             self.yaw.add(
                 mouse_delta.delta_position.x() as f32 * self.sensitivity,
@@ -146,8 +147,6 @@ impl Camera {
 
 #[cfg(test)]
 mod tests {
-    use std::f32::consts::PI;
-
     use glam::Vec3;
 
     use crate::renderer::{

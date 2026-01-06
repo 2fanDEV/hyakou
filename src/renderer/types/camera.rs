@@ -1,4 +1,7 @@
-use std::ops::Deref;
+use std::{
+    f32::consts::{PI, TAU},
+    ops::Deref,
+};
 
 use crate::renderer::types::F32_ZERO;
 
@@ -32,7 +35,12 @@ impl Yaw {
             one_minus_smoothing_value,
             smoothing_factor,
         );
-        self.value += smoothed_delta_interpolation;
+
+        if self.value > PI {
+            self.value -= TAU;
+        } else {
+            self.value += smoothed_delta_interpolation;
+        }
         self.previous_delta = smoothed_delta_interpolation;
     }
 }

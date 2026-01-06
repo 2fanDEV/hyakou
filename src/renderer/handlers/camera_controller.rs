@@ -25,11 +25,7 @@ impl CameraController {
     }
 
     pub fn rotate(&mut self, camera: &mut Camera, mouse_delta: &MouseDelta) -> Result<()> {
-        if mouse_delta.is_mouse_on_window
-            && mouse_delta.state.get_action().eq(&MouseAction::Clicked)
-        {
-            camera.move_camera_with_mouse(mouse_delta);
-        }
+        camera.move_camera_with_mouse(mouse_delta);
         Ok(())
     }
 
@@ -220,7 +216,12 @@ mod tests {
         controller.update_camera(&mut camera, 0.1); // Smaller delta to avoid overshooting
 
         // Camera should move toward target (negative Z direction)
-        assert!(camera.eye.z < initial_eye.z, "Eye should move forward (negative Z). Initial: {:?}, New: {:?}", initial_eye, camera.eye);
+        assert!(
+            camera.eye.z < initial_eye.z,
+            "Eye should move forward (negative Z). Initial: {:?}, New: {:?}",
+            initial_eye,
+            camera.eye
+        );
     }
 
     #[test]
