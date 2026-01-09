@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyakou - WebAssembly Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+        }
+
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-size: 18px;
+            display: none;
+            max-width: 80%;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading Hyakou...</div>
+    <div id="error"></div>
+    <canvas id="hyakou-canvas"></canvas>
+
+    <script type="module">
+        import init, { run } from './pkg/hyako.js';
+
+        async function start() {
+            try {
+                await init();
+                document.getElementById('loading').style.display = 'none';
+                await run();
+            } catch (error) {
+                console.error('Failed to initialize Hyakou:', error);
+                document.getElementById('loading').style.display = 'none';
+                const errorDiv = document.getElementById('error');
+                errorDiv.textContent = `Failed to initialize: ${error}`;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        start();
+    </script>
+</body>
+</html>

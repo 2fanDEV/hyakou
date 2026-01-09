@@ -3,3 +3,8 @@
 /assets/.DS_Store
 CLAUDE.md
 /linear
+
+# WASM build artifacts
+/pkg
+*.wasm
+/wasm-pack.log

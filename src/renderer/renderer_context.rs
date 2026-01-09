@@ -37,11 +37,21 @@ impl RenderContext {
     where
         T: SurfaceProvider,
     {
-        #[cfg(target_os = "macos")]
+        #[cfg(target_arch = "wasm32")]
+        let backends = Backends::GL | Backends::BROWSER_WEBGPU;
+
+        #[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
         let backends = Backends::METAL;
+
+        #[cfg(all(not(target_arch = "wasm32"), not(target_os = "macos")))]
+        let backends = Backends::all();
+
         let instance = wgpu::Instance::new(&InstanceDescriptor {
             backends,
+            #[cfg(not(target_arch = "wasm32"))]
             flags: InstanceFlags::debugging(),
+            #[cfg(target_arch = "wasm32")]
+            flags: InstanceFlags::default(),
             ..Default::default()
         });
 
