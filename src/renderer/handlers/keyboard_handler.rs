@@ -1,49 +1,41 @@
-use std::ops::Index;
+use winit::{event::ElementState, keyboard::KeyCode};
 
-use log::{error, trace};
+use crate::renderer::util::keycode_to_index;
 
-use crate::renderer::types::keys::Key;
+pub struct Keybinding {}
 
-#[derive(Debug, Default, PartialEq, Eq)]
-pub enum KeyAction {
+#[derive(Debug, Default, Hash, PartialEq, Eq, Clone, Copy)]
+pub enum KeyState {
     PRESSED,
-    HELD,
     #[default]
     RELEASED,
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct KeyState {
-    key: Key,
-    action: KeyAction,
+impl KeyState {
+    pub fn convert(state: ElementState) -> Self {
+        match state {
+            ElementState::Pressed => KeyState::PRESSED,
+            ElementState::Released => KeyState::RELEASED,
+        }
+    }
 }
 
 pub struct KeyboardHandler {
-    keys: Vec<KeyState>,
+    key_states: [KeyState; 256],
 }
 
 impl KeyboardHandler {
     pub fn new() -> Self {
-        Self { keys: vec![] }
+        Self {
+            key_states: [KeyState::RELEASED; 256],
+        }
     }
 
-    pub fn handle_key_state(&mut self, key_state: KeyState) {
-        if key_state.action.eq(&KeyAction::RELEASED) {
-            match self.keys.binary_search_by(|a| a.key.cmp(&key_state.key)) {
-                Ok(idx) => self.remove_key_by_idx(idx),
-                Err(e) => {
-                    error!("Key {:?} was not pressed before.", key_state.key);
-                    trace!(
-                        "Key {:?} was not pressed before. Full Error Message: {:?}",
-                        key_state.key, e
-                    );
-                }
-            };
-        } else {
-
+    pub fn handle_key_state(&mut self, key: KeyCode, key_state: KeyState) {
+        self.key_states[keycode_to_index(key)] = key_state
     }
 
-    fn remove_key_by_idx(&mut self, idx: usize) {
-        self.keys.remove(idx);
+    pub fn is_pressed(&self, key_code: KeyCode) -> bool {
+        self.key_states[keycode_to_index(key_code)].eq(&KeyState::PRESSED)
     }
 }

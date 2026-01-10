@@ -10,7 +10,7 @@ use crate::renderer::{
     geometry::BindGroupProvider,
     types::{
         camera::{Pitch, Yaw},
-        mouse_delta::{self, MouseAction, MouseButton, MouseDelta},
+        mouse_delta::{MouseAction, MouseButton, MouseDelta},
     },
 };
 

@@ -10,6 +10,7 @@ use winit::{
 
 use crate::renderer::{
     Renderer,
+    handlers::keyboard_handler::{KeyState, KeyboardHandler},
     types::mouse_delta::{
         MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
     },
@@ -18,6 +19,7 @@ use crate::renderer::{
 pub struct AppState {
     window: Option<Arc<Window>>,
     renderer: Option<Renderer>,
+    keyboard_handler: KeyboardHandler,
     last_frame_time: Instant,
     mouse_delta: MouseDelta,
 }
@@ -29,6 +31,7 @@ impl AppState {
         Self {
             window: None,
             renderer: None,
+            keyboard_handler: KeyboardHandler::new(),
             last_frame_time: Instant::now(),
             mouse_delta: MouseDelta::default(),
         }
@@ -69,8 +72,9 @@ impl ApplicationHandler for AppState {
         match event {
             WindowEvent::RedrawRequested => {
                 let delta = self.calculate_last_frame_time();
-                self.renderer.as_mut().unwrap().update(delta);
-                self.renderer.as_mut().unwrap().render().unwrap();
+                let renderer = self.renderer.as_mut().unwrap();
+                renderer.update(delta);
+                renderer.render().unwrap();
             }
             #[allow(unused)]
             WindowEvent::CursorEntered { device_id } => {
@@ -90,16 +94,28 @@ impl ApplicationHandler for AppState {
                 device_id: _device_id,
                 event,
                 is_synthetic: _is_synthetic,
-            } => match event.physical_key {
-                winit::keyboard::PhysicalKey::Code(key_code) => {
-                    self.renderer
-                        .as_mut()
-                        .unwrap()
-                        .camera_controller
-                        .handle_key(key_code, event.state.is_pressed());
+            } => {
+                let renderer = self.renderer.as_mut().unwrap();
+                match event.physical_key {
+                    winit::keyboard::PhysicalKey::Code(key_code) => {
+                        let key_state = KeyState::convert(event.state);
+                        self.keyboard_handler.handle_key_state(key_code, key_state);
+                        renderer
+                            .camera_controller
+                            .handle_action(key_code, &self.keyboard_handler);
+                    }
+                    _ => {} /* match event.physical_key {
+                            winit::keyboard::PhysicalKey::Code(key_code) => {
+                            self.renderer
+                            .as_mut()
+                            .unwrap()
+                            .camera_controller
+                            .handle_key(key_code, event.state.is_pressed());
+                            }
+                            winit::keyboard::PhysicalKey::Unidentified(_) => {}
+                             */
                 }
-                winit::keyboard::PhysicalKey::Unidentified(_) => {}
-            },
+            }
             _ => {}
         }
     }
