@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use smallvec::smallvec;
 use winit::{event::ElementState, keyboard::KeyCode};
 
 use crate::renderer::{
@@ -7,24 +8,23 @@ use crate::renderer::{
     handlers::key_bindings::{KeyBinding, KeyBindingMap},
 };
 
-pub struct Keybinding {}
-
 #[derive(Debug, Default, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum KeyState {
-    PRESSED,
+    Pressed,
     #[default]
-    RELEASED,
+    Released,
 }
 
 impl KeyState {
     pub fn convert(state: ElementState) -> Self {
         match state {
-            ElementState::Pressed => KeyState::PRESSED,
-            ElementState::Released => KeyState::RELEASED,
+            ElementState::Pressed => KeyState::Pressed,
+            ElementState::Released => KeyState::Released,
         }
     }
 }
 
+#[derive(Debug, Default)]
 pub struct KeyboardHandler {
     key_states: HashMap<KeyCode, KeyState>,
     key_bindings: KeyBindingMap,
@@ -46,7 +46,7 @@ impl KeyboardHandler {
         let (modifiers, keys): (Vec<KeyCode>, Vec<KeyCode>) = self
             .key_states
             .iter()
-            .filter(|(_, state)| **state == KeyState::PRESSED)
+            .filter(|(_, state)| **state == KeyState::Pressed)
             .map(|(key, _)| *key)
             .partition(|key| {
                 matches!(
@@ -66,7 +66,7 @@ impl KeyboardHandler {
 
     pub fn find_action_for_key(&self, key_code: KeyCode) -> Option<&Action> {
         self.key_bindings
-            .get_binding(&KeyBinding::new(vec![], vec![key_code]))
+            .get_binding(&KeyBinding::new(smallvec![], smallvec![key_code]))
     }
 
     pub fn check_key_bindings(&self, key_binding: &KeyBinding) -> Option<&Action> {
@@ -76,6 +76,6 @@ impl KeyboardHandler {
     pub fn is_pressed(&self, key_code: KeyCode) -> bool {
         self.key_states
             .get(&key_code)
-            .map_or(false, |&state| state == KeyState::PRESSED)
+            .map_or(false, |&state| state == KeyState::Pressed)
     }
 }

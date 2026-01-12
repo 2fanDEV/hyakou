@@ -74,10 +74,8 @@ impl CameraController {
         let right = forward_norm.cross(camera.up);
         if self.is_right_pressed {
             camera.eye += right * speed;
-            // camera.eye = camera.target - (forward + right * speed).normalize() * forward_mag;
         }
         if self.is_left_pressed {
-            //    camera.eye = camera.target - (forward - right * speed).normalize() * forward_mag;
             camera.eye -= right * speed;
         }
     }
@@ -86,21 +84,8 @@ impl CameraController {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::renderer::handlers::keyboard_handler::{KeyState, KeyboardHandler};
     use crate::renderer::types::camera::{Pitch, Yaw};
     use glam::Vec3;
-    use winit::keyboard::KeyCode;
-
-    fn create_test_keyboard_handler(key_code: KeyCode, is_pressed: bool) -> KeyboardHandler {
-        let mut handler = KeyboardHandler::new();
-        let key_state = if is_pressed {
-            KeyState::PRESSED
-        } else {
-            KeyState::RELEASED
-        };
-        handler.handle_key_state(key_code, key_state);
-        handler
-    }
 
     fn create_test_camera() -> Camera {
         use std::f32::consts::PI;

@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use log::debug;
+use smallvec::smallvec;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -102,21 +103,20 @@ impl ApplicationHandler for AppState {
                 match event.physical_key {
                     winit::keyboard::PhysicalKey::Code(key_code) => {
                         let key_state = KeyState::convert(event.state);
-                        let is_pressed = key_state == KeyState::PRESSED;
+                        let is_pressed = key_state == KeyState::Pressed;
                         self.keyboard_handler.handle_key_state(key_code, key_state);
 
                         let (modifiers, keys) = self.keyboard_handler.get_pressed_keys();
-                        let camera_keybinding = KeyBinding::new(modifiers.clone(), vec![key_code]);
-                        if let Some(action) =
-                            self.keyboard_handler.check_key_bindings(&camera_keybinding)
-                        {
-                            renderer.camera_controller.handle_action(action, is_pressed);
+                        let action = if modifiers.is_empty() {
+                            self.keyboard_handler.find_action_for_key(key_code)
                         } else {
-                            if let Some(action) =
-                                self.keyboard_handler.find_action_for_key(key_code)
-                            {
-                                renderer.camera_controller.handle_action(action, is_pressed);
-                            }
+                            let binding = KeyBinding::new(modifiers.into(), smallvec![key_code]);
+                            self.keyboard_handler
+                                .check_key_bindings(&binding)
+                                .or_else(|| self.keyboard_handler.find_action_for_key(key_code))
+                        };
+                        if let Some(action) = action {
+                            renderer.camera_controller.handle_action(action, is_pressed);
                         }
                     }
                     _ => {} /* match event.physical_key {

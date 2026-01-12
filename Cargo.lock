@@ -1038,6 +1038,7 @@ dependencies = [
  "mockall",
  "parking_lot",
  "pollster",
+ "smallvec",
  "strum",
  "strum_macros",
  "uuid",
