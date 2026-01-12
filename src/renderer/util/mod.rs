@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use bytemuck::bytes_of;
 use glam::Mat4;
-use winit::keyboard::KeyCode;
 
 pub type Width = u32;
 pub type Height = u32;

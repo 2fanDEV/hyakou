@@ -1,54 +1,40 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
+use log::debug;
 use smallvec::smallvec;
-use winit::{event::ElementState, keyboard::KeyCode};
+use winit::keyboard::KeyCode;
 
 use crate::renderer::{
     actions::Action,
     handlers::key_bindings::{KeyBinding, KeyBindingMap},
 };
 
-#[derive(Debug, Default, Hash, PartialEq, Eq, Clone, Copy)]
-pub enum KeyState {
-    Pressed,
-    #[default]
-    Released,
-}
-
-impl KeyState {
-    pub fn convert(state: ElementState) -> Self {
-        match state {
-            ElementState::Pressed => KeyState::Pressed,
-            ElementState::Released => KeyState::Released,
-        }
-    }
-}
-
 #[derive(Debug, Default)]
 pub struct KeyboardHandler {
-    key_states: HashMap<KeyCode, KeyState>,
+    key_states: HashSet<KeyCode>,
     key_bindings: KeyBindingMap,
 }
 
 impl KeyboardHandler {
     pub fn new() -> Self {
         Self {
-            key_states: HashMap::new(),
+            key_states: HashSet::new(),
             key_bindings: KeyBindingMap::initialize(),
         }
     }
 
-    pub fn handle_key_state(&mut self, key: KeyCode, key_state: KeyState) {
-        self.key_states.insert(key, key_state);
+    pub fn handle_key_state(&mut self, key: KeyCode, is_pressed: bool) {
+        debug!("{:?}", self.key_states);
+        if is_pressed {
+            self.key_states.insert(key);
+        } else {
+            self.key_states.remove(&key);
+        }
     }
 
     pub fn get_pressed_keys(&self) -> (Vec<KeyCode>, Vec<KeyCode>) {
-        let (modifiers, keys): (Vec<KeyCode>, Vec<KeyCode>) = self
-            .key_states
-            .iter()
-            .filter(|(_, state)| **state == KeyState::Pressed)
-            .map(|(key, _)| *key)
-            .partition(|key| {
+        let (modifiers, keys): (Vec<KeyCode>, Vec<KeyCode>) =
+            self.key_states.iter().partition(|key| {
                 matches!(
                     key,
                     KeyCode::AltLeft
@@ -74,8 +60,6 @@ impl KeyboardHandler {
     }
 
     pub fn is_pressed(&self, key_code: KeyCode) -> bool {
-        self.key_states
-            .get(&key_code)
-            .map_or(false, |&state| state == KeyState::Pressed)
+        self.key_states.get(&key_code).is_some()
     }
 }

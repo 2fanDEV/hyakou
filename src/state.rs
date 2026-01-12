@@ -11,10 +11,7 @@ use winit::{
 
 use crate::renderer::{
     Renderer,
-    handlers::{
-        key_bindings::KeyBinding,
-        keyboard_handler::{KeyState, KeyboardHandler},
-    },
+    handlers::{key_bindings::KeyBinding, keyboard_handler::KeyboardHandler},
     types::mouse_delta::{
         MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
     },
@@ -102,10 +99,8 @@ impl ApplicationHandler for AppState {
                 let renderer = self.renderer.as_mut().unwrap();
                 match event.physical_key {
                     winit::keyboard::PhysicalKey::Code(key_code) => {
-                        let key_state = KeyState::convert(event.state);
-                        let is_pressed = key_state == KeyState::Pressed;
-                        self.keyboard_handler.handle_key_state(key_code, key_state);
-
+                        let is_pressed = event.state == ElementState::Pressed;
+                        self.keyboard_handler.handle_key_state(key_code, is_pressed);
                         let (modifiers, keys) = self.keyboard_handler.get_pressed_keys();
                         let action = if modifiers.is_empty() {
                             self.keyboard_handler.find_action_for_key(key_code)
@@ -119,16 +114,7 @@ impl ApplicationHandler for AppState {
                             renderer.camera_controller.handle_action(action, is_pressed);
                         }
                     }
-                    _ => {} /* match event.physical_key {
-                            winit::keyboard::PhysicalKey::Code(key_code) => {
-                            self.renderer
-                            .as_mut()
-                            .unwrap()
-                            .camera_controller
-                            .handle_key(key_code, event.state.is_pressed());
-                            }
-                            winit::keyboard::PhysicalKey::Unidentified(_) => {}
-                             */
+                    _ => {}
                 }
             }
             _ => {}
