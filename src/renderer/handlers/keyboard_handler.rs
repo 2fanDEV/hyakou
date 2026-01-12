@@ -1,6 +1,11 @@
+use std::collections::HashMap;
+
 use winit::{event::ElementState, keyboard::KeyCode};
 
-use crate::renderer::util::keycode_to_index;
+use crate::renderer::{
+    actions::Action,
+    handlers::key_bindings::{KeyBinding, KeyBindingMap},
+};
 
 pub struct Keybinding {}
 
@@ -21,21 +26,56 @@ impl KeyState {
 }
 
 pub struct KeyboardHandler {
-    key_states: [KeyState; 256],
+    key_states: HashMap<KeyCode, KeyState>,
+    key_bindings: KeyBindingMap,
 }
 
 impl KeyboardHandler {
     pub fn new() -> Self {
         Self {
-            key_states: [KeyState::RELEASED; 256],
+            key_states: HashMap::new(),
+            key_bindings: KeyBindingMap::initialize(),
         }
     }
 
     pub fn handle_key_state(&mut self, key: KeyCode, key_state: KeyState) {
-        self.key_states[keycode_to_index(key)] = key_state
+        self.key_states.insert(key, key_state);
+    }
+
+    pub fn get_pressed_keys(&self) -> (Vec<KeyCode>, Vec<KeyCode>) {
+        let (modifiers, keys): (Vec<KeyCode>, Vec<KeyCode>) = self
+            .key_states
+            .iter()
+            .filter(|(_, state)| **state == KeyState::PRESSED)
+            .map(|(key, _)| *key)
+            .partition(|key| {
+                matches!(
+                    key,
+                    KeyCode::AltLeft
+                        | KeyCode::AltRight
+                        | KeyCode::ControlLeft
+                        | KeyCode::ControlRight
+                        | KeyCode::ShiftLeft
+                        | KeyCode::ShiftRight
+                        | KeyCode::SuperLeft
+                        | KeyCode::SuperRight
+                )
+            });
+        (modifiers, keys)
+    }
+
+    pub fn find_action_for_key(&self, key_code: KeyCode) -> Option<&Action> {
+        self.key_bindings
+            .get_binding(&KeyBinding::new(vec![], vec![key_code]))
+    }
+
+    pub fn check_key_bindings(&self, key_binding: &KeyBinding) -> Option<&Action> {
+        self.key_bindings.get_binding(key_binding)
     }
 
     pub fn is_pressed(&self, key_code: KeyCode) -> bool {
-        self.key_states[keycode_to_index(key_code)].eq(&KeyState::PRESSED)
+        self.key_states
+            .get(&key_code)
+            .map_or(false, |&state| state == KeyState::PRESSED)
     }
 }

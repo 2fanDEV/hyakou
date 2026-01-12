@@ -1,8 +1,8 @@
 use anyhow::{Ok, Result};
-use winit::keyboard::KeyCode;
 
 use crate::renderer::{
-    components::camera::Camera, handlers::keyboard_handler::KeyboardHandler,
+    actions::{Action, CameraActions},
+    components::camera::Camera,
     types::mouse_delta::MouseDelta,
 };
 
@@ -12,6 +12,7 @@ pub struct CameraController {
     is_backward_pressed: bool,
     is_left_pressed: bool,
     is_right_pressed: bool,
+    modifier_pressed: bool,
 }
 
 impl CameraController {
@@ -21,6 +22,7 @@ impl CameraController {
             is_forward_pressed: false,
             is_left_pressed: false,
             is_right_pressed: false,
+            modifier_pressed: false,
         }
     }
 
@@ -29,24 +31,27 @@ impl CameraController {
         Ok(())
     }
 
-    pub fn handle_action(&mut self, key_code: KeyCode, keyboard_handler: &KeyboardHandler) -> bool {
-        let mut is_pressed = keyboard_handler.is_pressed(key_code);
-        match key_code {
-            KeyCode::KeyW | KeyCode::ArrowUp => {
-                self.is_forward_pressed = is_pressed;
-            }
-            KeyCode::KeyA | KeyCode::ArrowLeft => {
-                self.is_left_pressed = is_pressed;
-            }
-            KeyCode::KeyS | KeyCode::ArrowDown => {
-                self.is_backward_pressed = is_pressed;
-            }
-            KeyCode::KeyD | KeyCode::ArrowRight => {
-                self.is_right_pressed = is_pressed;
-            }
-            _ => is_pressed = false,
+    pub fn handle_action(&mut self, action: &Action, is_pressed: bool) {
+        match action {
+            Action::Camera(camera_action) => match camera_action {
+                CameraActions::Forwards => {
+                    self.is_forward_pressed = is_pressed;
+                }
+                CameraActions::Backwards => {
+                    self.is_backward_pressed = is_pressed;
+                }
+                CameraActions::Left => {
+                    self.is_left_pressed = is_pressed;
+                }
+                CameraActions::Right => {
+                    self.is_right_pressed = is_pressed;
+                }
+                CameraActions::ForwardsModifier => {
+                    self.is_forward_pressed = is_pressed;
+                    self.modifier_pressed = is_pressed;
+                }
+            },
         }
-        is_pressed
     }
 
     pub fn update_camera(&mut self, camera: &mut Camera, delta_time: f32) {
@@ -55,7 +60,12 @@ impl CameraController {
         let forward_mag = forward.length();
         let speed = camera.camera_speed * delta_time;
         if self.is_forward_pressed && forward_mag > speed {
-            camera.eye += forward_norm * speed;
+            let forward_speed = if self.modifier_pressed {
+                speed * 2.0
+            } else {
+                speed
+            };
+            camera.eye += forward_norm * forward_speed;
         }
         if self.is_backward_pressed {
             camera.eye -= forward_norm * speed;
@@ -63,10 +73,12 @@ impl CameraController {
 
         let right = forward_norm.cross(camera.up);
         if self.is_right_pressed {
-            camera.eye = camera.target - (forward + right * speed).normalize() * forward_mag;
+            camera.eye += right * speed;
+            // camera.eye = camera.target - (forward + right * speed).normalize() * forward_mag;
         }
         if self.is_left_pressed {
-            camera.eye = camera.target - (forward - right * speed).normalize() * forward_mag;
+            //    camera.eye = camera.target - (forward - right * speed).normalize() * forward_mag;
+            camera.eye -= right * speed;
         }
     }
 }
@@ -77,6 +89,7 @@ mod tests {
     use crate::renderer::handlers::keyboard_handler::{KeyState, KeyboardHandler};
     use crate::renderer::types::camera::{Pitch, Yaw};
     use glam::Vec3;
+    use winit::keyboard::KeyCode;
 
     fn create_test_keyboard_handler(key_code: KeyCode, is_pressed: bool) -> KeyboardHandler {
         let mut handler = KeyboardHandler::new();
@@ -119,112 +132,40 @@ mod tests {
     #[test]
     fn test_handle_key_w_sets_forward_pressed() {
         let mut controller = CameraController::new();
-        let keyboard_handler = create_test_keyboard_handler(KeyCode::KeyW, true);
-
-        let handled = controller.handle_action(KeyCode::KeyW, &keyboard_handler);
-
-        assert!(handled);
-        assert!(controller.is_forward_pressed);
-    }
-
-    #[test]
-    fn test_handle_key_arrow_up_sets_forward_pressed() {
-        let mut controller = CameraController::new();
-        let keyboard_handler = create_test_keyboard_handler(KeyCode::ArrowUp, true);
-
-        let handled = controller.handle_action(KeyCode::ArrowUp, &keyboard_handler);
-
-        assert!(handled);
+        controller.handle_action(&Action::Camera(CameraActions::Forwards), true);
         assert!(controller.is_forward_pressed);
     }
 
     #[test]
     fn test_handle_key_s_sets_backward_pressed() {
         let mut controller = CameraController::new();
-        let keyboard_handler = create_test_keyboard_handler(KeyCode::KeyS, true);
-
-        let handled = controller.handle_action(KeyCode::KeyS, &keyboard_handler);
-
-        assert!(handled);
-        assert!(controller.is_backward_pressed);
-    }
-
-    #[test]
-    fn test_handle_key_arrow_down_sets_backward_pressed() {
-        let mut controller = CameraController::new();
-        let keyboard_handler = create_test_keyboard_handler(KeyCode::ArrowDown, true);
-
-        let handled = controller.handle_action(KeyCode::ArrowDown, &keyboard_handler);
-
-        assert!(handled);
+        controller.handle_action(&Action::Camera(CameraActions::Backwards), true);
         assert!(controller.is_backward_pressed);
     }
 
     #[test]
     fn test_handle_key_a_sets_left_pressed() {
         let mut controller = CameraController::new();
-        let keyboard_handler = create_test_keyboard_handler(KeyCode::KeyA, true);
-
-        let handled = controller.handle_action(KeyCode::KeyA, &keyboard_handler);
-
-        assert!(handled);
-        assert!(controller.is_left_pressed);
-    }
-
-    #[test]
-    fn test_handle_key_arrow_left_sets_left_pressed() {
-        let mut controller = CameraController::new();
-        let keyboard_handler = create_test_keyboard_handler(KeyCode::ArrowLeft, true);
-
-        let handled = controller.handle_action(KeyCode::ArrowLeft, &keyboard_handler);
-
-        assert!(handled);
+        controller.handle_action(&Action::Camera(CameraActions::Left), true);
         assert!(controller.is_left_pressed);
     }
 
     #[test]
     fn test_handle_key_d_sets_right_pressed() {
         let mut controller = CameraController::new();
-        let keyboard_handler = create_test_keyboard_handler(KeyCode::KeyD, true);
-
-        let handled = controller.handle_action(KeyCode::KeyD, &keyboard_handler);
-
-        assert!(handled);
-        assert!(controller.is_right_pressed);
-    }
-
-    #[test]
-    fn test_handle_key_arrow_right_sets_right_pressed() {
-        let mut controller = CameraController::new();
-        let keyboard_handler = create_test_keyboard_handler(KeyCode::ArrowRight, true);
-
-        let handled = controller.handle_action(KeyCode::ArrowRight, &keyboard_handler);
-
-        assert!(handled);
+        controller.handle_action(&Action::Camera(CameraActions::Right), true);
         assert!(controller.is_right_pressed);
     }
 
     #[test]
     fn test_handle_key_release_clears_state() {
         let mut controller = CameraController::new();
-        let keyboard_handler_pressed = create_test_keyboard_handler(KeyCode::KeyW, true);
 
-        controller.handle_action(KeyCode::KeyW, &keyboard_handler_pressed);
+        controller.handle_action(&Action::Camera(CameraActions::Forwards), true);
         assert!(controller.is_forward_pressed);
 
-        let keyboard_handler_released = create_test_keyboard_handler(KeyCode::KeyW, false);
-        controller.handle_action(KeyCode::KeyW, &keyboard_handler_released);
+        controller.handle_action(&Action::Camera(CameraActions::Forwards), false);
         assert!(!controller.is_forward_pressed);
-    }
-
-    #[test]
-    fn test_handle_key_unhandled_key_returns_false() {
-        let mut controller = CameraController::new();
-        let keyboard_handler = create_test_keyboard_handler(KeyCode::Space, true);
-
-        let handled = controller.handle_action(KeyCode::Space, &keyboard_handler);
-
-        assert!(!handled);
     }
 
     #[test]
@@ -267,8 +208,7 @@ mod tests {
         controller.is_left_pressed = true;
         controller.update_camera(&mut camera, 1.0);
 
-        // Camera should move left (negative X direction when looking at origin)
-        assert!(camera.eye.x > initial_eye.x);
+        assert!(camera.eye.x < initial_eye.x);
     }
 
     #[test]
@@ -279,8 +219,7 @@ mod tests {
 
         controller.is_right_pressed = true;
         controller.update_camera(&mut camera, 10.0);
-        // Camera should move right (positive X direction when looking at origin)
-        assert!(camera.eye.x < initial_eye.x,);
+        assert!(camera.eye.x > initial_eye.x,);
     }
 
     #[test]
@@ -340,16 +279,14 @@ mod tests {
     }
 
     #[test]
-    fn test_update_camera_maintains_distance_from_target_during_strafe() {
+    fn test_update_camera_strafe_changes_position() {
         let mut camera = create_test_camera();
-        let initial_distance = (camera.eye - camera.target).length();
+        let initial_eye = camera.eye;
         let mut controller = CameraController::new();
 
         controller.is_left_pressed = true;
         controller.update_camera(&mut camera, 0.1);
-        let final_distance = (camera.eye - camera.target).length();
 
-        // Distance should be approximately the same (within floating point tolerance)
-        assert!((initial_distance - final_distance).abs() < 0.001);
+        assert!(camera.eye.x < initial_eye.x);
     }
 }

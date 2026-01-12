@@ -33,6 +33,7 @@ use crate::renderer::{
     wrappers::WinitSurfaceProvider,
 };
 
+pub mod actions;
 pub mod animator;
 pub mod components;
 pub mod geometry;

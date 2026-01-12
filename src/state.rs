@@ -10,7 +10,10 @@ use winit::{
 
 use crate::renderer::{
     Renderer,
-    handlers::keyboard_handler::{KeyState, KeyboardHandler},
+    handlers::{
+        key_bindings::KeyBinding,
+        keyboard_handler::{KeyState, KeyboardHandler},
+    },
     types::mouse_delta::{
         MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
     },
@@ -99,10 +102,22 @@ impl ApplicationHandler for AppState {
                 match event.physical_key {
                     winit::keyboard::PhysicalKey::Code(key_code) => {
                         let key_state = KeyState::convert(event.state);
+                        let is_pressed = key_state == KeyState::PRESSED;
                         self.keyboard_handler.handle_key_state(key_code, key_state);
-                        renderer
-                            .camera_controller
-                            .handle_action(key_code, &self.keyboard_handler);
+
+                        let (modifiers, keys) = self.keyboard_handler.get_pressed_keys();
+                        let camera_keybinding = KeyBinding::new(modifiers.clone(), vec![key_code]);
+                        if let Some(action) =
+                            self.keyboard_handler.check_key_bindings(&camera_keybinding)
+                        {
+                            renderer.camera_controller.handle_action(action, is_pressed);
+                        } else {
+                            if let Some(action) =
+                                self.keyboard_handler.find_action_for_key(key_code)
+                            {
+                                renderer.camera_controller.handle_action(action, is_pressed);
+                            }
+                        }
                     }
                     _ => {} /* match event.physical_key {
                             winit::keyboard::PhysicalKey::Code(key_code) => {
