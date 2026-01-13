@@ -100,12 +100,16 @@ impl ApplicationHandler for AppState {
                 match event.physical_key {
                     winit::keyboard::PhysicalKey::Code(key_code) => {
                         let is_pressed = event.state == ElementState::Pressed;
-                        self.keyboard_handler.handle_key_state(key_code, is_pressed);
-                        let (modifiers, keys) = self.keyboard_handler.get_pressed_keys();
-                        let action = if modifiers.is_empty() {
+                        self.keyboard_handler.handle_key(key_code, is_pressed);
+                        let pressed_keys = self.keyboard_handler.get_pressed_keys();
+                        let pressed_modifiers = self.keyboard_handler.get_pressed_modifiers();
+                        let action = if pressed_modifiers.is_empty() {
                             self.keyboard_handler.find_action_for_key(key_code)
                         } else {
-                            let binding = KeyBinding::new(modifiers.into(), smallvec![key_code]);
+                            let binding = KeyBinding::new(
+                                pressed_modifiers.iter().copied().collect(),
+                                smallvec![key_code],
+                            );
                             self.keyboard_handler
                                 .check_key_bindings(&binding)
                                 .or_else(|| self.keyboard_handler.find_action_for_key(key_code))
