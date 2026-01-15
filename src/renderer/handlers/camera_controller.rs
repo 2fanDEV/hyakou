@@ -1,9 +1,10 @@
-use anyhow::{Ok, Result};
-
 use crate::renderer::{
     actions::{Action, CameraActions},
     components::camera::Camera,
-    types::mouse_delta::MouseDelta,
+    types::{
+        camera::{Pitch, Yaw},
+        mouse_delta::{MouseAction, MouseButton, MouseDelta},
+    },
 };
 
 #[derive(Debug)]
@@ -26,11 +27,16 @@ impl CameraController {
         }
     }
 
-    pub fn rotate(&mut self, camera: &mut Camera, mouse_delta: &MouseDelta) -> Result<()> {
-        camera.move_camera_with_mouse(mouse_delta);
-        Ok(())
+    pub fn mouse_movement(&mut self, camera: &mut Camera, mouse_delta: &MouseDelta) {
+        if mouse_delta.state.get_action().eq(&MouseAction::Clicked)
+            && mouse_delta.state.get_button().eq(&MouseButton::Left)
+            && mouse_delta.is_mouse_on_window()
+        {
+            let yaw_delta = mouse_delta.delta_position.x() as f32;
+            let pitch_delta = mouse_delta.delta_position.y() as f32;
+            camera.move_camera(yaw_delta, pitch_delta);
+        }
     }
-
     pub fn handle_action(&mut self, action: &Action, is_pressed: bool) {
         match action {
             Action::Camera(camera_action) => match camera_action {
@@ -57,6 +63,8 @@ impl CameraController {
     pub fn update_camera(&mut self, camera: &mut Camera, delta_time: f32) {
         let forward = camera.target - camera.eye;
         let forward_norm = forward.normalize();
+        camera.yaw = Yaw::new(forward_norm.z.atan2(forward_norm.x));
+        camera.pitch = Pitch::new(forward_norm.y.asin());
         let forward_mag = forward.length();
         let speed = camera.camera_speed * delta_time;
         if self.is_forward_pressed && forward_mag > speed {
@@ -84,7 +92,10 @@ impl CameraController {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::renderer::types::camera::{Pitch, Yaw};
+    use crate::renderer::types::{
+        camera::{Pitch, Yaw},
+        mouse_delta::{MousePosition, MouseState, MovementDelta},
+    };
     use glam::Vec3;
 
     fn create_test_camera() -> Camera {
@@ -273,5 +284,34 @@ mod tests {
         controller.update_camera(&mut camera, 0.1);
 
         assert!(camera.eye.x < initial_eye.x);
+    }
+
+    #[test]
+    fn test_rotation_only_when_mouse_clicked() {
+        let mut camera = create_test_camera();
+        let mut controller = CameraController::new();
+
+        let initial_yaw = camera.yaw;
+        let initial_pitch = camera.pitch;
+
+        // Mouse delta with button released should not rotate
+        controller.mouse_movement(
+            &mut camera,
+            &MouseDelta {
+                delta_position: MovementDelta::new(10.0, 10.0),
+                state: MouseState::new(MouseButton::Left, MouseAction::Clicked),
+                is_mouse_on_window: false,
+                position: MousePosition::new(0.0, 0.0),
+            },
+        );
+
+        assert_eq!(
+            *camera.yaw, *initial_yaw,
+            "Yaw should not change when mouse button is released"
+        );
+        assert_eq!(
+            *camera.pitch, *initial_pitch,
+            "Pitch should not change when mouse button is released"
+        );
     }
 }

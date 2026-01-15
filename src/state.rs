@@ -101,7 +101,6 @@ impl ApplicationHandler for AppState {
                     winit::keyboard::PhysicalKey::Code(key_code) => {
                         let is_pressed = event.state == ElementState::Pressed;
                         self.keyboard_handler.handle_key(key_code, is_pressed);
-                        let pressed_keys = self.keyboard_handler.get_pressed_keys();
                         let pressed_modifiers = self.keyboard_handler.get_pressed_modifiers();
                         let action = if pressed_modifiers.is_empty() {
                             self.keyboard_handler.find_action_for_key(key_code)
@@ -137,8 +136,7 @@ impl ApplicationHandler for AppState {
                 self.mouse_delta.delta_position = MovementDelta::new(delta.0, delta.1);
                 renderer
                     .camera_controller
-                    .rotate(&mut renderer.camera, &self.mouse_delta)
-                    .unwrap();
+                    .mouse_movement(&mut renderer.camera, &self.mouse_delta)
             }
             DeviceEvent::Button { button, state } => {
                 if let Some(window) = self.window.clone() {

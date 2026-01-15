@@ -8,10 +8,7 @@ use wgpu::{
 use crate::renderer::{
     animator::trajectory::calculate_direction_vector,
     geometry::BindGroupProvider,
-    types::{
-        camera::{Pitch, Yaw},
-        mouse_delta::{MouseAction, MouseButton, MouseDelta},
-    },
+    types::camera::{Pitch, Yaw},
 };
 
 #[repr(C)]
@@ -28,7 +25,7 @@ impl CameraUniform {
     }
 
     pub fn update(&mut self, camera: &Camera) {
-        self.view_projection_matrix = camera.build_proj_matrix();
+        self.view_projection_matrix = camera.build_view_proj_matrix();
     }
 }
 
@@ -118,27 +115,27 @@ impl Camera {
         }
     }
 
-    pub fn move_camera_with_mouse(&mut self, mouse_delta: &MouseDelta) {
-        if mouse_delta.state.get_action().eq(&MouseAction::Clicked)
-            && mouse_delta.state.get_button().eq(&MouseButton::Left)
-            && mouse_delta.is_mouse_on_window()
-        {
-            self.yaw.add(
-                mouse_delta.delta_position.x() as f32 * self.sensitivity,
-                self.precalculated_smoothing,
-                self.smoothing_factor,
-            );
-            self.pitch.add(
-                mouse_delta.delta_position.y() as f32 * self.sensitivity,
-                self.precalculated_smoothing,
-                self.smoothing_factor,
-            );
-            let forward = calculate_direction_vector(*self.yaw, *self.pitch);
-            self.target = self.eye + forward;
-        }
+    pub fn update_yaw_pitch(&mut self, yaw: f32, pitch: f32) {
+        self.yaw.update(yaw);
+        self.pitch.update(pitch);
     }
 
-    pub fn build_proj_matrix(&self) -> Mat4 {
+    pub fn move_camera(&mut self, yaw_delta: f32, pitch_delta: f32) {
+        self.yaw.add(
+            yaw_delta * self.sensitivity,
+            self.precalculated_smoothing,
+            self.smoothing_factor,
+        );
+        self.pitch.add(
+            pitch_delta * self.sensitivity,
+            self.precalculated_smoothing,
+            self.smoothing_factor,
+        );
+        let forward = calculate_direction_vector(*self.yaw, *self.pitch);
+        self.target = self.eye + forward;
+    }
+
+    pub fn build_view_proj_matrix(&self) -> Mat4 {
         let view = Mat4::look_at_rh(self.eye, self.target, self.up);
         let proj = Mat4::perspective_rh(self.fovy, self.aspect, self.znear, self.zfar);
         proj * view
@@ -151,12 +148,7 @@ mod tests {
 
     use crate::renderer::{
         components::camera::Camera,
-        types::{
-            camera::{Pitch, Yaw},
-            mouse_delta::{
-                MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
-            },
-        },
+        types::camera::{Pitch, Yaw},
     };
 
     fn create_test_camera() -> Camera {
@@ -193,30 +185,12 @@ mod tests {
         )
     }
 
-    // Helper function to create MouseDelta for testing
-    fn create_mouse_delta(delta_x: f64, delta_y: f64, is_clicked: bool) -> MouseDelta {
-        MouseDelta {
-            delta_position: MovementDelta::new(delta_x, delta_y),
-            state: MouseState::new(
-                MouseButton::Left,
-                if is_clicked {
-                    MouseAction::Clicked
-                } else {
-                    MouseAction::Released
-                },
-            ),
-            is_mouse_on_window: true,
-            position: MousePosition::new(0.0, 0.0),
-        }
-    }
-
     #[test]
     fn test_delta_to_rotation_conversion_yaw() {
         let mut camera = create_test_camera();
         let initial_yaw = camera.yaw;
 
-        let mouse_delta = create_mouse_delta(10.0, 0.0, true);
-        camera.move_camera_with_mouse(&mouse_delta);
+        camera.move_camera(1.0, 0.0);
 
         // Yaw should have changed due to positive X delta
         // Note: Due to smoothing, the change won't be exactly 10.0
@@ -232,8 +206,7 @@ mod tests {
         let mut camera = create_test_camera();
         let initial_pitch = camera.pitch;
 
-        let mouse_delta = create_mouse_delta(0.0, 10.0, true);
-        camera.move_camera_with_mouse(&mouse_delta);
+        camera.move_camera(0.0, 10.0);
 
         // Pitch should decrease due to positive Y delta (inverted Y-axis)
         // First movement with smoothing_factor 0.5: smoothed = 0.0 * 0.5 + 10.0 * 0.5 = 5.0
@@ -249,8 +222,7 @@ mod tests {
         let initial_yaw = camera.yaw;
         let initial_pitch = camera.pitch;
 
-        let mouse_delta = create_mouse_delta(-10.0, -10.0, true);
-        camera.move_camera_with_mouse(&mouse_delta);
+        camera.move_camera(-10.0, -10.0);
 
         // Negative X delta should decrease yaw
         assert!(
@@ -265,35 +237,15 @@ mod tests {
     }
 
     #[test]
-    fn test_rotation_only_when_mouse_clicked() {
-        let mut camera = create_test_camera();
-        let initial_yaw = camera.yaw;
-        let initial_pitch = camera.pitch;
-
-        // Mouse delta with button released should not rotate
-        let mouse_delta = create_mouse_delta(10.0, 10.0, false);
-        camera.move_camera_with_mouse(&mouse_delta);
-
-        assert_eq!(
-            *camera.yaw, *initial_yaw,
-            "Yaw should not change when mouse button is released"
-        );
-        assert_eq!(
-            *camera.pitch, *initial_pitch,
-            "Pitch should not change when mouse button is released"
-        );
-    }
-
-    #[test]
     fn test_sensitivity_scaling_double_sensitivity() {
         let mut camera_low = create_test_camera_sensitivity(0.5);
         let mut camera_high = create_test_camera_sensitivity(1.0);
-
-        let mouse_delta = create_mouse_delta(10.0, 10.0, true);
+        let yaw_delta = 10.0;
+        let pitch_delta = 10.0;
 
         // Apply same delta to both controllers
-        camera_low.move_camera_with_mouse(&mouse_delta);
-        camera_high.move_camera_with_mouse(&mouse_delta);
+        camera_low.move_camera(yaw_delta, pitch_delta);
+        camera_high.move_camera(yaw_delta, pitch_delta);
 
         // Controller with 2x sensitivity should rotate more (accounting for smoothing)
         let yaw_change_low = *camera_low.yaw;
@@ -321,8 +273,7 @@ mod tests {
         let initial_yaw = *camera.yaw;
         let initial_pitch = *camera.pitch;
 
-        let mouse_delta = create_mouse_delta(100.0, 100.0, true);
-        camera.move_camera_with_mouse(&mouse_delta);
+        camera.move_camera(100.0, 100.0);
 
         // With zero sensitivity, no rotation should occur even with large delta
         assert_eq!(
@@ -341,8 +292,7 @@ mod tests {
 
         // Apply large upward rotation to exceed pitch limit
         for _ in 0..100 {
-            let mouse_delta = create_mouse_delta(0.0, 10.0, true);
-            camera.move_camera_with_mouse(&mouse_delta);
+            camera.move_camera(0.0, 10.0);
         }
 
         // Pitch should be clamped to max (89 degrees)
@@ -361,8 +311,7 @@ mod tests {
 
         // Apply large downward rotation to exceed pitch limit
         for _ in 0..100 {
-            let mouse_delta = create_mouse_delta(0.0, -10.0, true);
-            camera.move_camera_with_mouse(&mouse_delta);
+            camera.move_camera(0.0, -10.0);
         }
 
         // Pitch should be clamped to min (-89 degrees)

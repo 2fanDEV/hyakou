@@ -28,6 +28,10 @@ impl Yaw {
         }
     }
 
+    pub fn update(&mut self, yaw: f32) {
+        self.value = yaw;
+    }
+
     pub fn add(&mut self, value: f32, one_minus_smoothing_value: f32, smoothing_factor: f32) {
         let smoothed_delta_interpolation = smoothing_interpolation(
             self.previous_delta,
@@ -67,6 +71,10 @@ impl Pitch {
             value,
             previous_delta: F32_ZERO,
         }
+    }
+
+    pub fn update(&mut self, pitch: f32) {
+        self.value = pitch;
     }
 
     pub fn add(&mut self, value: f32, one_minus_smoothing_value: f32, smoothing_factor: f32) {
