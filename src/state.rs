@@ -137,8 +137,7 @@ impl ApplicationHandler for AppState {
                 self.mouse_delta.delta_position = MovementDelta::new(delta.0, delta.1);
                 renderer
                     .camera_controller
-                    .rotate(&mut renderer.camera, &self.mouse_delta)
-                    .unwrap();
+                    .mouse_movement(&mut renderer.camera, &self.mouse_delta)
             }
             DeviceEvent::Button { button, state } => {
                 if let Some(window) = self.window.clone() {

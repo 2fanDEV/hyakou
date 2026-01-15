@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use log::debug;
 use smallvec::smallvec;
 use winit::keyboard::KeyCode;
 
