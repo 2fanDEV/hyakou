@@ -60,13 +60,13 @@ impl CameraController {
         }
     }
 
-    pub fn update_camera(&mut self, camera: &mut Camera, delta_time: f32) {
+    pub fn update_orbit_camera(&mut self, camera: &mut Camera, delta_time: f32) {
         let forward = camera.target - camera.eye;
         let forward_norm = forward.normalize();
         camera.yaw = Yaw::new(forward_norm.z.atan2(forward_norm.x));
         camera.pitch = Pitch::new(forward_norm.y.asin());
         let forward_mag = forward.length();
-        let speed = camera.camera_speed * delta_time;
+        let speed = camera.speed * delta_time;
         if self.is_forward_pressed && forward_mag > speed {
             let forward_speed = if self.modifier_pressed {
                 speed * 2.0
@@ -85,6 +85,28 @@ impl CameraController {
         }
         if self.is_left_pressed {
             camera.eye -= right * speed;
+        }
+    }
+
+    pub fn update_fly_camera(&mut self, camera: &mut Camera, delta_time: f32) {
+        let forward = (camera.eye - camera.target).normalize();
+        let speed = camera.speed * delta_time;
+        if self.is_forward_pressed && forward.length() > speed {
+            let forward_speed = if self.modifier_pressed {
+                speed * 2.0
+            } else {
+                speed
+            };
+            camera.eye -= forward * forward_speed
+        }
+        if self.is_backward_pressed {
+            camera.eye += forward * speed;
+        }
+        if self.is_right_pressed {
+            camera.target.x += speed;
+        }
+        if self.is_left_pressed {
+            camera.target.x -= speed;
         }
     }
 }
@@ -171,7 +193,7 @@ mod tests {
 
         let mut controller = CameraController::new();
         controller.is_forward_pressed = true;
-        controller.update_camera(&mut camera, 0.1); // Smaller delta to avoid overshooting
+        controller.update_orbit_camera(&mut camera, 0.1); // Smaller delta to avoid overshooting
 
         // Camera should move toward target (negative Z direction)
         assert!(
@@ -189,7 +211,7 @@ mod tests {
         let mut controller = CameraController::new();
 
         controller.is_backward_pressed = true;
-        controller.update_camera(&mut camera, 1.0);
+        controller.update_orbit_camera(&mut camera, 1.0);
 
         // Camera should move away from target (positive Z direction)
         assert!(camera.eye.z > initial_eye.z);
@@ -202,7 +224,7 @@ mod tests {
         let mut controller = CameraController::new();
 
         controller.is_left_pressed = true;
-        controller.update_camera(&mut camera, 1.0);
+        controller.update_orbit_camera(&mut camera, 1.0);
 
         assert!(camera.eye.x < initial_eye.x);
     }
@@ -214,7 +236,7 @@ mod tests {
         let initial_eye = camera.eye;
 
         controller.is_right_pressed = true;
-        controller.update_camera(&mut camera, 10.0);
+        controller.update_orbit_camera(&mut camera, 10.0);
         assert!(camera.eye.x > initial_eye.x,);
     }
 
@@ -224,8 +246,8 @@ mod tests {
         let mut camera2 = create_test_camera();
         let mut controller = CameraController::new();
         controller.is_forward_pressed = true;
-        controller.update_camera(&mut camera1, 0.1);
-        controller.update_camera(&mut camera2, 0.2);
+        controller.update_orbit_camera(&mut camera1, 0.1);
+        controller.update_orbit_camera(&mut camera2, 0.2);
 
         // camera2 should have moved twice as far as camera1
         let distance1 = (camera1.eye - Vec3::new(0.0, 0.0, 10.0)).length();
@@ -243,7 +265,7 @@ mod tests {
         let mut camera = create_test_camera();
         let mut controller = CameraController::new();
         let initial_eye = camera.eye.clone();
-        controller.update_camera(&mut camera, 1.0);
+        controller.update_orbit_camera(&mut camera, 1.0);
         assert_eq!(camera.eye, initial_eye);
     }
 
@@ -268,7 +290,7 @@ mod tests {
         let initial_eye = camera.eye;
 
         controller.is_forward_pressed = true;
-        controller.update_camera(&mut camera, 1.0);
+        controller.update_orbit_camera(&mut camera, 1.0);
 
         // Camera should not move because forward_mag <= speed
         assert_eq!(camera.eye, initial_eye);
@@ -281,7 +303,7 @@ mod tests {
         let mut controller = CameraController::new();
 
         controller.is_left_pressed = true;
-        controller.update_camera(&mut camera, 0.1);
+        controller.update_orbit_camera(&mut camera, 0.1);
 
         assert!(camera.eye.x < initial_eye.x);
     }

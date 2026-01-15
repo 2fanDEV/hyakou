@@ -172,8 +172,10 @@ impl Renderer {
 
     pub fn update(&mut self, delta_time: DeltaTime64) {
         // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
+        // self.camera_controller
+        // .update_orbit_camera(&mut self.camera, delta_time as f32);
         self.camera_controller
-            .update_camera(&mut self.camera, delta_time as f32);
+            .update_fly_camera(&mut self.camera, delta_time as f32);
         self.animators.values_mut().for_each(|animator| {
             if let Err(animator_error) = animator.play(delta_time) {
                 error!("{:?}", animator_error)
