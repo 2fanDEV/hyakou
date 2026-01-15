@@ -33,7 +33,7 @@ impl CameraController {
             && mouse_delta.is_mouse_on_window()
         {
             let yaw_delta = mouse_delta.delta_position.x() as f32;
-            let pitch_delta = mouse_delta.delta_position.y() as f32 * camera.sensitivity;
+            let pitch_delta = mouse_delta.delta_position.y() as f32;
             camera.move_camera(yaw_delta, pitch_delta);
         }
     }

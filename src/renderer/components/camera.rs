@@ -148,12 +148,7 @@ mod tests {
 
     use crate::renderer::{
         components::camera::Camera,
-        types::{
-            camera::{Pitch, Yaw},
-            mouse_delta::{
-                MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
-            },
-        },
+        types::camera::{Pitch, Yaw},
     };
 
     fn create_test_camera() -> Camera {
@@ -190,29 +185,11 @@ mod tests {
         )
     }
 
-    // Helper function to create MouseDelta for testing
-    fn create_mouse_delta(delta_x: f64, delta_y: f64, is_clicked: bool) -> MouseDelta {
-        MouseDelta {
-            delta_position: MovementDelta::new(delta_x, delta_y),
-            state: MouseState::new(
-                MouseButton::Left,
-                if is_clicked {
-                    MouseAction::Clicked
-                } else {
-                    MouseAction::Released
-                },
-            ),
-            is_mouse_on_window: true,
-            position: MousePosition::new(0.0, 0.0),
-        }
-    }
-
     #[test]
     fn test_delta_to_rotation_conversion_yaw() {
         let mut camera = create_test_camera();
         let initial_yaw = camera.yaw;
 
-        let mouse_delta = create_mouse_delta(10.0, 0.0, true);
         camera.move_camera(1.0, 0.0);
 
         // Yaw should have changed due to positive X delta
@@ -229,7 +206,6 @@ mod tests {
         let mut camera = create_test_camera();
         let initial_pitch = camera.pitch;
 
-        let mouse_delta = create_mouse_delta(0.0, 10.0, true);
         camera.move_camera(0.0, 10.0);
 
         // Pitch should decrease due to positive Y delta (inverted Y-axis)
