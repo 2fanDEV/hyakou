@@ -175,7 +175,7 @@ impl Renderer {
         // self.camera_controller
         // .update_orbit_camera(&mut self.camera, delta_time as f32);
         self.camera_controller
-            .update_fly_camera(&mut self.camera, delta_time as f32);
+            .update_camera(&mut self.camera, delta_time as f32);
         self.animators.values_mut().for_each(|animator| {
             if let Err(animator_error) = animator.play(delta_time) {
                 error!("{:?}", animator_error)

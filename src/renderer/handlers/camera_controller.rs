@@ -1,5 +1,8 @@
+use glam::Vec3;
+
 use crate::renderer::{
     actions::{Action, CameraActions},
+    animator::trajectory::calculate_direction_vector,
     components::camera::Camera,
     types::{
         camera::{Pitch, Yaw},
@@ -8,7 +11,15 @@ use crate::renderer::{
 };
 
 #[derive(Debug)]
+pub enum CameraMode {
+    FLY,
+    PAN,
+    ORBIT,
+}
+
+#[derive(Debug)]
 pub struct CameraController {
+    camera_mode: CameraMode,
     is_forward_pressed: bool,
     is_backward_pressed: bool,
     is_left_pressed: bool,
@@ -19,6 +30,7 @@ pub struct CameraController {
 impl CameraController {
     pub fn new() -> CameraController {
         Self {
+            camera_mode: CameraMode::FLY,
             is_backward_pressed: false,
             is_forward_pressed: false,
             is_left_pressed: false,
@@ -60,54 +72,49 @@ impl CameraController {
         }
     }
 
-    pub fn update_orbit_camera(&mut self, camera: &mut Camera, delta_time: f32) {
-        let forward = camera.target - camera.eye;
-        let forward_norm = forward.normalize();
-        camera.yaw = Yaw::new(forward_norm.z.atan2(forward_norm.x));
-        camera.pitch = Pitch::new(forward_norm.y.asin());
-        let forward_mag = forward.length();
-        let speed = camera.speed * delta_time;
-        if self.is_forward_pressed && forward_mag > speed {
-            let forward_speed = if self.modifier_pressed {
-                speed * 2.0
-            } else {
-                speed
-            };
-            camera.eye += forward_norm * forward_speed;
-        }
-        if self.is_backward_pressed {
-            camera.eye -= forward_norm * speed;
-        }
-
-        let right = forward_norm.cross(camera.up);
-        if self.is_right_pressed {
-            camera.eye += right * speed;
-        }
-        if self.is_left_pressed {
-            camera.eye -= right * speed;
+    pub fn update_camera(&mut self, camera: &mut Camera, delta_time: f32) {
+        match self.camera_mode {
+            CameraMode::FLY => self.update_fly_camera(camera, delta_time),
+            CameraMode::PAN => todo!(),
+            CameraMode::ORBIT => self.update_orbit_camera(camera, delta_time),
         }
     }
 
+    pub fn update_orbit_camera(&mut self, camera: &mut Camera, delta_time: f32) {
+        let movement = self.movement_calculcation(camera, delta_time);
+        camera.eye += movement;
+    }
+
     pub fn update_fly_camera(&mut self, camera: &mut Camera, delta_time: f32) {
-        let forward = (camera.eye - camera.target).normalize();
+        let movement = self.movement_calculcation(camera, delta_time);
+        camera.eye += movement;
+        camera.target += movement;
+    }
+
+    fn movement_calculcation(&mut self, camera: &Camera, delta_time: f32) -> Vec3 {
+        let forward = calculate_direction_vector(*camera.yaw, *camera.pitch).normalize();
+        let right = forward.cross(camera.up).normalize();
         let speed = camera.speed * delta_time;
-        if self.is_forward_pressed && forward.length() > speed {
+        let mut movement = Vec3::ZERO;
+
+        if self.is_forward_pressed {
             let forward_speed = if self.modifier_pressed {
                 speed * 2.0
             } else {
                 speed
             };
-            camera.eye -= forward * forward_speed
+            movement += forward * forward_speed;
         }
         if self.is_backward_pressed {
-            camera.eye += forward * speed;
+            movement -= forward * speed;
         }
         if self.is_right_pressed {
-            camera.target.x += speed;
+            movement += right * speed;
         }
         if self.is_left_pressed {
-            camera.target.x -= speed;
+            movement -= right * speed;
         }
+        movement
     }
 }
 
