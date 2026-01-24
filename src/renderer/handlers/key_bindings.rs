@@ -62,9 +62,30 @@ impl KeyBindingMap {
         binding.insert(
             KeyBinding {
                 modifiers: smallvec![KeyCode::ShiftLeft],
-                keys: smallvec![KeyCode::KeyW],
+                keys: smallvec![],
             },
-            Action::Camera(CameraActions::ForwardsModifier),
+            Action::Camera(CameraActions::SpeedModifier),
+        );
+        binding.insert(
+            KeyBinding {
+                modifiers: smallvec![],
+                keys: smallvec![KeyCode::Space],
+            },
+            Action::Camera(CameraActions::Up),
+        );
+        binding.insert(
+            KeyBinding {
+                modifiers: smallvec![KeyCode::ControlLeft],
+                keys: smallvec![],
+            },
+            Action::Camera(CameraActions::Down),
+        );
+        binding.insert(
+            KeyBinding {
+                modifiers: smallvec![KeyCode::ShiftLeft, KeyCode::ControlLeft],
+                keys: smallvec![],
+            },
+            Action::Camera(CameraActions::SlowModifier),
         );
         Self { binding }
     }
@@ -145,16 +166,33 @@ mod tests {
 
         let action = binding_map.get_binding(&key_binding);
 
-        assert_eq!(
-            action,
-            Some(&Action::Camera(CameraActions::ForwardsModifier))
-        );
+        assert_eq!(action, Some(&Action::Camera(CameraActions::SpeedModifier)));
+    }
+
+    #[test]
+    fn test_space_key_returns_up_action() {
+        let binding_map = KeyBindingMap::initialize();
+        let key_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::Space]);
+
+        let action = binding_map.get_binding(&key_binding);
+
+        assert_eq!(action, Some(&Action::Camera(CameraActions::Up)));
+    }
+
+    #[test]
+    fn test_ctrl_key_returns_down_action() {
+        let binding_map = KeyBindingMap::initialize();
+        let key_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::ControlLeft]);
+
+        let action = binding_map.get_binding(&key_binding);
+
+        assert_eq!(action, Some(&Action::Camera(CameraActions::Down)));
     }
 
     #[test]
     fn test_non_existent_binding_returns_none() {
         let binding_map = KeyBindingMap::initialize();
-        let key_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::Space]);
+        let key_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::KeyQ]);
 
         let action = binding_map.get_binding(&key_binding);
 
@@ -164,7 +202,7 @@ mod tests {
     #[test]
     fn test_add_binding_creates_new_binding() {
         let mut binding_map = KeyBindingMap::initialize();
-        let key_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::Space]);
+        let key_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::KeyQ]);
 
         binding_map.add_binding(key_binding.clone(), Action::Camera(CameraActions::Forwards));
 
@@ -203,7 +241,7 @@ mod tests {
     #[test]
     fn test_remove_non_existent_binding_returns_none() {
         let mut binding_map = KeyBindingMap::initialize();
-        let key_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::Space]);
+        let key_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::KeyQ]);
 
         let removed_action = binding_map.remove_binding(&key_binding);
 
@@ -214,7 +252,7 @@ mod tests {
     fn test_change_binding_moves_action_to_new_key() {
         let mut binding_map = KeyBindingMap::initialize();
         let old_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::KeyW]);
-        let new_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::Space]);
+        let new_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::KeyQ]);
 
         binding_map.change_binding(old_binding.clone(), new_binding.clone());
 

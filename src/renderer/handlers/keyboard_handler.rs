@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use smallvec::smallvec;
+use smallvec::{SmallVec, smallvec};
 use winit::keyboard::KeyCode;
 
 use crate::renderer::{
@@ -62,11 +62,42 @@ impl KeyboardHandler {
             .get_binding(&KeyBinding::new(smallvec![], smallvec![key_code]))
     }
 
+    pub fn find_action_for_modifier(&self, modifier: KeyCode) -> Option<&Action> {
+        self.key_bindings
+            .get_binding(&KeyBinding::new(smallvec![modifier], smallvec![]))
+    }
+
+    pub fn find_action_for_modifiers(&self, modifiers: SmallVec<[KeyCode; 5]>) -> Option<&Action> {
+        self.key_bindings
+            .get_binding(&KeyBinding::new(modifiers, smallvec![]))
+    }
+
+    pub fn find_action_for_keybinding(
+        &self,
+        modifiers: SmallVec<[KeyCode; 5]>,
+        keys: SmallVec<[KeyCode; 5]>,
+    ) -> Option<&Action> {
+        self.key_bindings
+            .get_binding(&KeyBinding::new(modifiers, keys))
+    }
+
     pub fn check_key_bindings(&self, key_binding: &KeyBinding) -> Option<&Action> {
         self.key_bindings.get_binding(key_binding)
     }
 
     pub fn is_pressed(&self, key_code: KeyCode) -> bool {
         self.pressed_keys.get(&key_code).is_some()
+    }
+
+    pub fn get_active_actions(&self, changed_key: Option<KeyCode>) -> SmallVec<[&Action; 4]> {
+        let mut actions: SmallVec<[&Action; 4]> = SmallVec::new();
+        let pressed_keys = self.pressed_keys.into_iter().collect::<Vec<_>>();
+        let pressed_modifiers = self.pressed_modifiers.into_iter().collect::<Vec<_>>();
+        let full_binding_action = self.key_bindings.get_binding(&KeyBinding::new(
+            pressed_modifiers.into(),
+            pressed_keys.into(),
+        ));
+
+        actions
     }
 }

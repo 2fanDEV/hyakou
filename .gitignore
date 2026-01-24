@@ -3,3 +3,6 @@
 /assets/.DS_Store
 CLAUDE.md
 /linear
+
+.gemini/
+gha-creds-*.json
