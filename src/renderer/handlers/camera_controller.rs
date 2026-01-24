@@ -29,9 +29,9 @@ pub struct CameraController {
 }
 
 impl CameraController {
-    pub fn new() -> CameraController {
+    pub fn new(camera_mode: CameraMode) -> CameraController {
         Self {
-            camera_mode: CameraMode::FLY,
+            camera_mode,
             is_backward_pressed: false,
             is_forward_pressed: false,
             is_left_pressed: false,
@@ -106,9 +106,16 @@ impl CameraController {
         if self.is_speed_modifier_pressed {
             speed *= 2.0;
         }
-        // debug!("{:?}", speed);
-        if self.is_forward_pressed && forward_mag > speed {
-            movement += normalized_forward * speed;
+        if self.is_forward_pressed {
+            match self.camera_mode {
+                CameraMode::FLY => movement += normalized_forward * speed,
+                CameraMode::ORBIT => {
+                    if forward_mag > speed {
+                        movement += normalized_forward * speed;
+                    }
+                }
+                _ => {}
+            }
         }
         if self.is_backward_pressed {
             movement -= normalized_forward * speed;
@@ -158,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_new_controller_has_correct_initial_state() {
-        let controller = CameraController::new();
+        let controller = CameraController::new(CameraMode::FLY);
         assert!(controller.is_backward_pressed == false);
         assert!(controller.is_forward_pressed == false);
         assert!(controller.is_left_pressed == false);
@@ -169,49 +176,49 @@ mod tests {
 
     #[test]
     fn test_handle_key_w_sets_forward_pressed() {
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Forwards), true);
         assert!(controller.is_forward_pressed);
     }
 
     #[test]
     fn test_handle_key_s_sets_backward_pressed() {
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Backwards), true);
         assert!(controller.is_backward_pressed);
     }
 
     #[test]
     fn test_handle_key_a_sets_left_pressed() {
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Left), true);
         assert!(controller.is_left_pressed);
     }
 
     #[test]
     fn test_handle_key_d_sets_right_pressed() {
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Right), true);
         assert!(controller.is_right_pressed);
     }
 
     #[test]
     fn test_handle_key_space_sets_up_pressed() {
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Up), true);
         assert!(controller.is_up_pressed);
     }
 
     #[test]
     fn test_handle_key_ctrl_sets_down_pressed() {
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Down), true);
         assert!(controller.is_down_pressed);
     }
 
     #[test]
     fn test_handle_key_release_clears_state() {
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::ORBIT);
 
         controller.handle_action(&Action::Camera(CameraActions::Forwards), true);
         assert!(controller.is_forward_pressed);
@@ -225,7 +232,7 @@ mod tests {
         let mut camera = create_test_camera();
         let initial_eye = camera.eye;
 
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         controller.is_forward_pressed = true;
         controller.update_orbit_camera(&mut camera, 0.1); // Smaller delta to avoid overshooting
 
@@ -242,7 +249,7 @@ mod tests {
     fn test_update_camera_backward_movement() {
         let mut camera = create_test_camera();
         let initial_eye = camera.eye;
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
 
         controller.is_backward_pressed = true;
         controller.update_orbit_camera(&mut camera, 1.0);
@@ -255,7 +262,7 @@ mod tests {
     fn test_update_camera_left_strafe() {
         let mut camera = create_test_camera();
         let initial_eye = camera.eye;
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
 
         controller.is_left_pressed = true;
         controller.update_orbit_camera(&mut camera, 1.0);
@@ -266,7 +273,7 @@ mod tests {
     #[test]
     fn test_update_camera_right_strafe() {
         let mut camera = create_test_camera();
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         let initial_eye = camera.eye;
 
         controller.is_right_pressed = true;
@@ -277,7 +284,7 @@ mod tests {
     #[test]
     fn test_update_camera_up_movement() {
         let mut camera = create_test_camera();
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         let initial_eye = camera.eye;
 
         controller.is_up_pressed = true;
@@ -288,7 +295,7 @@ mod tests {
     #[test]
     fn test_update_camera_down_movement() {
         let mut camera = create_test_camera();
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         let initial_eye = camera.eye;
 
         controller.is_down_pressed = true;
@@ -300,7 +307,7 @@ mod tests {
     fn test_update_camera_respects_delta_time() {
         let mut camera1 = create_test_camera();
         let mut camera2 = create_test_camera();
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         controller.is_forward_pressed = true;
         controller.update_orbit_camera(&mut camera1, 0.1);
         controller.update_orbit_camera(&mut camera2, 0.2);
@@ -319,7 +326,7 @@ mod tests {
     #[test]
     fn test_update_camera_no_movement_when_no_keys_pressed() {
         let mut camera = create_test_camera();
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
         let initial_eye = camera.eye.clone();
         controller.update_orbit_camera(&mut camera, 1.0);
         assert_eq!(camera.eye, initial_eye);
@@ -342,7 +349,7 @@ mod tests {
             0.5,
         );
 
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::ORBIT);
         let initial_eye = camera.eye;
 
         controller.is_forward_pressed = true;
@@ -356,7 +363,7 @@ mod tests {
     fn test_update_camera_strafe_changes_position() {
         let mut camera = create_test_camera();
         let initial_eye = camera.eye;
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
 
         controller.is_left_pressed = true;
         controller.update_orbit_camera(&mut camera, 0.1);
@@ -365,9 +372,55 @@ mod tests {
     }
 
     #[test]
+    fn test_speed_modifier_doubles_speed() {
+        let mut camera1 = create_test_camera();
+        let mut camera2 = create_test_camera();
+        let mut controller = CameraController::new(CameraMode::FLY);
+
+        controller.is_forward_pressed = true;
+        controller.update_fly_camera(&mut camera1, 0.1);
+
+        controller.is_speed_modifier_pressed = true;
+        controller.update_fly_camera(&mut camera2, 0.1);
+
+        let distance1 = (camera1.eye - Vec3::new(0.0, 0.0, 10.0)).length();
+        let distance2 = (camera2.eye - Vec3::new(0.0, 0.0, 10.0)).length();
+
+        assert!(
+            (distance2 - distance1 * 2.0).abs() < 0.001,
+            "Speed modifier should double the distance. Normal: {}, Boosted: {}",
+            distance1,
+            distance2
+        );
+    }
+
+    #[test]
+    fn test_slow_modifier_halves_speed() {
+        let mut camera1 = create_test_camera();
+        let mut camera2 = create_test_camera();
+        let mut controller = CameraController::new(CameraMode::FLY);
+
+        controller.is_forward_pressed = true;
+        controller.update_fly_camera(&mut camera1, 0.1);
+
+        controller.is_slow_modifier_pressed = true;
+        controller.update_fly_camera(&mut camera2, 0.1);
+
+        let distance1 = (camera1.eye - Vec3::new(0.0, 0.0, 10.0)).length();
+        let distance2 = (camera2.eye - Vec3::new(0.0, 0.0, 10.0)).length();
+
+        assert!(
+            (distance2 - distance1 * 0.5).abs() < 0.001,
+            "Slow modifier should halve the distance. Normal: {}, Slowed: {}",
+            distance1,
+            distance2
+        );
+    }
+
+    #[test]
     fn test_rotation_only_when_mouse_clicked() {
         let mut camera = create_test_camera();
-        let mut controller = CameraController::new();
+        let mut controller = CameraController::new(CameraMode::FLY);
 
         let initial_yaw = camera.yaw;
         let initial_pitch = camera.pitch;
