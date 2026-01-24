@@ -1,21 +1,19 @@
 use std::{sync::Arc, time::Instant};
 
 use log::debug;
-use smallvec::SmallVec;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
     event::{DeviceEvent, ElementState, WindowEvent},
-    keyboard::KeyCode,
     window::{CursorGrabMode, Window, WindowAttributes},
 };
 
 use crate::renderer::{
-    Renderer,
     handlers::keyboard_handler::KeyboardHandler,
     types::mouse_delta::{
         MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
     },
+    Renderer,
 };
 
 pub struct AppState {
@@ -101,11 +99,18 @@ impl ApplicationHandler for AppState {
                 match event.physical_key {
                     winit::keyboard::PhysicalKey::Code(key_code) => {
                         let is_pressed = event.state == ElementState::Pressed;
-                        self.keyboard_handler.handle_key(key_code, is_pressed);
-                        let pressed_modifiers = self.keyboard_handler.get_pressed_modifiers();
 
-                        if let Some(action) = self.keyboard_handler.find_action_for_key(key_code) {
-                            renderer.camera_controller.handle_action(action, is_pressed);
+                        let events = self.keyboard_handler.handle_key(key_code, is_pressed);
+
+                        for event in events {
+                            match event {
+                                crate::renderer::handlers::keyboard_handler::InputEvent::ActionStarted(action) => {
+                                    renderer.camera_controller.handle_action(&action, true);
+                                }
+                                crate::renderer::handlers::keyboard_handler::InputEvent::ActionEnded(action) => {
+                                    renderer.camera_controller.handle_action(&action, false);
+                                }
+                            }
                         }
                     }
                     _ => {}
