@@ -2,7 +2,7 @@ pub mod camera_actions;
 
 pub use camera_actions::CameraActions;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Action {
     Camera(CameraActions),
 }

@@ -1,8 +1,11 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CameraActions {
-    ForwardsModifier,
+    SlowModifier,
+    SpeedModifier,
     Forwards,
     Backwards,
     Left,
     Right,
+    Up,
+    Down,
 }

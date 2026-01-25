@@ -22,7 +22,10 @@ use crate::renderer::{
         transform::Transform,
     },
     geometry::BindGroupProvider,
-    handlers::{asset_handler::AssetHandler, camera_controller::CameraController},
+    handlers::{
+        asset_handler::AssetHandler,
+        camera_controller::{CameraController, CameraMode},
+    },
     renderer_context::RenderContext,
     types::{
         DeltaTime64, TransformBuffer,
@@ -165,13 +168,12 @@ impl Renderer {
             light_uniform_buffer,
             light_bind_group,
             animators,
-            camera_controller: CameraController::new(),
+            camera_controller: CameraController::new(CameraMode::ORBIT),
             window,
         })
     }
 
     pub fn update(&mut self, delta_time: DeltaTime64) {
-        // delta_time is now in seconds (e.g., 0.016 for 60 FPS)
         self.camera_controller
             .update_camera(&mut self.camera, delta_time as f32);
         self.animators.values_mut().for_each(|animator| {

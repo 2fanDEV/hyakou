@@ -77,7 +77,7 @@ pub struct Camera {
     pub zfar: f32,
     pub yaw: Yaw,
     pub pitch: Pitch,
-    pub camera_speed: f32,
+    pub speed: f32,
     pub sensitivity: f32,
     pub smoothing_factor: f32,
     pub precalculated_smoothing: f32,
@@ -108,16 +108,11 @@ impl Camera {
             zfar,
             yaw,
             pitch,
-            camera_speed: speed,
+            speed,
             sensitivity,
             smoothing_factor,
             precalculated_smoothing: 1.0 - smoothing_factor,
         }
-    }
-
-    pub fn update_yaw_pitch(&mut self, yaw: f32, pitch: f32) {
-        self.yaw.update(yaw);
-        self.pitch.update(pitch);
     }
 
     pub fn move_camera(&mut self, yaw_delta: f32, pitch_delta: f32) {

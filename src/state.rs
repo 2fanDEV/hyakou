@@ -1,7 +1,6 @@
 use std::{sync::Arc, time::Instant};
 
 use log::debug;
-use smallvec::smallvec;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -10,11 +9,11 @@ use winit::{
 };
 
 use crate::renderer::{
-    Renderer,
-    handlers::{key_bindings::KeyBinding, keyboard_handler::KeyboardHandler},
+    handlers::keyboard_handler::KeyboardHandler,
     types::mouse_delta::{
         MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
     },
+    Renderer,
 };
 
 pub struct AppState {
@@ -100,21 +99,18 @@ impl ApplicationHandler for AppState {
                 match event.physical_key {
                     winit::keyboard::PhysicalKey::Code(key_code) => {
                         let is_pressed = event.state == ElementState::Pressed;
-                        self.keyboard_handler.handle_key(key_code, is_pressed);
-                        let pressed_modifiers = self.keyboard_handler.get_pressed_modifiers();
-                        let action = if pressed_modifiers.is_empty() {
-                            self.keyboard_handler.find_action_for_key(key_code)
-                        } else {
-                            let binding = KeyBinding::new(
-                                pressed_modifiers.iter().copied().collect(),
-                                smallvec![key_code],
-                            );
-                            self.keyboard_handler
-                                .check_key_bindings(&binding)
-                                .or_else(|| self.keyboard_handler.find_action_for_key(key_code))
-                        };
-                        if let Some(action) = action {
-                            renderer.camera_controller.handle_action(action, is_pressed);
+
+                        let events = self.keyboard_handler.handle_key(key_code, is_pressed);
+
+                        for event in events {
+                            match event {
+                                crate::renderer::handlers::keyboard_handler::InputEvent::ActionStarted(action) => {
+                                    renderer.camera_controller.handle_action(&action, true);
+                                }
+                                crate::renderer::handlers::keyboard_handler::InputEvent::ActionEnded(action) => {
+                                    renderer.camera_controller.handle_action(&action, false);
+                                }
+                            }
                         }
                     }
                     _ => {}
