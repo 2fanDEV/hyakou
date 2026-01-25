@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use log::{trace, warn};
-use smallvec::{SmallVec, smallvec};
+use smallvec::{smallvec, SmallVec};
 use winit::keyboard::KeyCode;
 
 use crate::renderer::actions::{Action, CameraActions};
@@ -267,6 +267,17 @@ mod tests {
             Some(Action::Camera(CameraActions::Forwards))
         );
         assert_eq!(binding_map.get_binding(&key_binding), None);
+    }
+
+    #[test]
+    fn test_remove_non_existent_binding_returns_none() {
+        let mut binding_map = KeyBindingMap::initialize();
+
+        // Space is actually bound in initialize, so I should use something else
+        let q_key_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::KeyQ]);
+        let removed_action = binding_map.remove_binding(&q_key_binding);
+
+        assert_eq!(removed_action, None);
     }
 
     #[test]

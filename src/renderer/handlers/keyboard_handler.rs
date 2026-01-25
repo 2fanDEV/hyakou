@@ -101,25 +101,6 @@ impl KeyboardHandler {
             .get_binding(&KeyBinding::new(smallvec![], smallvec![key_code]))
     }
 
-    pub fn find_action_for_modifier(&self, modifier: KeyCode) -> Option<&Action> {
-        self.key_bindings
-            .get_binding(&KeyBinding::new(smallvec![modifier], smallvec![]))
-    }
-
-    pub fn find_action_for_modifiers(&self, modifiers: SmallVec<[KeyCode; 5]>) -> Option<&Action> {
-        self.key_bindings
-            .get_binding(&KeyBinding::new(modifiers, smallvec![]))
-    }
-
-    pub fn find_action_for_keybinding(
-        &self,
-        modifiers: SmallVec<[KeyCode; 5]>,
-        keys: SmallVec<[KeyCode; 5]>,
-    ) -> Option<&Action> {
-        self.key_bindings
-            .get_binding(&KeyBinding::new(modifiers, keys))
-    }
-
     pub fn check_key_bindings(&self, key_binding: &KeyBinding) -> Option<&Action> {
         self.key_bindings.get_binding(key_binding)
     }
