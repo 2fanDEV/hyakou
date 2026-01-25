@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use log::{trace, warn};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use winit::keyboard::KeyCode;
 
 use crate::renderer::actions::{Action, CameraActions};
@@ -16,9 +16,11 @@ pub struct KeyBinding {
 
 impl KeyBinding {
     pub fn new(
-        modifiers: SmallVec<[KeyCode; MAX_KEY_BIND_COUNT]>,
-        keys: SmallVec<[KeyCode; MAX_KEY_BIND_COUNT]>,
+        mut modifiers: SmallVec<[KeyCode; MAX_KEY_BIND_COUNT]>,
+        mut keys: SmallVec<[KeyCode; MAX_KEY_BIND_COUNT]>,
     ) -> Self {
+        modifiers.sort();
+        keys.sort();
         Self { modifiers, keys }
     }
 }
@@ -32,59 +34,38 @@ impl KeyBindingMap {
     pub fn initialize() -> Self {
         let mut binding = HashMap::new();
         binding.insert(
-            KeyBinding {
-                modifiers: smallvec![],
-                keys: smallvec![KeyCode::KeyW],
-            },
+            KeyBinding::new(smallvec![], smallvec![KeyCode::KeyW]),
             Action::Camera(CameraActions::Forwards),
         );
         binding.insert(
-            KeyBinding {
-                modifiers: smallvec![],
-                keys: smallvec![KeyCode::KeyS],
-            },
+            KeyBinding::new(smallvec![], smallvec![KeyCode::KeyS]),
             Action::Camera(CameraActions::Backwards),
         );
         binding.insert(
-            KeyBinding {
-                modifiers: smallvec![],
-                keys: smallvec![KeyCode::KeyD],
-            },
+            KeyBinding::new(smallvec![], smallvec![KeyCode::KeyD]),
             Action::Camera(CameraActions::Right),
         );
         binding.insert(
-            KeyBinding {
-                modifiers: smallvec![],
-                keys: smallvec![KeyCode::KeyA],
-            },
+            KeyBinding::new(smallvec![], smallvec![KeyCode::KeyA]),
             Action::Camera(CameraActions::Left),
         );
         binding.insert(
-            KeyBinding {
-                modifiers: smallvec![KeyCode::ShiftLeft],
-                keys: smallvec![],
-            },
+            KeyBinding::new(smallvec![KeyCode::ShiftLeft], smallvec![]),
             Action::Camera(CameraActions::SpeedModifier),
         );
         binding.insert(
-            KeyBinding {
-                modifiers: smallvec![],
-                keys: smallvec![KeyCode::Space],
-            },
+            KeyBinding::new(smallvec![], smallvec![KeyCode::Space]),
             Action::Camera(CameraActions::Up),
         );
         binding.insert(
-            KeyBinding {
-                modifiers: smallvec![KeyCode::ControlLeft],
-                keys: smallvec![],
-            },
+            KeyBinding::new(smallvec![KeyCode::ControlLeft], smallvec![]),
             Action::Camera(CameraActions::Down),
         );
         binding.insert(
-            KeyBinding {
-                modifiers: smallvec![KeyCode::ShiftLeft, KeyCode::ControlLeft],
-                keys: smallvec![],
-            },
+            KeyBinding::new(
+                smallvec![KeyCode::ShiftLeft, KeyCode::ControlLeft],
+                smallvec![],
+            ),
             Action::Camera(CameraActions::SlowModifier),
         );
         Self { binding }
@@ -281,17 +262,16 @@ mod tests {
     }
 
     #[test]
-    fn test_change_binding_moves_action_to_new_key() {
-        let mut binding_map = KeyBindingMap::initialize();
-        let old_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::KeyW]);
-        let new_binding = KeyBinding::new(smallvec![], smallvec![KeyCode::KeyQ]);
+    fn test_multi_modifier_binding_order_independence() {
+        let binding_map = KeyBindingMap::initialize();
+        let action = Action::Camera(CameraActions::SlowModifier);
 
-        binding_map.change_binding(old_binding.clone(), new_binding.clone());
+        let pressed_keys = HashSet::new();
+        let mut pressed_modifiers = HashSet::new();
+        pressed_modifiers.insert(KeyCode::ShiftLeft);
+        pressed_modifiers.insert(KeyCode::ControlLeft);
 
-        assert_eq!(binding_map.get_binding(&old_binding), None);
-        assert_eq!(
-            binding_map.get_binding(&new_binding),
-            Some(&Action::Camera(CameraActions::Forwards))
-        );
+        let actions = binding_map.resolve_active_actions(&pressed_keys, &pressed_modifiers);
+        assert!(actions.contains(&action));
     }
 }

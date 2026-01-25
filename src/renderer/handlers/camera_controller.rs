@@ -90,14 +90,15 @@ impl CameraController {
     }
 
     fn movement_calculcation(&mut self, camera: &Camera, delta_time: f32) -> Vec3 {
-        let forward = match self.camera_mode {
-            CameraMode::ORBIT => camera.target - camera.eye,
-            CameraMode::FLY => calculate_direction_vector(*camera.yaw, *camera.pitch),
+        let (forward, forward_mag) = match self.camera_mode {
+            CameraMode::ORBIT => {
+                let f = camera.target - camera.eye;
+                (f.normalize(), f.length())
+            }
+            CameraMode::FLY => (calculate_direction_vector(*camera.yaw, *camera.pitch), 1.0),
             _ => todo!(),
         };
-        let normalized_forward = forward.normalize();
-        let right = normalized_forward.cross(camera.up).normalize();
-        let forward_mag = forward.length();
+        let right = forward.cross(camera.up).normalize();
         let mut speed = camera.speed * delta_time;
         let mut movement = Vec3::ZERO;
         if self.is_slow_modifier_pressed {
@@ -108,17 +109,17 @@ impl CameraController {
         }
         if self.is_forward_pressed {
             match self.camera_mode {
-                CameraMode::FLY => movement += normalized_forward * speed,
+                CameraMode::FLY => movement += forward * speed,
                 CameraMode::ORBIT => {
                     if forward_mag > speed {
-                        movement += normalized_forward * speed;
+                        movement += forward * speed;
                     }
                 }
                 _ => {}
             }
         }
         if self.is_backward_pressed {
-            movement -= normalized_forward * speed;
+            movement -= forward * speed;
         }
         if self.is_right_pressed {
             movement += right * speed;

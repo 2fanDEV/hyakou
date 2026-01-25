@@ -126,7 +126,7 @@ impl Camera {
             self.precalculated_smoothing,
             self.smoothing_factor,
         );
-        let forward = calculate_direction_vector(*self.yaw, *self.pitch).normalize();
+        let forward = calculate_direction_vector(*self.yaw, *self.pitch);
         self.target = self.eye + forward;
     }
 
