@@ -44,13 +44,18 @@ impl CameraController {
     }
 
     pub fn mouse_movement(&mut self, camera: &mut Camera, mouse_delta: &MouseDelta) {
-        if mouse_delta.state.get_action().eq(&MouseAction::Clicked)
-            && mouse_delta.state.get_button().eq(&MouseButton::Left)
-            && mouse_delta.is_mouse_on_window()
-        {
-            let yaw_delta = mouse_delta.delta_position.x() as f32;
-            let pitch_delta = mouse_delta.delta_position.y() as f32;
-            camera.move_camera(yaw_delta, pitch_delta);
+        match self.camera_mode {
+            CameraMode::PAN => todo!(),
+            _ => {
+                if mouse_delta.state.get_action().eq(&MouseAction::Clicked)
+                    && mouse_delta.state.get_button().eq(&MouseButton::Left)
+                    && mouse_delta.is_mouse_on_window()
+                {
+                    let yaw_delta = mouse_delta.delta_position.x() as f32;
+                    let pitch_delta = mouse_delta.delta_position.y() as f32;
+                    camera.move_camera(yaw_delta, pitch_delta);
+                }
+            }
         }
     }
 
@@ -73,7 +78,7 @@ impl CameraController {
     pub fn update_camera(&mut self, camera: &mut Camera, delta_time: f32) {
         match self.camera_mode {
             CameraMode::FLY => self.update_fly_camera(camera, delta_time),
-            CameraMode::PAN => todo!(),
+            CameraMode::PAN => self.update_pan_camera(camera, delta_time),
             CameraMode::ORBIT => self.update_orbit_camera(camera, delta_time),
         }
     }
@@ -89,24 +94,29 @@ impl CameraController {
         camera.target += movement;
     }
 
+    pub fn update_pan_camera(&mut self, camera: &mut Camera, delta_time: f32) {
+        let movement = self.movement_calculcation(camera, delta_time);
+        camera.eye += movement;
+        camera.target += movement;
+    }
+
     fn movement_calculcation(&mut self, camera: &Camera, delta_time: f32) -> Vec3 {
         let (forward, forward_mag) = match self.camera_mode {
             CameraMode::ORBIT => {
-                let f = camera.target - camera.eye;
-                (f.normalize(), f.length())
+                let forward = camera.target - camera.eye;
+                (forward.normalize(), forward.length())
             }
             CameraMode::FLY => (calculate_direction_vector(*camera.yaw, *camera.pitch), 1.0),
-            _ => todo!(),
+            CameraMode::PAN => {
+                let forward = camera.target - camera.eye;
+                (forward.normalize(), forward.length())
+            }
         };
         let right = forward.cross(camera.up).normalize();
-        let mut speed = camera.speed * delta_time;
+        let view_up = right.cross(forward).normalize();
+        let mut speed = self.adjust_speed(camera.speed * delta_time);
         let mut movement = Vec3::ZERO;
-        if self.is_slow_modifier_pressed {
-            speed *= 0.5;
-        }
-        if self.is_speed_modifier_pressed {
-            speed *= 2.0;
-        }
+
         if self.is_forward_pressed {
             match self.camera_mode {
                 CameraMode::FLY => movement += forward * speed,
@@ -115,18 +125,12 @@ impl CameraController {
                         movement += forward * speed;
                     }
                 }
-                _ => {}
+                CameraMode::PAN => movement += view_up * speed,
             }
         }
-        if self.is_backward_pressed {
-            movement -= forward * speed;
-        }
-        if self.is_right_pressed {
-            movement += right * speed;
-        }
-        if self.is_left_pressed {
-            movement -= right * speed;
-        }
+        movement = self.get_backwards_movement(movement, forward, view_up, speed);
+        movement = self.get_right_movement(movement, forward, right, speed);
+        movement = self.get_left_movement(movement, forward, right, speed);
         if self.is_up_pressed {
             movement += camera.up * speed;
         }
@@ -134,6 +138,66 @@ impl CameraController {
             movement -= camera.up * speed;
         }
         movement
+    }
+
+    fn get_left_movement(
+        &self,
+        mut movement: Vec3,
+        forward: Vec3,
+        right: Vec3,
+        speed_multiplier: f32,
+    ) -> Vec3 {
+        if self.is_left_pressed {
+            match self.camera_mode {
+                CameraMode::PAN => movement -= right * speed_multiplier,
+                CameraMode::FLY => movement += forward * speed_multiplier,
+                CameraMode::ORBIT => movement += forward * speed_multiplier,
+            }
+        }
+        movement
+    }
+    fn get_right_movement(
+        &self,
+        mut movement: Vec3,
+        forward: Vec3,
+        right: Vec3,
+        speed_multiplier: f32,
+    ) -> Vec3 {
+        if self.is_right_pressed {
+            match self.camera_mode {
+                CameraMode::PAN => movement += right * speed_multiplier,
+                CameraMode::FLY => movement -= forward * speed_multiplier,
+                CameraMode::ORBIT => movement -= forward * speed_multiplier,
+            }
+        }
+        movement
+    }
+
+    fn get_backwards_movement(
+        &self,
+        mut movement: Vec3,
+        forward: Vec3,
+        view_up: Vec3,
+        speed_multiplier: f32,
+    ) -> Vec3 {
+        if self.is_backward_pressed {
+            match self.camera_mode {
+                CameraMode::PAN => movement -= view_up * speed_multiplier,
+                CameraMode::FLY => movement -= forward * speed_multiplier,
+                CameraMode::ORBIT => movement -= forward * speed_multiplier,
+            }
+        }
+        movement
+    }
+
+    fn adjust_speed(&mut self, mut speed: f32) -> f32 {
+        if self.is_slow_modifier_pressed {
+            speed *= 0.5;
+        }
+        if self.is_speed_modifier_pressed {
+            speed *= 2.0;
+        }
+        speed
     }
 }
 
