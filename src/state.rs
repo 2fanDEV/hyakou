@@ -9,11 +9,14 @@ use winit::{
 };
 
 use crate::renderer::{
-    handlers::keyboard_handler::KeyboardHandler,
-    types::mouse_delta::{
-        MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
-    },
     Renderer,
+    handlers::keyboard_handler::KeyboardHandler,
+    types::{
+        DeltaTime64,
+        mouse_delta::{
+            MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
+        },
+    },
 };
 
 pub struct AppState {
@@ -37,12 +40,16 @@ impl AppState {
         }
     }
 
-    fn calculate_last_frame_time(&mut self) -> f64 {
+    fn get_and_update_last_frame_time(&mut self) -> f64 {
         let now = Instant::now();
-        let delta = now.duration_since(self.last_frame_time);
-        let mut delta_time = delta.as_secs_f64();
-        delta_time = delta_time.min(Self::MIN_TIME_IN_SECONDS);
+        let delta_time = self.get_last_frame_time(now);
         self.last_frame_time = now;
+        delta_time
+    }
+
+    fn get_last_frame_time(&mut self, now: Instant) -> DeltaTime64 {
+        let delta = now.duration_since(self.last_frame_time);
+        let delta_time = delta.as_secs_f64().min(Self::MIN_TIME_IN_SECONDS);
         delta_time
     }
 }
@@ -71,7 +78,7 @@ impl ApplicationHandler for AppState {
     ) {
         match event {
             WindowEvent::RedrawRequested => {
-                let delta = self.calculate_last_frame_time();
+                let delta = self.get_and_update_last_frame_time();
                 let renderer = self.renderer.as_mut().unwrap();
                 renderer.update(delta);
                 renderer.render().unwrap();
@@ -99,9 +106,7 @@ impl ApplicationHandler for AppState {
                 match event.physical_key {
                     winit::keyboard::PhysicalKey::Code(key_code) => {
                         let is_pressed = event.state == ElementState::Pressed;
-
                         let events = self.keyboard_handler.handle_key(key_code, is_pressed);
-
                         for event in events {
                             match event {
                                 crate::renderer::handlers::keyboard_handler::InputEvent::ActionStarted(action) => {
@@ -126,13 +131,16 @@ impl ApplicationHandler for AppState {
         _device_id: winit::event::DeviceId,
         event: winit::event::DeviceEvent,
     ) {
+        let delta_time = self.get_last_frame_time(Instant::now()) as f32;
         let renderer = self.renderer.as_mut().unwrap();
         match event {
             DeviceEvent::MouseMotion { delta } => {
                 self.mouse_delta.delta_position = MovementDelta::new(delta.0, delta.1);
-                renderer
-                    .camera_controller
-                    .mouse_movement(&mut renderer.camera, &self.mouse_delta)
+                renderer.camera_controller.mouse_movement(
+                    &mut renderer.camera,
+                    &self.mouse_delta,
+                    delta_time,
+                )
             }
             DeviceEvent::Button { button, state } => {
                 if let Some(window) = self.window.clone() {
@@ -181,20 +189,20 @@ mod tests {
     #[test]
     fn test_clamping_strategy() {
         let mut state = setup();
-        let actual = state.calculate_last_frame_time();
+        let actual = state.get_and_update_last_frame_time();
         assert!(actual > 0.0);
         assert!(actual <= AppState::MIN_TIME_IN_SECONDS);
         sleep(Duration::from_secs(1));
-        let actual = state.calculate_last_frame_time();
+        let actual = state.get_and_update_last_frame_time();
         assert!(actual <= AppState::MIN_TIME_IN_SECONDS);
     }
 
     #[test]
     fn test_accurate_calculation() {
         let mut state = setup();
-        state.calculate_last_frame_time();
+        state.get_and_update_last_frame_time();
         sleep(Duration::from_millis(16)); // 1000ms / 60 = 16ms. We have around 16ms for each frame to get 60 fps.
-        let second_delta = state.calculate_last_frame_time();
+        let second_delta = state.get_and_update_last_frame_time();
         assert!(second_delta >= 0.015 && second_delta <= AppState::MIN_TIME_IN_SECONDS);
     }
 }

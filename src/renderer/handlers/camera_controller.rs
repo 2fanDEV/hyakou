@@ -5,7 +5,10 @@ use crate::renderer::{
     actions::{Action, CameraActions},
     animator::trajectory::calculate_direction_vector,
     components::camera::Camera,
-    types::mouse_delta::{MouseAction, MouseButton, MouseDelta},
+    types::{
+        DeltaTime,
+        mouse_delta::{MouseButton, MouseDelta},
+    },
 };
 
 #[derive(Debug)]
@@ -43,14 +46,24 @@ impl CameraController {
         }
     }
 
-    pub fn mouse_movement(&mut self, camera: &mut Camera, mouse_delta: &MouseDelta) {
-        match self.camera_mode {
-            CameraMode::PAN => todo!(),
-            _ => {
-                if mouse_delta.state.get_action().eq(&MouseAction::Clicked)
-                    && mouse_delta.state.get_button().eq(&MouseButton::Left)
-                    && mouse_delta.is_mouse_on_window()
-                {
+    pub fn mouse_movement(
+        &mut self,
+        camera: &mut Camera,
+        mouse_delta: &MouseDelta,
+        delta_time: DeltaTime,
+    ) {
+        if mouse_delta.is_mouse_button_clicked_and_on_window(MouseButton::Left) {
+            match self.camera_mode {
+                CameraMode::PAN => {
+                    debug!("{:?}", "registered");
+                    let yaw_delta = mouse_delta.delta_position.x() as f32;
+                    let pitch_delta = mouse_delta.delta_position.y() as f32;
+                    //                   camera.move_camera(yaw_delta, pitch_delta);
+                    self.update_camera(camera, delta_time);
+                    // camera.update_yaw(yaw_delta);
+                    // camera.update_pitch(pitch_delta);
+                }
+                _ => {
                     let yaw_delta = mouse_delta.delta_position.x() as f32;
                     let pitch_delta = mouse_delta.delta_position.y() as f32;
                     camera.move_camera(yaw_delta, pitch_delta);
@@ -75,7 +88,7 @@ impl CameraController {
         }
     }
 
-    pub fn update_camera(&mut self, camera: &mut Camera, delta_time: f32) {
+    pub fn update_camera(&mut self, camera: &mut Camera, delta_time: DeltaTime) {
         match self.camera_mode {
             CameraMode::FLY => self.update_fly_camera(camera, delta_time),
             CameraMode::PAN => self.update_pan_camera(camera, delta_time),
@@ -114,7 +127,7 @@ impl CameraController {
         };
         let right = forward.cross(camera.up).normalize();
         let view_up = right.cross(forward).normalize();
-        let mut speed = self.adjust_speed(camera.speed * delta_time);
+        let speed = self.adjust_speed(camera.speed * delta_time);
         let mut movement = Vec3::ZERO;
 
         if self.is_forward_pressed {
@@ -128,9 +141,9 @@ impl CameraController {
                 CameraMode::PAN => movement += view_up * speed,
             }
         }
-        movement = self.get_backwards_movement(movement, forward, view_up, speed);
-        movement = self.get_right_movement(movement, forward, right, speed);
-        movement = self.get_left_movement(movement, forward, right, speed);
+        movement = self.calculate_next_movement(movement, forward, view_up, speed);
+        movement = self.calculate_right_movement(movement, forward, right, speed);
+        movement = self.calculate_left_movement(movement, forward, right, speed);
         if self.is_up_pressed {
             movement += camera.up * speed;
         }
@@ -140,7 +153,7 @@ impl CameraController {
         movement
     }
 
-    fn get_left_movement(
+    fn calculate_left_movement(
         &self,
         mut movement: Vec3,
         forward: Vec3,
@@ -156,7 +169,7 @@ impl CameraController {
         }
         movement
     }
-    fn get_right_movement(
+    fn calculate_right_movement(
         &self,
         mut movement: Vec3,
         forward: Vec3,
@@ -173,7 +186,7 @@ impl CameraController {
         movement
     }
 
-    fn get_backwards_movement(
+    fn calculate_next_movement(
         &self,
         mut movement: Vec3,
         forward: Vec3,
@@ -206,7 +219,7 @@ mod tests {
     use super::*;
     use crate::renderer::types::{
         camera::{Pitch, Yaw},
-        mouse_delta::{MousePosition, MouseState, MovementDelta},
+        mouse_delta::{MouseAction, MousePosition, MouseState, MovementDelta},
     };
     use glam::Vec3;
 

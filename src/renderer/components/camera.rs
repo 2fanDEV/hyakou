@@ -115,6 +115,14 @@ impl Camera {
         }
     }
 
+    pub fn update_yaw(&mut self, yaw_delta: f32) {
+        self.yaw.update(yaw_delta);
+    }
+
+    pub fn update_pitch(&mut self, pitch_delta: f32) {
+        self.pitch.update(pitch_delta);
+    }
+
     pub fn move_camera(&mut self, yaw_delta: f32, pitch_delta: f32) {
         self.yaw.add(
             yaw_delta * self.sensitivity,
