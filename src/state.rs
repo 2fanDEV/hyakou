@@ -136,6 +136,10 @@ impl ApplicationHandler for AppState {
         match event {
             DeviceEvent::MouseMotion { delta } => {
                 self.mouse_delta.delta_position = MovementDelta::new(delta.0, delta.1);
+                if self
+                    .mouse_delta
+                    .is_mouse_button_clicked_and_on_window(MouseButton::Left)
+                {}
                 renderer.camera_controller.mouse_movement(
                     &mut renderer.camera,
                     &self.mouse_delta,

@@ -1,18 +1,15 @@
 use std::collections::HashSet;
 
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use winit::keyboard::KeyCode;
 
 use crate::renderer::{
     actions::Action,
-    handlers::key_bindings::{KeyBinding, KeyBindingMap},
+    handlers::{
+        InputEvent,
+        key_bindings::{KeyBinding, KeyBindingMap},
+    },
 };
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InputEvent {
-    ActionStarted(Action),
-    ActionEnded(Action),
-}
 
 #[derive(Debug, Default)]
 pub struct KeyboardHandler {

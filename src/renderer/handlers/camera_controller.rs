@@ -29,6 +29,7 @@ pub struct CameraController {
     is_down_pressed: bool,
     is_speed_modifier_pressed: bool,
     is_slow_modifier_pressed: bool,
+    is_mouse_dragging: bool,
 }
 
 impl CameraController {
@@ -43,6 +44,7 @@ impl CameraController {
             is_down_pressed: false,
             is_speed_modifier_pressed: false,
             is_slow_modifier_pressed: false,
+            is_mouse_dragging: false,
         }
     }
 
@@ -52,16 +54,15 @@ impl CameraController {
         mouse_delta: &MouseDelta,
         delta_time: DeltaTime,
     ) {
-        if mouse_delta.is_mouse_button_clicked_and_on_window(MouseButton::Left) {
+        if self.is_mouse_dragging {
             match self.camera_mode {
                 CameraMode::PAN => {
                     debug!("{:?}", "registered");
                     let yaw_delta = mouse_delta.delta_position.x() as f32;
                     let pitch_delta = mouse_delta.delta_position.y() as f32;
                     //                   camera.move_camera(yaw_delta, pitch_delta);
+
                     self.update_camera(camera, delta_time);
-                    // camera.update_yaw(yaw_delta);
-                    // camera.update_pitch(pitch_delta);
                 }
                 _ => {
                     let yaw_delta = mouse_delta.delta_position.x() as f32;
