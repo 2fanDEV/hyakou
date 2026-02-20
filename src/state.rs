@@ -9,20 +9,21 @@ use winit::{
 };
 
 use crate::renderer::{
-    Renderer,
-    handlers::keyboard_handler::KeyboardHandler,
+    handlers::{keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler, InputEvent},
     types::{
-        DeltaTime64,
         mouse_delta::{
             MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
         },
+        DeltaTime64,
     },
+    Renderer,
 };
 
 pub struct AppState {
     window: Option<Arc<Window>>,
     renderer: Option<Renderer>,
     keyboard_handler: KeyboardHandler,
+    mouse_handler: MouseHandler,
     last_frame_time: Instant,
     mouse_delta: MouseDelta,
 }
@@ -35,6 +36,7 @@ impl AppState {
             window: None,
             renderer: None,
             keyboard_handler: KeyboardHandler::new(),
+            mouse_handler: MouseHandler::new(),
             last_frame_time: Instant::now(),
             mouse_delta: MouseDelta::default(),
         }
@@ -109,10 +111,10 @@ impl ApplicationHandler for AppState {
                         let events = self.keyboard_handler.handle_key(key_code, is_pressed);
                         for event in events {
                             match event {
-                                crate::renderer::handlers::keyboard_handler::InputEvent::ActionStarted(action) => {
+                                InputEvent::ActionStarted(action) => {
                                     renderer.camera_controller.handle_action(&action, true);
                                 }
-                                crate::renderer::handlers::keyboard_handler::InputEvent::ActionEnded(action) => {
+                                InputEvent::ActionEnded(action) => {
                                     renderer.camera_controller.handle_action(&action, false);
                                 }
                             }
@@ -148,13 +150,16 @@ impl ApplicationHandler for AppState {
             }
             DeviceEvent::Button { button, state } => {
                 if let Some(window) = self.window.clone() {
+                    let mouse_button = match button {
+                        0 => MouseButton::Left,
+                        1 => MouseButton::Right,
+                        2 => MouseButton::Middle,
+                        _ => MouseButton::Left,
+                    };
+                    let is_pressed = state == ElementState::Pressed;
+
                     self.mouse_delta.state = MouseState::new(
-                        match button {
-                            0 => MouseButton::Left,
-                            1 => MouseButton::Right,
-                            2 => MouseButton::Middle,
-                            _ => MouseButton::Left,
-                        },
+                        mouse_button,
                         match state {
                             ElementState::Pressed => {
                                 if let Err(e) = window.set_cursor_grab(CursorGrabMode::Locked) {
@@ -172,6 +177,18 @@ impl ApplicationHandler for AppState {
                             }
                         },
                     );
+
+                    let events = self.mouse_handler.handle_button(mouse_button, is_pressed);
+                    for event in events {
+                        match event {
+                            InputEvent::ActionStarted(action) => {
+                                renderer.camera_controller.handle_action(&action, true);
+                            }
+                            InputEvent::ActionEnded(action) => {
+                                renderer.camera_controller.handle_action(&action, false);
+                            }
+                        }
+                    }
                 }
             }
             _ => {}

@@ -5,10 +5,7 @@ use crate::renderer::{
     actions::{Action, CameraActions},
     animator::trajectory::calculate_direction_vector,
     components::camera::Camera,
-    types::{
-        DeltaTime,
-        mouse_delta::{MouseButton, MouseDelta},
-    },
+    types::{mouse_delta::MouseDelta, DeltaTime},
 };
 
 #[derive(Debug)]
@@ -58,8 +55,8 @@ impl CameraController {
             match self.camera_mode {
                 CameraMode::PAN => {
                     debug!("{:?}", "registered");
-                    let yaw_delta = mouse_delta.delta_position.x() as f32;
-                    let pitch_delta = mouse_delta.delta_position.y() as f32;
+                    let _yaw_delta = mouse_delta.delta_position.x() as f32;
+                    let _pitch_delta = mouse_delta.delta_position.y() as f32;
                     //                   camera.move_camera(yaw_delta, pitch_delta);
 
                     self.update_camera(camera, delta_time);
@@ -85,6 +82,7 @@ impl CameraController {
                 CameraActions::Down => self.is_down_pressed = is_pressed,
                 CameraActions::SpeedModifier => self.is_speed_modifier_pressed = is_pressed,
                 CameraActions::SlowModifier => self.is_slow_modifier_pressed = is_pressed,
+                CameraActions::Drag => self.is_mouse_dragging = is_pressed,
             },
         }
     }
@@ -513,6 +511,7 @@ mod tests {
                 is_mouse_on_window: false,
                 position: MousePosition::new(0.0, 0.0),
             },
+            0.1,
         );
 
         assert_eq!(
