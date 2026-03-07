@@ -175,7 +175,7 @@ impl Renderer {
 
     pub fn update(&mut self, delta_time: DeltaTime64) {
         self.camera_controller
-            .update_camera(&mut self.camera, delta_time as f32);
+            .update_camera_with_keyboard(&mut self.camera, delta_time as f32);
         self.animators.values_mut().for_each(|animator| {
             if let Err(animator_error) = animator.play(delta_time) {
                 error!("{:?}", animator_error)

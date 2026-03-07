@@ -3,6 +3,7 @@
 /assets/.DS_Store
 CLAUDE.md
 /linear
-
+/memory
 .gemini/
 gha-creds-*.json
+AGENTS.md
