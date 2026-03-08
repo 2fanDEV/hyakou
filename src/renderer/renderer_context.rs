@@ -1,6 +1,7 @@
 use std::{ops::Range, sync::Arc};
 
 use anyhow::Result;
+use log::debug;
 use wgpu::{
     Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features,
     FeaturesWGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
@@ -39,6 +40,10 @@ impl RenderContext {
     {
         #[cfg(target_os = "macos")]
         let backends = Backends::METAL;
+
+        #[cfg(target_os = "linux")]
+        let backends = Backends::PRIMARY;
+
         let instance = wgpu::Instance::new(&InstanceDescriptor {
             backends,
             flags: InstanceFlags::debugging(),
@@ -53,7 +58,7 @@ impl RenderContext {
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
-                force_fallback_adapter: false,
+                force_fallback_adapter: true,
                 compatible_surface: surface.as_ref(),
             })
             .await?;
@@ -205,6 +210,12 @@ mod tests {
 
     #[test]
     fn create_context() {
+        if std::env::var("HYAKOU_RUN_GPU_TESTS").ok().as_deref() != Some("1") {
+            eprintln!(
+                "Skipping GPU-dependent test create_context; set HYAKOU_RUN_GPU_TESTS=1 to enable."
+            );
+            return;
+        }
         let ctx = pollster::block_on(RenderContext::new::<MockSurfaceProvider>(None));
         assert!(ctx.is_ok());
     }

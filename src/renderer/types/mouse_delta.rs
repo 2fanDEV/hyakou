@@ -1,4 +1,4 @@
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub enum MouseButton {
     #[default]
     Right,
@@ -75,6 +75,16 @@ impl MouseDelta {
 
     pub fn is_mouse_on_window(&self) -> bool {
         self.is_mouse_on_window
+    }
+
+    pub fn is_mouse_button_clicked(&self, button: MouseButton) -> bool {
+        self.state.get_action().eq(&MouseAction::Clicked) && self.state.get_button().eq(&button)
+    }
+
+    pub fn is_mouse_button_clicked_and_on_window(&self, button: MouseButton) -> bool {
+        self.state.get_action().eq(&MouseAction::Clicked)
+            && self.state.get_button().eq(&button)
+            && self.is_mouse_on_window()
     }
 }
 
