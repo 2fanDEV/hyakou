@@ -5,7 +5,7 @@ use crate::renderer::{
     actions::{Action, CameraActions},
     animator::trajectory::calculate_direction_vector,
     components::camera::Camera,
-    types::{mouse_delta::MouseDelta, DeltaTime},
+    types::{DeltaTime, mouse_delta::MouseDelta},
 };
 
 #[derive(Debug)]
@@ -70,8 +70,6 @@ impl CameraController {
                         Self::calculate_pan_offset(delta_x, delta_y, &axes, camera.sensitivity);
                     camera.eye += offset;
                     camera.target += offset;
-
-                    self.update_camera_with_keyboard(camera, delta_time);
                 }
                 _ => {
                     let yaw_delta = mouse_delta.delta_position.x() as f32;
