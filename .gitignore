@@ -7,3 +7,4 @@ CLAUDE.md
 .gemini/
 gha-creds-*.json
 AGENTS.md
+.env

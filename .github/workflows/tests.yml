@@ -25,4 +25,4 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run cargo tests
-        run: cargo test --workspace --all-targets --all-features
+        run: RUST_LOG=debug RUST_BACKTRACE=1 HYAKOU_RUN_GPU_TESTS=0 cargo test --workspace --all-targets --all-features -- --nocapture
