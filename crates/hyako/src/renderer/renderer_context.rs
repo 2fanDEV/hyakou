@@ -101,9 +101,10 @@ impl RenderContext {
         let light_bind_group_layout = LightSource::bind_group_layout(&device);
         // let (mesh_bind_group_layout, meshes_bind_group) = Vertex::create_bind_group(&device, &depth_texture.view, &depth_texture.sampler);
 
-        let vertex_shader = device.create_shader_module(include_wgsl!("../../assets/vertex.wgsl"));
+        let vertex_shader =
+            device.create_shader_module(include_wgsl!("../../../../assets/vertex.wgsl"));
         let no_light_vertex_shader =
-            device.create_shader_module(include_wgsl!("../../assets/no_light_vertex.wgsl"));
+            device.create_shader_module(include_wgsl!("../../../../assets/no_light_vertex.wgsl"));
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
