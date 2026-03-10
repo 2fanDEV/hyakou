@@ -239,6 +239,7 @@ impl Renderer {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
+                multiview_mask: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
                 depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
@@ -309,6 +310,7 @@ impl Renderer {
                     store: wgpu::StoreOp::Store,
                 },
             })],
+            multiview_mask: None,
             timestamp_writes: None,
             occlusion_query_set: None,
             depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
@@ -322,8 +324,7 @@ impl Renderer {
         });
 
         render_pass.set_pipeline(render_pipeline);
-        render_pass.set_push_constants(
-            ShaderStages::VERTEX,
+        render_pass.set_immediates(
             0,
             bytemuck::bytes_of(&render_mesh.transform.read().get_matrix()),
         );

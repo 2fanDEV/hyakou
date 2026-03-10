@@ -2,7 +2,7 @@ struct Camera {
     view_projection_matrix: mat4x4<f32>
 }
 
-struct PushConstants {
+struct Immediate {
     model_matrix: mat4x4<f32>,      // bytes 0-64 (vertex stage)
 }
 
@@ -19,7 +19,7 @@ struct Light {
 
 @group(0) @binding(0)
 var<uniform> camera: Camera;
-var<push_constant> pc: PushConstants;
+var<immediate> im: Immediate;
 @group(1) @binding(0)
 var<uniform> light: Light;
 
@@ -40,7 +40,7 @@ fn vs_main(
     var out: VertexOutput;
     //this is just for testing purposes
     var scale: f32 = 0.25;
-    out.clip_position =  camera.view_projection_matrix * pc.model_matrix * vec4<f32>(model.position * scale + light.transform.translation, 1.0);
+    out.clip_position =  camera.view_projection_matrix * im.model_matrix * vec4<f32>(model.position * scale + light.transform.translation, 1.0);
     out.color = light.color;
     return out;
 }

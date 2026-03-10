@@ -1,5 +1,7 @@
 use wgpu::{
-    BlendState, ColorTargetState, ColorWrites, Device, FragmentState, MultisampleState, PipelineCompilationOptions, PipelineLayout, PrimitiveState, RenderPipeline, RenderPipelineDescriptor, ShaderModule, TextureFormat, VertexState
+    BlendState, ColorTargetState, ColorWrites, Device, FragmentState, MultisampleState,
+    PipelineCompilationOptions, PipelineLayout, PrimitiveState, RenderPipeline,
+    RenderPipelineDescriptor, ShaderModule, TextureFormat, VertexState,
 };
 
 use crate::renderer::geometry::{BufferLayoutProvider, vertices::Vertex};
@@ -49,10 +51,10 @@ pub fn create_render_pipeline(
             targets: &[Some(ColorTargetState {
                 format: color_format,
                 blend: Some(BlendState::REPLACE),
-                write_mask: ColorWrites::ALL
+                write_mask: ColorWrites::ALL,
             })],
         }),
-        multiview: None,
+        multiview_mask: None,
         cache: None,
     })
 }

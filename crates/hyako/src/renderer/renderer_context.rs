@@ -1,12 +1,11 @@
 use std::{ops::Range, sync::Arc};
 
 use anyhow::Result;
-use log::debug;
 use wgpu::{
     Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features,
-    FeaturesWGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
-    PushConstantRange, Queue, RenderPipeline, RequestAdapterOptions, ShaderStages, Surface,
-    SurfaceConfiguration, TextureFormat, TextureUsages, include_wgsl,
+    FeaturesWGPU, FeaturesWebGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
+    Queue, RenderPipeline, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat,
+    TextureUsages, include_wgsl,
 };
 
 use crate::renderer::{
@@ -64,7 +63,7 @@ impl RenderContext {
             .await?;
 
         let required_features = Features {
-            features_wgpu: FeaturesWGPU::PUSH_CONSTANTS,
+            features_webgpu: FeaturesWebGPU::IMMEDIATES,
             ..Default::default()
         };
 
@@ -73,7 +72,7 @@ impl RenderContext {
                 label: Some("Hyakou Device"),
                 required_features,
                 required_limits: Limits {
-                    max_push_constant_size: 128,
+                    max_immediate_size: 128,
                     ..Default::default()
                 },
                 experimental_features: ExperimentalFeatures::default(),
@@ -113,10 +112,7 @@ impl RenderContext {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
-                push_constant_ranges: &[PushConstantRange {
-                    stages: ShaderStages::VERTEX,
-                    range: Range { start: 0, end: 64 },
-                }],
+                immediate_size: 64,
             });
 
         let format = if surface_configuration.is_some() {

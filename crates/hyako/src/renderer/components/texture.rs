@@ -1,6 +1,6 @@
 use wgpu::{
-    CompareFunction, Device, Extent3d, FilterMode, Sampler, SamplerDescriptor, TextureDescriptor,
-    TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+    CompareFunction, Device, Extent3d, FilterMode, MipmapFilterMode, Sampler, SamplerDescriptor,
+    TextureDescriptor, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
 };
 
 use crate::renderer::util::Size;
@@ -41,7 +41,7 @@ impl Texture {
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             mag_filter: FilterMode::Linear,
             min_filter: FilterMode::Linear,
-            mipmap_filter: FilterMode::Nearest,
+            mipmap_filter: MipmapFilterMode::Nearest,
             lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             compare: Some(CompareFunction::Less),

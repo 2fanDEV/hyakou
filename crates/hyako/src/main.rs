@@ -8,6 +8,7 @@ fn main() {
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Debug)
         .filter_module("wgpu_hal::metal::device", log::LevelFilter::Error)
+        .filter_module("naga", log::LevelFilter::Error)
         .try_init()
         .unwrap();
     match event_loop.run_app(&mut app_state) {

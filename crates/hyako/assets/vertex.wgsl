@@ -2,7 +2,7 @@ struct Camera {
     view_projection_matrix: mat4x4<f32>
 }
 
-struct PushConstants {
+struct Immediate {
     model_matrix: mat4x4<f32>,      // bytes 0-64 (vertex stage)
 }
 
@@ -40,7 +40,7 @@ var texture: texture_depth_2d;
 var sampler_s: sampler_comparison; */
 @group(0) @binding(0)
 var<uniform> camera: Camera;
-var<push_constant> pc: PushConstants;
+var<immediate> im: Immediate;
 
 @vertex
 fn vs_main(
@@ -50,7 +50,7 @@ fn vs_main(
     out.tex_coords = mesh.tex_coords;
     out.normals = mesh.normals;
     out.position = mesh.position;
-    out.clip_position =  camera.view_projection_matrix * pc.model_matrix * vec4<f32>(mesh.position, 1.0);
+    out.clip_position =  camera.view_projection_matrix * im.model_matrix * vec4<f32>(mesh.position, 1.0);
     return out;
 }
 
