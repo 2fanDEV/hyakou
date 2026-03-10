@@ -9,14 +9,14 @@ use winit::{
 };
 
 use crate::renderer::{
-    handlers::{keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler, InputEvent},
+    Renderer,
+    handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
     types::{
+        DeltaTime64,
         mouse_delta::{
             MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
         },
-        DeltaTime64,
     },
-    Renderer,
 };
 
 pub struct AppState {
@@ -71,6 +71,8 @@ impl ApplicationHandler for AppState {
         self.window = Some(window);
         self.renderer = Some(renderer)
     }
+
+    fn user_event(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, event: ()) {}
 
     fn window_event(
         &mut self,

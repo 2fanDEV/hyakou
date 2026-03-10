@@ -40,6 +40,9 @@ impl RenderContext {
         #[cfg(target_os = "macos")]
         let backends = Backends::METAL;
 
+        #[cfg(target_arch = "wasm32")]
+        let backends = Backends::all();
+
         // #[cfg(target_os = "linux")]
         // let backends = Backends::PRIMARY;
 

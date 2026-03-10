@@ -8,7 +8,7 @@ use log::{error, warn};
 use wgpu::{
     BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RenderPipeline, ShaderStages, TextureView, TextureViewDescriptor,
+    RenderPipeline, TextureView, TextureViewDescriptor,
 };
 use winit::window::Window;
 
