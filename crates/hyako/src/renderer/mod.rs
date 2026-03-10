@@ -168,7 +168,7 @@ impl Renderer {
             light_uniform_buffer,
             light_bind_group,
             animators,
-            camera_controller: CameraController::new(CameraMode::ORBIT),
+            camera_controller: CameraController::new(CameraMode::PAN),
             window,
         })
     }

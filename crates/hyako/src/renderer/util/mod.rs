@@ -29,5 +29,7 @@ pub fn get_matrix_as_bytes(mat: &Mat4) -> &[u8] {
 
 pub fn get_relative_path() -> PathBuf {
     let path = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
+
+    println!("{:?}", std::env::vars());
     PathBuf::from(path)
 }
