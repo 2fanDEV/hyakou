@@ -8,4 +8,5 @@ pub enum CameraActions {
     Right,
     Up,
     Down,
+    Drag,
 }
