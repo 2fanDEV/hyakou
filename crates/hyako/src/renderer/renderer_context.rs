@@ -1,9 +1,8 @@
-use std::{ops::Range, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Result;
 use wgpu::{
-    Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features,
-    FeaturesWGPU, FeaturesWebGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
+    Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features, FeaturesWebGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
     Queue, RenderPipeline, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat,
     TextureUsages, include_wgsl,
 };

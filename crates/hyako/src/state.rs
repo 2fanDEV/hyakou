@@ -72,7 +72,7 @@ impl ApplicationHandler for AppState {
         self.renderer = Some(renderer)
     }
 
-    fn user_event(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, event: ()) {}
+    fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, _event: ()) {}
 
     fn window_event(
         &mut self,

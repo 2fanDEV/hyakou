@@ -57,7 +57,7 @@ impl CameraController {
         &mut self,
         camera: &mut Camera,
         mouse_delta: &MouseDelta,
-        delta_time: DeltaTime,
+        _delta_time: DeltaTime,
     ) {
         if self.is_mouse_dragging {
             match self.camera_mode {
