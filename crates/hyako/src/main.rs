@@ -3,7 +3,7 @@ use log::debug;
 use winit::event_loop::EventLoop;
 
 fn main() {
-    let mut app_state = AppState::new();
+    let mut app_state = AppState::new().unwrap();
 
     #[cfg(any(target_family = "unix", target_family = "windows"))]
     start_app_os(&mut app_state);

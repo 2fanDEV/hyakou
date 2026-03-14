@@ -66,11 +66,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     var NdotL = max(dot(position, in.normals), 0.0);
     var viewDir = normalize(-in.position);
-    var diffuse_intensity = saturate(NdotL);
+    var diffuse_intensity = clamp(NdotL, 0.0, 1.0);
     var diffuse = diffuse_intensity * color * diffuse_power / distance;
     var H = normalize(position + viewDir);
     var NdotH = max(dot(H, in.normals), 0.0);
-    var specular_intensity = pow(saturate(NdotH), 2.0);
+    var specular_intensity = pow(clamp(NdotH, 0.0, 1.0), 2.0);
     var specular = specular_intensity * color * 1.0 / distance;
     return vec4<f32>(specular, 1.0) + vec4(diffuse, 1.0) *  vec4<f32>(1.0, 1.0, 1.0, 1.0);
 }

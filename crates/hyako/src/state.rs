@@ -1,6 +1,14 @@
-use std::{sync::Arc, time::Instant};
+use std::{io::Result, sync::Arc};
 
-use log::debug;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_futures::spawn_local;
+
+use log::{debug, error};
+use parking_lot::RwLock;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -9,19 +17,19 @@ use winit::{
 };
 
 use crate::renderer::{
-    Renderer,
-    handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
+    handlers::{keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler, InputEvent},
     types::{
-        DeltaTime64,
         mouse_delta::{
             MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
         },
+        DeltaTime64,
     },
+    Renderer,
 };
 
 pub struct AppState {
     window: Option<Arc<Window>>,
-    renderer: Option<Renderer>,
+    renderer: Arc<RwLock<Option<Renderer>>>,
     keyboard_handler: KeyboardHandler,
     mouse_handler: MouseHandler,
     last_frame_time: Instant,
@@ -31,15 +39,15 @@ pub struct AppState {
 impl AppState {
     const MIN_TIME_IN_SECONDS: f64 = 0.05;
 
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> Result<Self> {
+        Ok(Self {
             window: None,
-            renderer: None,
+            renderer: Arc::new(RwLock::new(None)),
             keyboard_handler: KeyboardHandler::new(),
             mouse_handler: MouseHandler::new(),
             last_frame_time: Instant::now(),
             mouse_delta: MouseDelta::default(),
-        }
+        })
     }
 
     fn get_and_update_last_frame_time(&mut self) -> f64 {
@@ -67,9 +75,31 @@ impl ApplicationHandler for AppState {
                 panic!();
             }
         };
-        let renderer = pollster::block_on(Renderer::new(window.clone())).unwrap();
+        #[cfg(target_arch = "wasm32")]
+        {
+            let renderer_slot = self.renderer.clone();
+            let window_for_renderer = window.clone();
+            spawn_local(async move {
+                match Renderer::new(window_for_renderer.clone()).await {
+                    Ok(renderer) => {
+                        *renderer_slot.write() = Some(renderer);
+                        debug!("Renderer initialized for wasm");
+                        window_for_renderer.request_redraw();
+                    }
+                    Err(e) => {
+                        error!("Failed to initialize renderer for wasm: {e:?}");
+                    }
+                }
+            });
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let renderer = pollster::block_on(Renderer::new(window.clone())).unwrap();
+            *self.renderer.write() = Some(renderer);
+        }
+
         self.window = Some(window);
-        self.renderer = Some(renderer)
     }
 
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, _event: ()) {}
@@ -83,7 +113,10 @@ impl ApplicationHandler for AppState {
         match event {
             WindowEvent::RedrawRequested => {
                 let delta = self.get_and_update_last_frame_time();
-                let renderer = self.renderer.as_mut().unwrap();
+                let mut renderer_guard = self.renderer.write();
+                let Some(renderer) = renderer_guard.as_mut() else {
+                    return;
+                };
                 renderer.update(delta);
                 renderer.render().unwrap();
             }
@@ -106,7 +139,10 @@ impl ApplicationHandler for AppState {
                 event,
                 is_synthetic: _is_synthetic,
             } => {
-                let renderer = self.renderer.as_mut().unwrap();
+                let mut renderer_guard = self.renderer.write();
+                let Some(renderer) = renderer_guard.as_mut() else {
+                    return;
+                };
                 match event.physical_key {
                     winit::keyboard::PhysicalKey::Code(key_code) => {
                         let is_pressed = event.state == ElementState::Pressed;
@@ -136,7 +172,10 @@ impl ApplicationHandler for AppState {
         event: winit::event::DeviceEvent,
     ) {
         let delta_time = self.get_last_frame_time(Instant::now()) as f32;
-        let renderer = self.renderer.as_mut().unwrap();
+        let mut renderer_guard = self.renderer.write();
+        let Some(renderer) = renderer_guard.as_mut() else {
+            return;
+        };
         match event {
             DeviceEvent::MouseMotion { delta } => {
                 self.mouse_delta.delta_position = MovementDelta::new(delta.0, delta.1);
@@ -206,7 +245,7 @@ mod tests {
     use super::*;
 
     fn setup() -> AppState {
-        AppState::new()
+        AppState::new().unwrap()
     }
 
     #[test]

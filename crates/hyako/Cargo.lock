@@ -1070,6 +1070,8 @@ dependencies = [
  "strum",
  "strum_macros",
  "uuid",
+ "wasm-bindgen-futures",
+ "web-time",
  "wgpu",
  "winit",
 ]
