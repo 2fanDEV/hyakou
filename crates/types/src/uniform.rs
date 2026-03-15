@@ -6,7 +6,7 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::renderer::types::{
+use crate::{
     BaseBuffer, TransformBuffer,
     ids::{UniformBufferId, UniformResourceId},
     transform::Transform,

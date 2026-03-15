@@ -4,7 +4,7 @@ use std::{ops::Deref, sync::Arc};
 use anyhow::Result;
 use wgpu::{Buffer, Queue};
 
-use crate::renderer::components::transform::Transform;
+use crate::transform::Transform;
 
 pub mod camera;
 pub mod ids;
