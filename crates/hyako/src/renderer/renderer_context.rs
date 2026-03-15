@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use core::ModelMatrixBindingMode;
+use hyakou_core::ModelMatrixBindingMode;
 use log::debug;
 use wgpu::{
     Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features,

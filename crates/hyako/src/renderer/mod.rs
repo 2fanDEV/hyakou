@@ -20,14 +20,14 @@ use crate::renderer::{
 };
 use anyhow::Result;
 use bytemuck::bytes_of;
-use core::{
+use glam::Vec3;
+use hyakou_core::{
     DeltaTime64, ModelMatrixBindingMode, TransformBuffer,
     camera::{Pitch, Yaw},
     ids::{MeshId, UniformBufferId},
     transform::Transform,
     uniform::UniformBuffer,
 };
-use glam::Vec3;
 use log::{error, warn};
 use wgpu::{
     BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations, Queue,

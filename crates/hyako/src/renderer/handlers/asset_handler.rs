@@ -13,7 +13,7 @@ use crate::renderer::{
     util::{self, Concatable},
 };
 
-use core::{ModelMatrixBindingMode, ids::MeshId};
+use hyakou_core::{ModelMatrixBindingMode, ids::MeshId};
 
 #[derive(Debug)]
 pub struct AssetHandler {

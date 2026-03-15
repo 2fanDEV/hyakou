@@ -1,8 +1,8 @@
 use crate::renderer::animator::Animation;
 use anyhow::Ok;
-use core::DeltaTime;
-use core::ids::MeshId;
-use core::transform::Transform;
+use hyakou_core::DeltaTime;
+use hyakou_core::ids::MeshId;
+use hyakou_core::transform::Transform;
 
 pub struct StationaryTrajectory {
     pub id: MeshId,
@@ -23,7 +23,7 @@ impl Animation for StationaryTrajectory {
 
 #[cfg(test)]
 mod tests {
-    use core::transform::Transform;
+    use hyakou_core::transform::Transform;
     use uuid::Uuid;
 
     use super::*;

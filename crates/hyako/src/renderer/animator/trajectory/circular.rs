@@ -1,4 +1,4 @@
-use core::{DeltaTime, ids::MeshId, transform::Transform};
+use hyakou_core::{DeltaTime, ids::MeshId, transform::Transform};
 use parking_lot::RwLock;
 use std::{f32::consts::PI, sync::Arc};
 

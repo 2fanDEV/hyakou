@@ -13,7 +13,7 @@ use crate::renderer::{
     util::Concatable,
 };
 
-use core::{
+use hyakou_core::{
     ModelMatrixBindingMode,
     ids::{MeshId, UniformBufferId},
     transform::Transform,

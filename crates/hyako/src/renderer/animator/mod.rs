@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use core::{DeltaTime, DeltaTime64, ids::MeshId, transform::Transform};
+use hyakou_core::{DeltaTime, DeltaTime64, ids::MeshId, transform::Transform};
 
 pub mod trajectory;
 

@@ -482,17 +482,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytemuck",
- "glam",
- "parking_lot",
- "wgpu",
-]
-
-[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1176,13 +1165,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bytemuck",
- "core",
  "env",
  "env_logger",
  "futures",
  "glam",
  "gloo-net",
  "gltf",
+ "hyakou-core",
  "image",
  "log",
  "mockall",
@@ -1196,6 +1185,17 @@ dependencies = [
  "web-time",
  "wgpu",
  "winit",
+]
+
+[[package]]
+name = "hyakou-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "glam",
+ "parking_lot",
+ "wgpu",
 ]
 
 [[package]]

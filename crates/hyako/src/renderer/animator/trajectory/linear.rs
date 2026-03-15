@@ -1,4 +1,4 @@
-use core::{DeltaTime, ids::MeshId, transform::Transform};
+use hyakou_core::{DeltaTime, ids::MeshId, transform::Transform};
 use log::error;
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -152,7 +152,7 @@ impl Animation for LinearTrajectory {
 
 #[cfg(test)]
 mod tests {
-    use core::ids::MeshId;
+    use hyakou_core::ids::MeshId;
 
     use super::*;
 

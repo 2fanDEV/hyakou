@@ -9,7 +9,7 @@ use crate::renderer::{
         mouse_bindings::{MouseBinding, MouseBindingMap},
     },
 };
-use core::mouse_delta::MouseButton;
+use hyakou_core::mouse_delta::MouseButton;
 
 #[derive(Debug, Default)]
 pub struct MouseHandler {
