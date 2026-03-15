@@ -1,12 +1,7 @@
-use std::io::Error;
-
 use hyako::state::AppState;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use web_sys::HtmlCanvasElement;
-use winit::{
-    event_loop::{self, EventLoop},
-    platform::web::EventLoopExtWebSys,
-};
+use winit::{event_loop::EventLoop, platform::web::EventLoopExtWebSys};
 
 #[wasm_bindgen]
 pub fn start(canvas_ref: HtmlCanvasElement) -> Result<(), JsValue> {
