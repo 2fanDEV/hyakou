@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import init from "hyako_wasm_bindings";
-import { full_start, start } from "hyako_wasm_bindings";
+import { start } from "hyako_wasm_bindings";
 import wasm_url from "hyako_wasm_bindings/hyako_wasm_bindings_bg.wasm?url";
 
 export const Route = createFileRoute("/")({ component: App });
@@ -20,7 +20,6 @@ function App() {
       } catch (e) {
         console.error(e);
       }
-      // full_start(wasm_url
       if (cancelled) return;
       console.log("Wasm initialized");
     })();
