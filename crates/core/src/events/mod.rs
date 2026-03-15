@@ -1,1 +1,3 @@
-
+pub enum Event {
+    GetCoords,
+}

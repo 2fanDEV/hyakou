@@ -26,9 +26,14 @@ use crate::renderer::{
     handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
 };
 
-use hyakou_core::types::{
-    DeltaTime64,
-    mouse_delta::{MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta},
+use hyakou_core::{
+    events::Event,
+    types::{
+        DeltaTime64,
+        mouse_delta::{
+            MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
+        },
+    },
 };
 
 pub struct AppState {
@@ -85,7 +90,7 @@ impl AppState {
     }
 }
 
-impl ApplicationHandler for AppState {
+impl ApplicationHandler<Event> for AppState {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         #[cfg(not(target_arch = "wasm32"))]
         let window_attributes =
@@ -131,7 +136,11 @@ impl ApplicationHandler for AppState {
         self.window = Some(window);
     }
 
-    fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, _event: ()) {}
+    fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: Event) {
+        match event {
+            Event::GetCoords => todo!(),
+        }
+    }
 
     fn window_event(
         &mut self,
