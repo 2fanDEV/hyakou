@@ -1,21 +1,15 @@
+use crate::renderer::animator::Animation;
 use anyhow::Ok;
-
-use crate::renderer::{
-    animator::Animation,
-    components::transform::{self},
-    types::ids::MeshId,
-};
+use types::DeltaTime;
+use types::ids::MeshId;
+use types::transform::Transform;
 
 pub struct StationaryTrajectory {
     pub id: MeshId,
 }
 
 impl Animation for StationaryTrajectory {
-    fn animate(
-        &mut self,
-        _t: Option<&transform::Transform>,
-        _delta: crate::renderer::types::DeltaTime,
-    ) -> anyhow::Result<()> {
+    fn animate(&mut self, _t: Option<&Transform>, _delta: DeltaTime) -> anyhow::Result<()> {
         Ok(())
     }
 
@@ -29,6 +23,7 @@ impl Animation for StationaryTrajectory {
 
 #[cfg(test)]
 mod tests {
+    use types::transform::Transform;
     use uuid::Uuid;
 
     use super::*;
@@ -50,7 +45,7 @@ mod tests {
         assert!(result.is_ok());
 
         // Also test with a target transform
-        let target = transform::Transform::default();
+        let target = Transform::default();
         let result = trajectory.animate(Some(&target), 0.5);
         assert!(result.is_ok());
     }

@@ -8,7 +8,8 @@ use wgpu::{
     BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,
 };
 
-use crate::renderer::{components::transform::Transform, geometry::BindGroupProvider};
+use crate::renderer::geometry::BindGroupProvider;
+use types::transform::Transform;
 
 #[derive(Debug, Clone)]
 pub struct LightSource {

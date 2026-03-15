@@ -1,13 +1,10 @@
 use parking_lot::RwLock;
 use std::{f32::consts::PI, sync::Arc};
+use types::{DeltaTime, ids::MeshId, transform::Transform};
 
 use anyhow::{Result, anyhow};
 
-use crate::renderer::{
-    animator::Animation,
-    components::{render_mesh::RenderMesh, transform::Transform},
-    types::{DeltaTime, ids::MeshId},
-};
+use crate::renderer::{animator::Animation, components::render_mesh::RenderMesh};
 
 #[derive(Default, Clone)]
 pub struct CircularTrajectory {

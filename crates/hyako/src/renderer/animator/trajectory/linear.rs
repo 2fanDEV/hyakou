@@ -1,6 +1,7 @@
 use log::error;
 use parking_lot::RwLock;
 use std::sync::Arc;
+use types::{DeltaTime, ids::MeshId, transform::Transform};
 
 use anyhow::{Result, anyhow};
 use glam::Vec3;
@@ -10,8 +11,7 @@ use crate::renderer::{
         Animation,
         trajectory::{Direction, calculate_direction_vector},
     },
-    components::{render_mesh::RenderMesh, transform::Transform},
-    types::ids::MeshId,
+    components::render_mesh::RenderMesh,
 };
 
 /// LinearTrajectory is an animation that allows the
@@ -100,11 +100,7 @@ impl LinearTrajectory {
 impl Animation for LinearTrajectory {
     /// Currently ignoring target since there is no use for it yet.
     /// Maybe sometime in the future this will cause the linear trajectory to be right above the target
-    fn animate(
-        &mut self,
-        _target: Option<&Transform>,
-        delta: crate::renderer::types::DeltaTime,
-    ) -> anyhow::Result<()> {
+    fn animate(&mut self, _target: Option<&Transform>, delta: DeltaTime) -> anyhow::Result<()> {
         if let Some(mut transform) = self.transform.try_write() {
             let direction_vector = calculate_direction_vector(self.yaw_radians, self.pitch_radians);
             match self.direction {
@@ -156,6 +152,8 @@ impl Animation for LinearTrajectory {
 
 #[cfg(test)]
 mod tests {
+    use types::ids::MeshId;
+
     use super::*;
 
     #[test]

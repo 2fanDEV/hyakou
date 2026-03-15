@@ -964,9 +964,9 @@ dependencies = [
 
 [[package]]
 name = "glam"
-version = "0.30.10"
+version = "0.32.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19fc433e8437a212d1b6f1e68c7824af3aed907da60afa994e7f542d18d12aa9"
+checksum = "f70749695b063ecbf6b62949ccccde2e733ec3ecbbd71d467dca4e5c6c97cca0"
 dependencies = [
  "bytemuck",
 ]
@@ -1179,6 +1179,7 @@ dependencies = [
  "smallvec",
  "strum",
  "strum_macros",
+ "types",
  "uuid",
  "wasm-bindgen-futures",
  "web-time",
@@ -2818,6 +2819,17 @@ name = "ttf-parser"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
+
+[[package]]
+name = "types"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "glam",
+ "parking_lot",
+ "wgpu",
+]
 
 [[package]]
 name = "unicode-ident"

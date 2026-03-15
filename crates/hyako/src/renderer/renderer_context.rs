@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use log::debug;
+use types::ModelMatrixBindingMode;
 use wgpu::{
     Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features,
     FeaturesWebGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints, Queue,
@@ -15,7 +16,6 @@ use crate::renderer::{
         render_pipeline::create_render_pipeline, texture::Texture,
     },
     geometry::BindGroupProvider,
-    types::ModelMatrixBindingMode,
     util::Size,
     wrappers::SurfaceProvider,
 };

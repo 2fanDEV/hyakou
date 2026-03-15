@@ -7,7 +7,6 @@ pub mod model_matrix;
 pub mod render_mesh;
 pub mod render_pipeline;
 pub mod texture;
-pub mod transform;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, PartialEq, Eq)]

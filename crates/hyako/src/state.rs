@@ -24,12 +24,11 @@ use winit::{
 use crate::renderer::{
     Renderer,
     handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
-    types::{
-        DeltaTime64,
-        mouse_delta::{
-            MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
-        },
-    },
+};
+
+use types::{
+    DeltaTime64,
+    mouse_delta::{MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta},
 };
 
 pub struct AppState {

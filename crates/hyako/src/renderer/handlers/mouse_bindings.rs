@@ -4,7 +4,7 @@ use log::{trace, warn};
 use smallvec::{SmallVec, smallvec};
 
 use crate::renderer::actions::{Action, CameraActions};
-use crate::renderer::types::mouse_delta::MouseButton;
+use types::mouse_delta::MouseButton;
 
 const MAX_MOUSE_BUTTON_BIND_COUNT: usize = 5;
 

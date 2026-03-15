@@ -5,9 +5,10 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use glam::{Vec2, Vec3, Vec4};
+use types::transform::Transform;
 
 use crate::renderer::{
-    components::{mesh_node::MeshNode, transform::Transform},
+    components::mesh_node::MeshNode,
     geometry::{mesh::Mesh, vertices::Vertex},
     util::Concatable,
 };

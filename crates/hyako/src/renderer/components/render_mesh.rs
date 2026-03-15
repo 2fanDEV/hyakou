@@ -8,16 +8,16 @@ use wgpu::{
 };
 
 use crate::renderer::{
-    components::{
-        LightType, mesh_node::MeshNode, model_matrix::ModelMatrixUniform, transform::Transform,
-    },
+    components::{LightType, mesh_node::MeshNode, model_matrix::ModelMatrixUniform},
     geometry::BindGroupProvider,
-    types::{
-        ModelMatrixBindingMode,
-        ids::{MeshId, UniformBufferId},
-        uniform::UniformBuffer,
-    },
     util::Concatable,
+};
+
+use types::{
+    ModelMatrixBindingMode,
+    ids::{MeshId, UniformBufferId},
+    transform::Transform,
+    uniform::UniformBuffer,
 };
 
 #[derive(Debug, Clone)]

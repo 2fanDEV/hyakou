@@ -1,9 +1,5 @@
 use anyhow::{Result, anyhow};
-
-use crate::renderer::{
-    components::transform::Transform,
-    types::{DeltaTime, DeltaTime64, ids::MeshId},
-};
+use types::{DeltaTime, DeltaTime64, ids::MeshId, transform::Transform};
 
 pub mod trajectory;
 

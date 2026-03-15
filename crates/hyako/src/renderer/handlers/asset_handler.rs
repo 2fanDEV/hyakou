@@ -10,9 +10,10 @@ use wgpu::Device;
 
 use crate::renderer::{
     components::{LightType, glTF::GLTFLoader, render_mesh::RenderMesh},
-    types::{ModelMatrixBindingMode, ids::MeshId},
     util::{self, Concatable},
 };
+
+use types::{ModelMatrixBindingMode, ids::MeshId};
 
 #[derive(Debug)]
 pub struct AssetHandler {

@@ -1,17 +1,6 @@
 use parking_lot::RwLock;
 use std::{collections::HashMap, f32::consts::PI, path::Path, sync::Arc};
 
-use anyhow::Result;
-use bytemuck::bytes_of;
-use glam::Vec3;
-use log::{error, warn};
-use wgpu::{
-    BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations, Queue,
-    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RenderPipeline, TextureView, TextureViewDescriptor,
-};
-use winit::window::Window;
-
 use crate::renderer::{
     animator::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
     components::{
@@ -20,7 +9,6 @@ use crate::renderer::{
         light::LightSource,
         model_matrix::ModelMatrixUniform,
         render_mesh::RenderMesh,
-        transform::Transform,
     },
     geometry::BindGroupProvider,
     handlers::{
@@ -28,14 +16,25 @@ use crate::renderer::{
         camera_controller::{CameraController, CameraMode},
     },
     renderer_context::RenderContext,
-    types::{
-        DeltaTime64, ModelMatrixBindingMode, TransformBuffer,
-        camera::{Pitch, Yaw},
-        ids::{MeshId, UniformBufferId},
-        uniform::UniformBuffer,
-    },
     wrappers::WinitSurfaceProvider,
 };
+use anyhow::Result;
+use bytemuck::bytes_of;
+use glam::Vec3;
+use log::{error, warn};
+use types::{
+    DeltaTime64, ModelMatrixBindingMode, TransformBuffer,
+    camera::{Pitch, Yaw},
+    ids::{MeshId, UniformBufferId},
+    transform::Transform,
+    uniform::UniformBuffer,
+};
+use wgpu::{
+    BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations, Queue,
+    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
+    RenderPipeline, TextureView, TextureViewDescriptor,
+};
+use winit::window::Window;
 
 pub mod actions;
 pub mod animator;
@@ -43,7 +42,6 @@ pub mod components;
 pub mod geometry;
 pub mod handlers;
 pub mod renderer_context;
-pub mod types;
 pub mod util;
 pub mod wrappers;
 

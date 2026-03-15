@@ -1,9 +1,7 @@
 use std::ops::Deref;
 
-use crate::renderer::{
-    components::transform::Transform,
-    geometry::{BufferLayoutProvider, mesh::Mesh, vertices::Vertex},
-};
+use crate::renderer::geometry::{BufferLayoutProvider, mesh::Mesh, vertices::Vertex};
+use types::transform::Transform;
 
 pub struct MeshNode {
     mesh: Mesh,
