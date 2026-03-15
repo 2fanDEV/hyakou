@@ -7,7 +7,7 @@ use crate::renderer::{
     components::camera::Camera,
 };
 
-use hyakou_core::{DeltaTime, mouse_delta::MouseDelta};
+use hyakou_core::types::{DeltaTime, mouse_delta::MouseDelta};
 
 #[derive(Debug)]
 pub enum CameraMode {
@@ -247,7 +247,7 @@ impl CameraController {
 mod tests {
     use super::*;
     use glam::Vec3;
-    use hyakou_core::{
+    use hyakou_core::types::{
         camera::{Pitch, Yaw},
         mouse_delta::{MouseAction, MouseButton, MousePosition, MouseState, MovementDelta},
     };

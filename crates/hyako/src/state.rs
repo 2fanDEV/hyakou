@@ -26,7 +26,7 @@ use crate::renderer::{
     handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
 };
 
-use hyakou_core::{
+use hyakou_core::types::{
     DeltaTime64,
     mouse_delta::{MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta},
 };

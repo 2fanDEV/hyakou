@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::Id;
+use crate::types::Id;
 
 pub trait UniformResourceId: Id {
     fn get(&self) -> &str;

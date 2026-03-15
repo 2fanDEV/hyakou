@@ -3,7 +3,7 @@ use std::{
     ops::Deref,
 };
 
-use crate::F32_ZERO;
+use crate::types::F32_ZERO;
 
 fn smoothing_interpolation(
     prev_value: f32,

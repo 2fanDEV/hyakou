@@ -21,7 +21,7 @@ use crate::renderer::{
 use anyhow::Result;
 use bytemuck::bytes_of;
 use glam::Vec3;
-use hyakou_core::{
+use hyakou_core::types::{
     DeltaTime64, ModelMatrixBindingMode, TransformBuffer,
     camera::{Pitch, Yaw},
     ids::{MeshId, UniformBufferId},

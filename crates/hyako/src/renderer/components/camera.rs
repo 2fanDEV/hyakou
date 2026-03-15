@@ -8,7 +8,7 @@ use wgpu::{
 use crate::renderer::{
     animator::trajectory::calculate_direction_vector, geometry::BindGroupProvider,
 };
-use hyakou_core::camera::{Pitch, Yaw};
+use hyakou_core::types::camera::{Pitch, Yaw};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
@@ -149,7 +149,7 @@ mod tests {
     use glam::Vec3;
 
     use crate::renderer::components::camera::Camera;
-    use hyakou_core::camera::{Pitch, Yaw};
+    use hyakou_core::types::camera::{Pitch, Yaw};
 
     fn create_test_camera() -> Camera {
         Camera::new(

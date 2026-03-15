@@ -1,0 +1,45 @@
+use parking_lot::RwLock;
+use std::{ops::Deref, sync::Arc};
+
+use anyhow::Result;
+use wgpu::{Buffer, Queue};
+
+use crate::types::transform::Transform;
+
+pub mod camera;
+pub mod ids;
+pub mod mouse_delta;
+pub mod transform;
+pub mod uniform;
+
+pub type DeltaTime = f32;
+pub type DeltaTime64 = f64;
+
+pub const F32_ZERO: f32 = 0.0;
+pub const F64_ZERO: f64 = 0.0;
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum ModelMatrixBindingMode {
+    Immediate,
+    Uniform,
+}
+
+pub trait Id {
+    fn get_id(&self) -> &str;
+}
+
+#[allow(unused)]
+pub trait BaseBuffer {
+    fn get_buffer(&self) -> &Buffer;
+    fn get_id_cloned(&self) -> Box<dyn Id>;
+    fn get_id_as_string(&self) -> &str;
+}
+
+pub trait TransformBuffer: Deref + BaseBuffer {
+    fn get_transform(&self) -> Arc<RwLock<Transform>>;
+    fn update_buffer_transform(&mut self, queue: &Queue, data: &[u8]) -> Result<()> {
+        let buffer = self.get_buffer();
+        queue.write_buffer(buffer, 0, data);
+        Ok(())
+    }
+}
