@@ -1201,6 +1201,7 @@ dependencies = [
  "strum_macros",
  "uuid",
  "wasm-bindgen-futures",
+ "web-sys",
  "web-time",
  "wgpu",
  "winit",
@@ -1216,6 +1217,7 @@ dependencies = [
  "hyako",
  "log",
  "wasm-bindgen",
+ "web-sys",
  "wgpu",
  "winit",
 ]

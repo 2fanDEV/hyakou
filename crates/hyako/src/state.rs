@@ -7,9 +7,12 @@ use wasm_bindgen_futures::spawn_local;
 #[cfg(target_arch = "wasm32")]
 use web_time::Instant;
 
-use log::{debug, error};
+use log::debug;
 use parking_lot::RwLock;
+#[cfg(target_arch = "wasm32")]
 use wgpu::web_sys::HtmlCanvasElement;
+#[cfg(not(target_arch = "wasm32"))]
+use winit::dpi::PhysicalSize;
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::WindowAttributesExtWebSys;
 use winit::{
@@ -31,6 +34,7 @@ use crate::renderer::{
 
 pub struct AppState {
     window: Option<Arc<Window>>,
+    #[cfg(target_arch = "wasm32")]
     html_canvas_element: Option<HtmlCanvasElement>,
     renderer: Arc<RwLock<Option<Renderer>>>,
     keyboard_handler: KeyboardHandler,
@@ -45,6 +49,7 @@ impl AppState {
     pub fn new() -> Result<Self> {
         Ok(Self {
             window: None,
+            #[cfg(target_arch = "wasm32")]
             html_canvas_element: None,
             renderer: Arc::new(RwLock::new(None)),
             keyboard_handler: KeyboardHandler::new(),
@@ -54,6 +59,7 @@ impl AppState {
         })
     }
 
+    #[cfg(target_arch = "wasm32")]
     pub fn from_canvas_ref(canvas_ref: HtmlCanvasElement) -> Result<Self> {
         Ok(Self {
             window: None,
