@@ -122,6 +122,8 @@ impl ApplicationHandler for AppState {
                         window_for_renderer.request_redraw();
                     }
                     Err(e) => {
+                        use log::error;
+
                         error!("Failed to initialize renderer for wasm: {e:?}");
                     }
                 }
