@@ -5,33 +5,42 @@ use std::{
     sync::Arc,
 };
 
+use wgpu::BindGroupLayout;
 use wgpu::Device;
 
 use crate::renderer::{
     components::{LightType, glTF::GLTFLoader, render_mesh::RenderMesh},
-    types::ids::MeshId,
+    types::{ModelMatrixBindingMode, ids::MeshId},
     util::{self, Concatable},
 };
 
 #[derive(Debug)]
 pub struct AssetHandler {
     device: Arc<Device>,
+    model_binding_mode: ModelMatrixBindingMode,
+    model_bind_group_layout: Option<BindGroupLayout>,
     gltf_loader: GLTFLoader,
     memory_loaded_assets: HashMap<String, Rc<RenderMesh>>,
     visible_assets: HashSet<String>,
 }
 
 impl AssetHandler {
-    pub fn new(device: Arc<Device>) -> AssetHandler {
+    pub fn new(
+        device: Arc<Device>,
+        model_binding_mode: ModelMatrixBindingMode,
+        model_bind_group_layout: Option<BindGroupLayout>,
+    ) -> AssetHandler {
         AssetHandler {
             memory_loaded_assets: HashMap::new(),
             gltf_loader: GLTFLoader::new(util::get_relative_path()),
             visible_assets: HashSet::new(),
             device,
+            model_binding_mode,
+            model_bind_group_layout,
         }
     }
 
-    pub fn add_from_path(
+    pub async fn add_from_path(
         &mut self,
         mut id: String,
         light_type: LightType,
@@ -39,7 +48,7 @@ impl AssetHandler {
     ) -> Option<Rc<RenderMesh>> {
         //TODO make rendermesh be a node consisting of multiple nodes
         let mut idx = 0;
-        let mesh_nodes = match self.gltf_loader.load_from_path(path) {
+        let mesh_nodes = match self.gltf_loader.load_from_path(path).await {
             Ok(nodes) => nodes,
             Err(_) => panic!("Couldn't find model at path: {:?}", path),
         };
@@ -56,6 +65,8 @@ impl AssetHandler {
                 node,
                 &light_type,
                 Some(MeshId(id.clone())),
+                self.model_binding_mode,
+                self.model_bind_group_layout.as_ref(),
             )));
             self.memory_loaded_assets
                 .insert(id.clone(), render_mesh.as_ref().unwrap().clone());

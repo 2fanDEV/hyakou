@@ -5,6 +5,3 @@ pub struct RenderObject {
     pub mvp_buffer: Buffer,
     pub bind_group: BindGroup,
 }
-
-
-

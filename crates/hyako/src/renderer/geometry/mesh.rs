@@ -1,4 +1,3 @@
-
 use crate::renderer::geometry::vertices::Vertex;
 
 #[repr(C)]
@@ -6,7 +5,7 @@ use crate::renderer::geometry::vertices::Vertex;
 pub struct Mesh {
     pub name: Option<String>,
     pub vertices: Vec<Vertex>,
-    pub indices: Vec<u32>
+    pub indices: Vec<u32>,
 }
 
 impl Mesh {
@@ -14,9 +13,7 @@ impl Mesh {
         Self {
             name,
             vertices,
-            indices
+            indices,
         }
     }
 }
-
-

@@ -6,7 +6,7 @@ use bytemuck::bytes_of;
 use glam::Vec3;
 use log::{error, warn};
 use wgpu::{
-    BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations,
+    BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations, Queue,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
     RenderPipeline, TextureView, TextureViewDescriptor,
 };
@@ -18,6 +18,7 @@ use crate::renderer::{
         LightType,
         camera::{Camera, CameraUniform},
         light::LightSource,
+        model_matrix::ModelMatrixUniform,
         render_mesh::RenderMesh,
         transform::Transform,
     },
@@ -28,7 +29,7 @@ use crate::renderer::{
     },
     renderer_context::RenderContext,
     types::{
-        DeltaTime64, TransformBuffer,
+        DeltaTime64, ModelMatrixBindingMode, TransformBuffer,
         camera::{Pitch, Yaw},
         ids::{MeshId, UniformBufferId},
         uniform::UniformBuffer,
@@ -74,17 +75,25 @@ impl Renderer {
 
         let assets_dir = util::get_relative_path();
 
-        let mut asset_handler = AssetHandler::new(ctx.device.clone());
-        let _suzanne_mesh = asset_handler.add_from_path(
-            "Suzanne".to_string(),
-            LightType::LIGHT,
-            &Path::new(&assets_dir).join("assets/gltf/Suzanne.gltf"),
+        let mut asset_handler = AssetHandler::new(
+            ctx.device.clone(),
+            ctx.model_binding_mode,
+            ctx.model_bind_group_layout.clone(),
         );
-        let cube_light_mesh = asset_handler.add_from_path(
-            "Cube".to_string(),
-            LightType::NO_LIGHT,
-            assets_dir.join("assets/gltf/Cube.gltf").as_path(),
-        );
+        let _suzanne_mesh = asset_handler
+            .add_from_path(
+                "Suzanne".to_string(),
+                LightType::LIGHT,
+                &Path::new(&assets_dir).join("assets/gltf/Suzanne.gltf"),
+            )
+            .await;
+        let cube_light_mesh = asset_handler
+            .add_from_path(
+                "Cube".to_string(),
+                LightType::NO_LIGHT,
+                assets_dir.join("assets/gltf/Cube.gltf").as_path(),
+            )
+            .await;
         cube_light_mesh
             .as_ref()
             .unwrap()
@@ -260,6 +269,8 @@ impl Renderer {
                     &mut encoder,
                     elem,
                     &self.ctx.light_render_pipeline,
+                    &self.ctx.queue,
+                    self.ctx.model_binding_mode,
                     &self.camera_bind_group,
                     &self.light_bind_group,
                     &view,
@@ -274,6 +285,8 @@ impl Renderer {
                     &mut encoder,
                     elem,
                     &self.ctx.no_light_render_pipeline,
+                    &self.ctx.queue,
+                    self.ctx.model_binding_mode,
                     &self.camera_bind_group,
                     &self.light_bind_group,
                     &view,
@@ -294,6 +307,8 @@ impl Renderer {
         encoder: &mut CommandEncoder,
         render_mesh: &RenderMesh,
         render_pipeline: &RenderPipeline,
+        queue: &Queue,
+        model_binding_mode: ModelMatrixBindingMode,
         camera_bind_group: &BindGroup,
         light_bind_group: &BindGroup,
         view: &TextureView,
@@ -324,10 +339,7 @@ impl Renderer {
         });
 
         render_pass.set_pipeline(render_pipeline);
-        render_pass.set_immediates(
-            0,
-            bytemuck::bytes_of(&render_mesh.transform.read().get_matrix()),
-        );
+        Self::apply_model_matrix(&mut render_pass, render_mesh, queue, model_binding_mode);
         render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
         render_pass.set_bind_group(1, light_bind_group, &[]);
         render_pass.set_bind_group(0, camera_bind_group, &[]);
@@ -336,5 +348,31 @@ impl Renderer {
             wgpu::IndexFormat::Uint32,
         );
         render_pass.draw_indexed(0..render_mesh.index_count as u32, 0, 0..1);
+    }
+
+    fn apply_model_matrix(
+        render_pass: &mut wgpu::RenderPass<'_>,
+        render_mesh: &RenderMesh,
+        queue: &Queue,
+        model_binding_mode: ModelMatrixBindingMode,
+    ) {
+        let model_matrix = render_mesh.transform.read().get_matrix();
+        match model_binding_mode {
+            ModelMatrixBindingMode::Immediate => {
+                render_pass.set_immediates(0, bytes_of(&model_matrix));
+            }
+            ModelMatrixBindingMode::Uniform => {
+                let model_uniform = ModelMatrixUniform::new(model_matrix);
+                let model_uniform_buffer = render_mesh.model_uniform_buffer.as_ref().expect(
+                    "Uniform model binding mode requires a model uniform buffer on RenderMesh",
+                );
+                let model_bind_group = render_mesh
+                    .model_bind_group
+                    .as_ref()
+                    .expect("Uniform model binding mode requires a model bind group on RenderMesh");
+                queue.write_buffer(model_uniform_buffer, 0, bytes_of(&model_uniform));
+                render_pass.set_bind_group(2, model_bind_group, &[]);
+            }
+        }
     }
 }

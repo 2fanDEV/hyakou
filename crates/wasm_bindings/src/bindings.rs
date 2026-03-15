@@ -1,16 +1,17 @@
 use hyako::state::AppState;
 use log::debug;
 use wasm_bindgen::{JsError, prelude::wasm_bindgen};
+use wgpu::web_sys::HtmlCanvasElement;
 use winit::{event_loop::EventLoop, platform::web::EventLoopExtWebSys};
 
 #[wasm_bindgen]
-pub fn start() -> Result<(), JsError> {
+pub fn start(canvas_ref: HtmlCanvasElement) -> Result<(), JsError> {
     console_error_panic_hook::set_once();
     let _ = console_log::init_with_level(log::Level::Debug);
 
     debug!("start(): wasm entry called");
 
-    let app_state = AppState::new()
+    let app_state = AppState::from_canvas_ref(canvas_ref)
         .map_err(|e| JsError::new(&format!("start(): AppState::new failed: {e}")))?;
     debug!("start(): AppState created");
 

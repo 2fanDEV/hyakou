@@ -8,15 +8,15 @@ fn main() {
     #[cfg(any(target_family = "unix", target_family = "windows"))]
     start_app_os(&mut app_state);
 
-    #[cfg(target_arch = "wasm32")]
-    start_app_wasm(app_state);
+    // #[cfg(target_arch = "wasm32")]
+    // start_app_wasm(app_state);
 }
 
-fn start_app_wasm(app_state: AppState) {
-    use winit::platform::web::EventLoopExtWebSys;
-    let event_loop = EventLoop::builder().build().unwrap();
-    event_loop.spawn_app(app_state);
-}
+// fn start_app_wasm(app_state: AppState) {
+//     use winit::platform::web::EventLoopExtWebSys;
+//     let event_loop = EventLoop::builder().build().unwrap();
+//     event_loop.spawn_app(app_state);
+// }
 
 fn start_app_os(app_state: &mut AppState) {
     let event_loop = EventLoop::builder().build().unwrap();

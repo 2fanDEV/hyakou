@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn test_update_camera_no_movement_when_no_keys_pressed() {
         let mut camera = create_test_camera();
-        let mut controller = CameraController::new(CameraMode::ORBIT);
+        let controller = CameraController::new(CameraMode::ORBIT);
         let initial_eye = camera.eye.clone();
         controller.update_camera_with_keyboard(&mut camera, 1.0);
         assert_eq!(camera.eye, initial_eye);

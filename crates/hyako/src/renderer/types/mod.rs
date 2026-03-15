@@ -17,6 +17,12 @@ pub type DeltaTime64 = f64;
 pub const F32_ZERO: f32 = 0.0;
 pub const F64_ZERO: f64 = 0.0;
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum ModelMatrixBindingMode {
+    Immediate,
+    Uniform,
+}
+
 pub trait Id {
     fn get_id(&self) -> &str;
 }

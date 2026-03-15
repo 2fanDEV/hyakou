@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 use crate::renderer::types::mouse_delta::MouseButton;
 use crate::renderer::{
     actions::Action,
     handlers::{
-        mouse_bindings::{MouseBinding, MouseBindingMap},
         InputEvent,
+        mouse_bindings::{MouseBinding, MouseBindingMap},
     },
 };
 

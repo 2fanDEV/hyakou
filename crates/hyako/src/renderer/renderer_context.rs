@@ -1,18 +1,21 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use log::debug;
 use wgpu::{
-    Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features, FeaturesWebGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints,
-    Queue, RenderPipeline, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat,
+    Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features,
+    FeaturesWebGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints, Queue,
+    RenderPipeline, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat,
     TextureUsages, include_wgsl,
 };
 
 use crate::renderer::{
     components::{
-        camera::CameraUniform, light::LightSource, render_pipeline::create_render_pipeline,
-        texture::Texture,
+        camera::CameraUniform, light::LightSource, model_matrix::ModelMatrixUniform,
+        render_pipeline::create_render_pipeline, texture::Texture,
     },
     geometry::BindGroupProvider,
+    types::ModelMatrixBindingMode,
     util::Size,
     wrappers::SurfaceProvider,
 };
@@ -27,11 +30,15 @@ pub struct RenderContext {
     pub size: Size,
     pub camera_bind_group_layout: BindGroupLayout,
     pub light_bind_group_layout: BindGroupLayout,
+    pub model_bind_group_layout: Option<BindGroupLayout>,
+    pub model_binding_mode: ModelMatrixBindingMode,
     pub depth_texture: Texture,
     pub queue: Queue,
 }
 
 impl RenderContext {
+    const IMMEDIATE_MODEL_MATRIX_SIZE: u32 = 64;
+
     pub async fn new<T>(provider: Option<T>) -> Result<Self>
     where
         T: SurfaceProvider,
@@ -64,19 +71,15 @@ impl RenderContext {
             })
             .await?;
 
-        let required_features = Features {
-            features_webgpu: FeaturesWebGPU::IMMEDIATES,
-            ..Default::default()
-        };
+        let model_binding_mode = select_model_binding_mode(&adapter);
+        let required_features = required_features_for(model_binding_mode);
+        let required_limits = required_limits_for(model_binding_mode);
 
         let (device, queue) = adapter
             .request_device(&DeviceDescriptor {
                 label: Some("Hyakou Device"),
                 required_features,
-                required_limits: Limits {
-                    max_immediate_size: 128,
-                    ..Default::default()
-                },
+                required_limits,
                 experimental_features: ExperimentalFeatures::default(),
                 memory_hints: MemoryHints::MemoryUsage,
                 trace: wgpu::Trace::Off,
@@ -105,17 +108,37 @@ impl RenderContext {
 
         let camera_bind_group_layout = CameraUniform::bind_group_layout(&device);
         let light_bind_group_layout = LightSource::bind_group_layout(&device);
+        let model_bind_group_layout = (model_binding_mode == ModelMatrixBindingMode::Uniform)
+            .then(|| ModelMatrixUniform::bind_group_layout(&device));
         // let (mesh_bind_group_layout, meshes_bind_group) = Vertex::create_bind_group(&device, &depth_texture.view, &depth_texture.sampler);
 
-        let vertex_shader = device.create_shader_module(include_wgsl!("../../assets/vertex.wgsl"));
-        let no_light_vertex_shader =
-            device.create_shader_module(include_wgsl!("../../assets/no_light_vertex.wgsl"));
+        let vertex_shader = create_light_shader_module(&device, model_binding_mode);
+        let no_light_vertex_shader = create_no_light_shader_module(&device, model_binding_mode);
+        let bind_group_layouts =
+            if let Some(model_bind_group_layout) = model_bind_group_layout.as_ref() {
+                vec![
+                    &camera_bind_group_layout,
+                    &light_bind_group_layout,
+                    model_bind_group_layout,
+                ]
+            } else {
+                vec![&camera_bind_group_layout, &light_bind_group_layout]
+            };
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
-                immediate_size: 64,
+                bind_group_layouts: &bind_group_layouts,
+                immediate_size: if model_binding_mode == ModelMatrixBindingMode::Immediate {
+                    Self::IMMEDIATE_MODEL_MATRIX_SIZE
+                } else {
+                    0
+                },
             });
+
+        debug!(
+            "Selected model matrix binding mode: {:?}",
+            model_binding_mode
+        );
 
         let format = if surface_configuration.is_some() {
             surface_configuration.as_ref().unwrap().format
@@ -152,6 +175,8 @@ impl RenderContext {
             depth_texture,
             light_bind_group_layout,
             camera_bind_group_layout,
+            model_bind_group_layout,
+            model_binding_mode,
             queue,
         })
     }
@@ -164,6 +189,77 @@ impl RenderContext {
             self.surface.as_ref().unwrap().configure(&self.device, &cfg);
             cfg
         });
+    }
+}
+
+fn select_model_binding_mode(adapter: &wgpu::Adapter) -> ModelMatrixBindingMode {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = adapter;
+        ModelMatrixBindingMode::Uniform
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let supported_features = adapter.features();
+        if supported_features
+            .features_webgpu
+            .contains(FeaturesWebGPU::IMMEDIATES)
+        {
+            ModelMatrixBindingMode::Immediate
+        } else {
+            ModelMatrixBindingMode::Uniform
+        }
+    }
+}
+
+fn required_features_for(model_binding_mode: ModelMatrixBindingMode) -> Features {
+    if model_binding_mode == ModelMatrixBindingMode::Immediate {
+        Features {
+            features_webgpu: FeaturesWebGPU::IMMEDIATES,
+            ..Default::default()
+        }
+    } else {
+        Features::default()
+    }
+}
+
+fn required_limits_for(model_binding_mode: ModelMatrixBindingMode) -> Limits {
+    if model_binding_mode == ModelMatrixBindingMode::Immediate {
+        Limits {
+            max_immediate_size: RenderContext::IMMEDIATE_MODEL_MATRIX_SIZE,
+            ..Default::default()
+        }
+    } else {
+        Limits::default()
+    }
+}
+
+fn create_light_shader_module(
+    device: &Device,
+    model_binding_mode: ModelMatrixBindingMode,
+) -> wgpu::ShaderModule {
+    match model_binding_mode {
+        ModelMatrixBindingMode::Immediate => {
+            device.create_shader_module(include_wgsl!("../../assets/vertex.wgsl"))
+        }
+        ModelMatrixBindingMode::Uniform => {
+            device.create_shader_module(include_wgsl!("../../assets/vertex_uniform.wgsl"))
+        }
+    }
+}
+
+fn create_no_light_shader_module(
+    device: &Device,
+    model_binding_mode: ModelMatrixBindingMode,
+) -> wgpu::ShaderModule {
+    match model_binding_mode {
+        ModelMatrixBindingMode::Immediate => {
+            device.create_shader_module(include_wgsl!("../../assets/no_light_vertex.wgsl"))
+        }
+        ModelMatrixBindingMode::Uniform => {
+            device.create_shader_module(include_wgsl!("../../assets/no_light_vertex_uniform.wgsl"))
+        }
     }
 }
 

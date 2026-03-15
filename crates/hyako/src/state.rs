@@ -3,32 +3,35 @@ use std::{io::Result, sync::Arc};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 #[cfg(target_arch = "wasm32")]
-use web_time::Instant;
-#[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::spawn_local;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
 
 use log::{debug, error};
 use parking_lot::RwLock;
+use wgpu::web_sys::HtmlCanvasElement;
+#[cfg(target_arch = "wasm32")]
+use winit::platform::web::WindowAttributesExtWebSys;
 use winit::{
     application::ApplicationHandler,
-    dpi::PhysicalSize,
     event::{DeviceEvent, ElementState, WindowEvent},
     window::{CursorGrabMode, Window, WindowAttributes},
 };
 
 use crate::renderer::{
-    handlers::{keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler, InputEvent},
+    Renderer,
+    handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
     types::{
+        DeltaTime64,
         mouse_delta::{
             MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
         },
-        DeltaTime64,
     },
-    Renderer,
 };
 
 pub struct AppState {
     window: Option<Arc<Window>>,
+    html_canvas_element: Option<HtmlCanvasElement>,
     renderer: Arc<RwLock<Option<Renderer>>>,
     keyboard_handler: KeyboardHandler,
     mouse_handler: MouseHandler,
@@ -42,6 +45,19 @@ impl AppState {
     pub fn new() -> Result<Self> {
         Ok(Self {
             window: None,
+            html_canvas_element: None,
+            renderer: Arc::new(RwLock::new(None)),
+            keyboard_handler: KeyboardHandler::new(),
+            mouse_handler: MouseHandler::new(),
+            last_frame_time: Instant::now(),
+            mouse_delta: MouseDelta::default(),
+        })
+    }
+
+    pub fn from_canvas_ref(canvas_ref: HtmlCanvasElement) -> Result<Self> {
+        Ok(Self {
+            window: None,
+            html_canvas_element: Some(canvas_ref),
             renderer: Arc::new(RwLock::new(None)),
             keyboard_handler: KeyboardHandler::new(),
             mouse_handler: MouseHandler::new(),
@@ -66,15 +82,28 @@ impl AppState {
 
 impl ApplicationHandler for AppState {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        let window = match event_loop.create_window(
-            WindowAttributes::default().with_inner_size(PhysicalSize::new(1920, 1080)),
-        ) {
+        #[cfg(not(target_arch = "wasm32"))]
+        let window_attributes =
+            WindowAttributes::default().with_inner_size(PhysicalSize::new(1920, 1080));
+
+        #[cfg(target_arch = "wasm32")]
+        let window_attributes =
+            WindowAttributes::default().with_canvas(self.html_canvas_element.clone());
+
+        let window = match event_loop.create_window(window_attributes) {
             Ok(window) => Arc::new(window),
             Err(e) => {
                 debug!("{:?}", e);
                 panic!();
             }
         };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let renderer = pollster::block_on(Renderer::new(window.clone())).unwrap();
+            *self.renderer.write() = Some(renderer);
+        }
+
         #[cfg(target_arch = "wasm32")]
         {
             let renderer_slot = self.renderer.clone();
@@ -92,13 +121,6 @@ impl ApplicationHandler for AppState {
                 }
             });
         }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let renderer = pollster::block_on(Renderer::new(window.clone())).unwrap();
-            *self.renderer.write() = Some(renderer);
-        }
-
         self.window = Some(window);
     }
 

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use log::{trace, warn};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 use crate::renderer::actions::{Action, CameraActions};
 use crate::renderer::types::mouse_delta::MouseButton;

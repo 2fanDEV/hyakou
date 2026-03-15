@@ -16,7 +16,7 @@ use crate::renderer::{
 
 use super::Id;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 #[allow(unused)]
 pub struct UniformBuffer {
     id: UniformBufferId,

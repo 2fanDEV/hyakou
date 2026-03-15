@@ -3,6 +3,7 @@ pub mod camera;
 pub mod glTF;
 pub mod light;
 pub mod mesh_node;
+pub mod model_matrix;
 pub mod render_mesh;
 pub mod render_pipeline;
 pub mod texture;

@@ -22,12 +22,33 @@ impl GLTFLoader {
         Self { BASE_PATH: p }
     }
 
-    pub fn load_from_path(&self, path: &Path) -> Result<Vec<MeshNode>> {
-        let slice = std::fs::read(path).unwrap();
-        self.load_from_slice(slice)
+    #[cfg(target_arch = "wasm32")]
+    async fn read_bytes(&self, path: &Path) -> Result<Vec<u8>> {
+        use gloo_net::http::Request;
+        let slice = Request::get(path.to_str().unwrap()).build()?;
+        let response = slice.send().await?;
+        let slice = match response.binary().await {
+            Ok(s) => s,
+            Err(e) => return Err(anyhow!(e)),
+        };
+        Ok(slice)
     }
 
-    pub fn load_from_slice(&self, slice: Vec<u8>) -> Result<Vec<MeshNode>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn read_bytes(&self, path: &Path) -> Result<Vec<u8>> {
+        let slice = std::fs::read(path).unwrap();
+        Ok(slice)
+    }
+
+    pub async fn load_from_path(&self, path: &Path) -> Result<Vec<MeshNode>> {
+        let slice = match self.read_bytes(path).await {
+            Ok(slice) => slice,
+            Err(e) => return Err(e),
+        };
+        self.load_from_slice(slice).await
+    }
+
+    pub async fn load_from_slice(&self, slice: Vec<u8>) -> Result<Vec<MeshNode>> {
         let mut mesh_nodes: Vec<MeshNode> = vec![];
         let gltf = match gltf::Gltf::from_slice(&slice) {
             Ok(gltf) => gltf,
@@ -37,18 +58,22 @@ impl GLTFLoader {
                 ));
             }
         };
-        let buffer_data: Vec<Vec<u8>> = gltf
-            .buffers()
-            .map(|buffer| match buffer.source() {
-                gltf::buffer::Source::Bin => gltf.blob.clone().unwrap(),
-                gltf::buffer::Source::Uri(uri) => {
-                    let base_path = Path::new(&self.BASE_PATH);
-                    let uri = base_path.join("assets/gltf/".to_string().concat(uri));
-                    println!("{:?}", uri);
-                    std::fs::read(uri).unwrap()
-                }
-            })
-            .collect();
+        let buffer_async_handles = gltf.buffers().map(async |buffer| match buffer.source() {
+            gltf::buffer::Source::Bin => gltf
+                .blob
+                .clone()
+                .ok_or_else(|| anyhow!("Glb blob is missing")),
+            gltf::buffer::Source::Uri(uri) => {
+                let base_path = Path::new(&self.BASE_PATH);
+                let uri = base_path.join("assets/gltf/".to_string().concat(uri));
+                println!("{:?}", uri);
+                self.read_bytes(&uri).await
+            }
+        });
+
+        let buffer_data = futures::future::try_join_all(buffer_async_handles)
+            .await
+            .expect("Not able to join all async handles for gltf file");
 
         for node in gltf.nodes() {
             let (translation, rotation, scale) = node.transform().decomposed();
