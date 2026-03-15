@@ -1,8 +1,8 @@
 use crate::renderer::animator::Animation;
 use anyhow::Ok;
-use types::DeltaTime;
-use types::ids::MeshId;
-use types::transform::Transform;
+use core::DeltaTime;
+use core::ids::MeshId;
+use core::transform::Transform;
 
 pub struct StationaryTrajectory {
     pub id: MeshId,
@@ -23,7 +23,7 @@ impl Animation for StationaryTrajectory {
 
 #[cfg(test)]
 mod tests {
-    use types::transform::Transform;
+    use core::transform::Transform;
     use uuid::Uuid;
 
     use super::*;

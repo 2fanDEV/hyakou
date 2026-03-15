@@ -9,7 +9,7 @@ use wgpu::{
 };
 
 use crate::renderer::geometry::BindGroupProvider;
-use types::transform::Transform;
+use core::transform::Transform;
 
 #[derive(Debug, Clone)]
 pub struct LightSource {

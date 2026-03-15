@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use wgpu::BindGroup;
 
-use types::ids::UniformResourceId;
+use core::ids::UniformResourceId;
 
 #[derive(Default)]
 pub struct ResourceHandler {

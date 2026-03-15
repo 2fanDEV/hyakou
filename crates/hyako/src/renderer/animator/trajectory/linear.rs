@@ -1,7 +1,7 @@
+use core::{DeltaTime, ids::MeshId, transform::Transform};
 use log::error;
 use parking_lot::RwLock;
 use std::sync::Arc;
-use types::{DeltaTime, ids::MeshId, transform::Transform};
 
 use anyhow::{Result, anyhow};
 use glam::Vec3;
@@ -152,7 +152,7 @@ impl Animation for LinearTrajectory {
 
 #[cfg(test)]
 mod tests {
-    use types::ids::MeshId;
+    use core::ids::MeshId;
 
     use super::*;
 

@@ -13,7 +13,7 @@ use crate::renderer::{
     util::{self, Concatable},
 };
 
-use types::{ModelMatrixBindingMode, ids::MeshId};
+use core::{ModelMatrixBindingMode, ids::MeshId};
 
 #[derive(Debug)]
 pub struct AssetHandler {

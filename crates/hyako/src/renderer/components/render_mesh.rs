@@ -13,7 +13,7 @@ use crate::renderer::{
     util::Concatable,
 };
 
-use types::{
+use core::{
     ModelMatrixBindingMode,
     ids::{MeshId, UniformBufferId},
     transform::Transform,

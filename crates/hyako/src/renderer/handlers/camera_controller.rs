@@ -7,7 +7,7 @@ use crate::renderer::{
     components::camera::Camera,
 };
 
-use types::{DeltaTime, mouse_delta::MouseDelta};
+use core::{DeltaTime, mouse_delta::MouseDelta};
 
 #[derive(Debug)]
 pub enum CameraMode {
@@ -246,11 +246,11 @@ impl CameraController {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use glam::Vec3;
-    use types::{
+    use core::{
         camera::{Pitch, Yaw},
         mouse_delta::{MouseAction, MouseButton, MousePosition, MouseState, MovementDelta},
     };
+    use glam::Vec3;
 
     fn create_test_camera() -> Camera {
         use std::f32::consts::PI;
