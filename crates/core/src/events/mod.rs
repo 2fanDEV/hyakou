@@ -1,7 +1,6 @@
-use crate::types::shared::Coordinates;
+use crate::types::shared::{Coordinates, FileInformation};
 
-#[derive(Debug)]
 pub enum Event {
     SetCoords(Coordinates),
-    UploadFile(String),
+    UploadFile(FileInformation),
 }

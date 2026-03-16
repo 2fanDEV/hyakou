@@ -1,5 +1,8 @@
 use hyako::state::AppState;
-use hyakou_core::{events::Event, types::shared::Coordinates};
+use hyakou_core::{
+    events::Event,
+    types::shared::{Coordinates, FileInformation},
+};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use web_sys::HtmlCanvasElement;
 use winit::{
@@ -35,6 +38,11 @@ impl Hyako {
     #[wasm_bindgen]
     pub fn set_coords(&self, coordinates: Coordinates) -> Result<(), JsValue> {
         self.send_event(Event::SetCoords(coordinates))
+    }
+
+    #[wasm_bindgen]
+    pub fn upload_file(&self, file: FileInformation) -> Result<(), JsValue> {
+        self.send_event(Event::UploadFile(file))
     }
 
     fn send_event(&self, event: Event) -> Result<(), JsValue> {
