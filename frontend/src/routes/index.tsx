@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
-import init from "hyako_wasm_bindings";
-import { start } from "hyako_wasm_bindings";
-import wasm_url from "hyako_wasm_bindings/hyako_wasm_bindings_bg.wasm?url";
+import init, { start } from "@wasm/hyako_wasm_bindings.js";
+import wasm_url from "@wasm/hyako_wasm_bindings_bg.wasm?url";
 
 export const Route = createFileRoute("/")({ component: App });
 
@@ -12,7 +11,7 @@ function App() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      let x = await init({ wasm_url });
+      await init({ module_or_path: wasm_url });
       try {
         if (canvasRef.current) {
           start(canvasRef.current);

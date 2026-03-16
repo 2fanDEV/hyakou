@@ -1,4 +1,5 @@
 /target
+/crates/*/target/
 .DS_Store
 /assets/.DS_Store
 CLAUDE.md

@@ -6,16 +6,20 @@
     "#/*": "./src/*"
   },
   "scripts": {
+    "wasm:build:dev": "wasm-pack build ../crates/wasm_bindings --target web --out-dir pkg",
+    "wasm:build:prod": "wasm-pack build ../crates/wasm_bindings --target web --release --out-dir pkg",
+    "predev": "npm run wasm:build:dev",
     "dev": "vite dev --port 3000",
+    "prebuild": "npm run wasm:build:prod",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "pretest": "npm run wasm:build:dev",
+    "test": "vitest run --passWithNoTests",
     "format": "biome format",
     "lint": "biome lint",
     "check": "biome check"
   },
   "dependencies": {
-    "hyako_wasm_bindings": "file:../crates/wasm_bindings/pkg",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-devtools": "latest",
     "@tanstack/react-query": "latest",

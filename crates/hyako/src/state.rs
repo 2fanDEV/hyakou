@@ -139,8 +139,7 @@ impl ApplicationHandler<Event> for AppState {
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: Event) {
         log::debug!("");
         match event {
-            Event::GetCoords => ,
-            Event::SetCoords(coordinates) => todo!(),
+            Event::SetCoords(_coordinates) => todo!(),
             Event::UploadFile(_) => todo!(),
         }
     }

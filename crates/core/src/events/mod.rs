@@ -1,5 +1,3 @@
-use wasm_bindgen::prelude::wasm_bindgen;
-
 use crate::types::shared::Coordinates;
 
 #[derive(Debug)]
