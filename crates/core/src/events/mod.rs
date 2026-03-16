@@ -1,3 +1,9 @@
+use wasm_bindgen::prelude::wasm_bindgen;
+
+use crate::types::shared::Coordinates;
+
+#[derive(Debug)]
 pub enum Event {
-    GetCoords,
+    SetCoords(Coordinates),
+    UploadFile(String),
 }

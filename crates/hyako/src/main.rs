@@ -1,4 +1,5 @@
 use hyako::state::AppState;
+use hyakou_core::events::Event;
 use log::debug;
 use winit::event_loop::EventLoop;
 
@@ -19,7 +20,7 @@ fn main() {
 // }
 
 fn start_app_os(app_state: &mut AppState) {
-    let event_loop = EventLoop::builder().build().unwrap();
+    let event_loop = EventLoop::<Event>::with_user_event().build().unwrap();
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Debug)
         .filter_module("wgpu_hal::metal::device", log::LevelFilter::Error)

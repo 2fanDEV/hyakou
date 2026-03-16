@@ -9,6 +9,7 @@ use crate::types::transform::Transform;
 pub mod camera;
 pub mod ids;
 pub mod mouse_delta;
+pub mod shared;
 pub mod transform;
 pub mod uniform;
 

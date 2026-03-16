@@ -1191,7 +1191,7 @@ dependencies = [
  "glam",
  "gloo-net",
  "gltf",
- "hyakou-core",
+ "hyakou_core",
  "image",
  "log",
  "mockall",
@@ -1215,6 +1215,7 @@ dependencies = [
  "console_log",
  "env_logger",
  "hyako",
+ "hyakou_core",
  "log",
  "wasm-bindgen",
  "web-sys",
@@ -1223,14 +1224,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyakou-core"
+name = "hyakou_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "bytemuck",
  "glam",
  "parking_lot",
+ "wasm-bindgen",
  "wgpu",
+ "winit",
 ]
 
 [[package]]
