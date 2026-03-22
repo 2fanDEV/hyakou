@@ -1,78 +1,64 @@
-use std::{io::Result, path::Path, sync::Arc};
+use std::{io::Result, sync::Arc};
 
-use futures::TryFutureExt;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen_futures::spawn_local;
-#[cfg(target_arch = "wasm32")]
 use web_time::Instant;
 
-use log::debug;
 #[cfg(target_arch = "wasm32")]
 use wgpu::web_sys::HtmlCanvasElement;
+#[cfg(not(target_arch = "wasm32"))]
+use winit::dpi::PhysicalSize;
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::WindowAttributesExtWebSys;
 use winit::{
     application::ApplicationHandler,
     event::{DeviceEvent, ElementState, WindowEvent},
-    window::{CursorGrabMode, Window, WindowAttributes},
-};
-
-use crate::renderer::{
-    self, Renderer,
-    handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
+    keyboard::PhysicalKey,
+    window::{Window, WindowAttributes},
 };
 
 use hyakou_core::{
-    Shared, SharedAccess,
+    components::LightType,
     events::Event,
-    shared,
-    types::{
-        DeltaTime64,
-        mouse_delta::{
-            MouseAction, MouseButton, MouseDelta, MousePosition, MouseState, MovementDelta,
-        },
-    },
+    types::{DeltaTime64, mouse_delta::MouseButton},
 };
+
+use crate::flow::{FlowController, FlowHandle, RendererCommand};
 
 pub struct AppState {
     window: Option<Arc<Window>>,
     #[cfg(target_arch = "wasm32")]
     html_canvas_element: Option<HtmlCanvasElement>,
-    renderer: Shared<Option<Renderer>>,
-    keyboard_handler: KeyboardHandler,
-    mouse_handler: MouseHandler,
+    flow_controller: FlowController,
+    flow_handle: FlowHandle,
     last_frame_time: Instant,
-    mouse_delta: MouseDelta,
 }
 
 impl AppState {
     const MIN_TIME_IN_SECONDS: f64 = 0.05;
 
     pub fn new() -> Result<Self> {
+        let (flow_controller, flow_handle) = FlowController::new_pair();
         Ok(Self {
             window: None,
             #[cfg(target_arch = "wasm32")]
             html_canvas_element: None,
-            renderer: shared(None),
-            keyboard_handler: KeyboardHandler::new(),
-            mouse_handler: MouseHandler::new(),
+            flow_controller,
+            flow_handle,
             last_frame_time: Instant::now(),
-            mouse_delta: MouseDelta::default(),
         })
     }
 
     #[cfg(target_arch = "wasm32")]
     pub fn from_canvas_ref(canvas_ref: HtmlCanvasElement) -> Result<Self> {
+        let (flow_controller, flow_handle) = FlowController::new_pair();
         Ok(Self {
             window: None,
             html_canvas_element: Some(canvas_ref),
-            renderer: shared(None),
-            keyboard_handler: KeyboardHandler::new(),
-            mouse_handler: MouseHandler::new(),
+            flow_controller,
+            flow_handle,
             last_frame_time: Instant::now(),
-            mouse_delta: MouseDelta::default(),
         })
     }
 
@@ -85,8 +71,12 @@ impl AppState {
 
     fn get_last_frame_time(&mut self, now: Instant) -> DeltaTime64 {
         let delta = now.duration_since(self.last_frame_time);
-        let delta_time = delta.as_secs_f64().min(Self::MIN_TIME_IN_SECONDS);
-        delta_time
+        delta.as_secs_f64().min(Self::MIN_TIME_IN_SECONDS)
+    }
+
+    fn send_and_drain(&mut self, command: RendererCommand) {
+        self.flow_handle.send(command);
+        self.flow_controller.drain_commands();
     }
 }
 
@@ -100,49 +90,28 @@ impl ApplicationHandler<Event> for AppState {
         let window_attributes =
             WindowAttributes::default().with_canvas(self.html_canvas_element.clone());
 
-        let window = match event_loop.create_window(window_attributes) {
-            Ok(window) => Arc::new(window),
-            Err(e) => {
-                debug!("{:?}", e);
-                panic!();
-            }
-        };
+        let window = event_loop
+            .create_window(window_attributes)
+            .map(Arc::new)
+            .unwrap();
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let renderer = pollster::block_on(Renderer::new(window.clone())).unwrap();
-            *self.renderer.write() = Some(renderer);
-        }
+        self.send_and_drain(RendererCommand::WindowCreated(window.clone()));
 
-        #[cfg(target_arch = "wasm32")]
-        {
-            let renderer_slot = self.renderer.clone();
-            let window_for_renderer = window.clone();
-            // TODO: this seems really hacky
-            spawn_local(async move {
-                match Renderer::new(window_for_renderer.clone()).await {
-                    Ok(renderer) => {
-                        renderer_slot.try_write_shared(|r| *r = Some(renderer));
-                        debug!("Renderer initialized for wasm");
-                        window_for_renderer.request_redraw();
-                    }
-                    Err(e) => {
-                        use log::error;
-                        error!("Failed to initialize renderer for wasm: {e:?}");
-                    }
-                }
-            });
-        }
-        self.window = Some(window);
+        self.window = Some(window.clone());
+        window.request_redraw();
     }
 
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: Event) {
-        log::debug!("");
         match event {
-            Event::SetCoords(_coordinates) => {}
-            Event::AssetUpload(_asset_information) => {
-                let renderer_slot: Shared<Option<Renderer>> = self.renderer.clone();
-                renderer_slot.try_write_shared(|r| );
+            Event::SetCoords(coordinates) => {
+                self.send_and_drain(RendererCommand::SetCoords(coordinates));
+            }
+            Event::AssetUpload(asset_information) => {
+                self.send_and_drain(RendererCommand::AssetUploadRequested {
+                    id: asset_information.name(),
+                    asset_type: LightType::LIGHT,
+                    bytes: asset_information.bytes(),
+                });
             }
         }
     }
@@ -151,66 +120,33 @@ impl ApplicationHandler<Event> for AppState {
         &mut self,
         _event_loop: &winit::event_loop::ActiveEventLoop,
         _window_id: winit::window::WindowId,
-        event: winit::event::WindowEvent,
+        event: WindowEvent,
     ) {
         match event {
             WindowEvent::RedrawRequested => {
                 let delta = self.get_and_update_last_frame_time();
-                let Some(()) = self.renderer.try_write_shared(|renderer_slot| {
-                    let Some(renderer) = renderer_slot.as_mut() else {
-                        return;
-                    };
-
-                    renderer.update(delta);
-                    renderer.render().unwrap();
-                }) else {
+                self.send_and_drain(RendererCommand::Redraw { dt: delta });
+            }
+            WindowEvent::CursorEntered { .. } => {
+                self.send_and_drain(RendererCommand::CursorInWindow { is_inside: true });
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                self.send_and_drain(RendererCommand::CursorMoved {
+                    x: position.x,
+                    y: position.y,
+                });
+            }
+            WindowEvent::CursorLeft { .. } => {
+                self.send_and_drain(RendererCommand::CursorInWindow { is_inside: false });
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                let PhysicalKey::Code(key) = event.physical_key else {
                     return;
                 };
-            }
-            #[allow(unused)]
-            WindowEvent::CursorEntered { device_id } => {
-                self.mouse_delta.set_is_mouse_on_window(true);
-            }
-            #[allow(unused)]
-            /// We are tracking this for future implementation where this might be needed.
-            WindowEvent::CursorMoved {
-                device_id,
-                position,
-            } => self.mouse_delta.position = MousePosition::new(position.x, position.y),
-            #[allow(unused)]
-            WindowEvent::CursorLeft { device_id } => {
-                self.mouse_delta.set_is_mouse_on_window(false);
-            }
-            WindowEvent::KeyboardInput {
-                device_id: _device_id,
-                event,
-                is_synthetic: _is_synthetic,
-            } => {
-                let Some(()) = self.renderer.try_write_shared(|renderer_slot| {
-                    let Some(renderer) = renderer_slot.as_mut() else {
-                        return;
-                    };
-
-                    match event.physical_key {
-                        winit::keyboard::PhysicalKey::Code(key_code) => {
-                            let is_pressed = event.state == ElementState::Pressed;
-                            let events = self.keyboard_handler.handle_key(key_code, is_pressed);
-                            for event in events {
-                                match event {
-                                    InputEvent::ActionStarted(action) => {
-                                        renderer.camera_controller.handle_action(&action, true);
-                                    }
-                                    InputEvent::ActionEnded(action) => {
-                                        renderer.camera_controller.handle_action(&action, false);
-                                    }
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }) else {
-                    return;
-                };
+                self.send_and_drain(RendererCommand::KeyboardInput {
+                    key,
+                    pressed: event.state == ElementState::Pressed,
+                });
             }
             _ => {}
         }
@@ -220,82 +156,37 @@ impl ApplicationHandler<Event> for AppState {
         &mut self,
         _event_loop: &winit::event_loop::ActiveEventLoop,
         _device_id: winit::event::DeviceId,
-        event: winit::event::DeviceEvent,
+        event: DeviceEvent,
     ) {
-        let delta_time = self.get_last_frame_time(Instant::now()) as f32;
-        let Some(()) = self.renderer.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-
-            match event {
-                DeviceEvent::MouseMotion { delta } => {
-                    self.mouse_delta.delta_position = MovementDelta::new(delta.0, delta.1);
-                    if self
-                        .mouse_delta
-                        .is_mouse_button_clicked_and_on_window(MouseButton::Left)
-                    {
-                    }
-                    renderer.camera_controller.mouse_movement(
-                        &mut renderer.camera,
-                        &self.mouse_delta,
-                        delta_time,
-                    )
-                }
-                DeviceEvent::Button { button, state } => {
-                    if let Some(window) = self.window.clone() {
-                        let mouse_button = match button {
-                            0 => MouseButton::Left,
-                            1 => MouseButton::Right,
-                            2 => MouseButton::Middle,
-                            _ => MouseButton::Left,
-                        };
-                        let is_pressed = state == ElementState::Pressed;
-
-                        self.mouse_delta.state = MouseState::new(
-                            mouse_button,
-                            match state {
-                                ElementState::Pressed => {
-                                    if let Err(e) = window.set_cursor_grab(CursorGrabMode::Locked) {
-                                        log::error!("External Error: {:?}", e)
-                                    }
-                                    window.set_cursor_visible(false);
-                                    MouseAction::Clicked
-                                }
-                                ElementState::Released => {
-                                    if let Err(e) = window.set_cursor_grab(CursorGrabMode::None) {
-                                        log::error!("External Error: {:?}", e)
-                                    }
-                                    window.set_cursor_visible(true);
-                                    MouseAction::Released
-                                }
-                            },
-                        );
-
-                        let events = self.mouse_handler.handle_button(mouse_button, is_pressed);
-                        for event in events {
-                            match event {
-                                InputEvent::ActionStarted(action) => {
-                                    renderer.camera_controller.handle_action(&action, true);
-                                }
-                                InputEvent::ActionEnded(action) => {
-                                    renderer.camera_controller.handle_action(&action, false);
-                                }
-                            }
-                        }
-                    }
-                }
-                _ => {}
+        match event {
+            DeviceEvent::MouseMotion { delta } => {
+                let dt = self.get_last_frame_time(Instant::now()) as f32;
+                self.send_and_drain(RendererCommand::MouseMotion {
+                    dx: delta.0,
+                    dy: delta.1,
+                    dt,
+                });
             }
-        }) else {
-            return;
-        };
+            DeviceEvent::Button { button, state } => {
+                let mouse_button = match button {
+                    0 => MouseButton::Left,
+                    1 => MouseButton::Right,
+                    2 => MouseButton::Middle,
+                    _ => return,
+                };
+
+                self.send_and_drain(RendererCommand::MouseButton {
+                    button: mouse_button,
+                    pressed: state == ElementState::Pressed,
+                });
+            }
+            _ => {}
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-
     use std::{thread::sleep, time::Duration};
 
     use super::*;
@@ -319,7 +210,7 @@ mod tests {
     fn test_accurate_calculation() {
         let mut state = setup();
         state.get_and_update_last_frame_time();
-        sleep(Duration::from_millis(16)); // 1000ms / 60 = 16ms. We have around 16ms for each frame to get 60 fps.
+        sleep(Duration::from_millis(16));
         let second_delta = state.get_and_update_last_frame_time();
         assert!(second_delta >= 0.015 && second_delta <= AppState::MIN_TIME_IN_SECONDS);
     }

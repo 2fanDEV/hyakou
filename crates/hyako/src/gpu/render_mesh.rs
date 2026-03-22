@@ -4,19 +4,20 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::renderer::{
-    components::{LightType, mesh_node::MeshNode, model_matrix::ModelMatrixUniform},
-    geometry::BindGroupProvider,
-    util::Concatable,
+use crate::{
+    gpu::buffers::{model_matrix::ModelMatrixUniform, uniform::UniformBuffer},
+    renderer::util::Concatable,
 };
 
 use hyakou_core::{
-    Shared, SharedAccess, shared,
+    Shared, SharedAccess,
+    components::{LightType, mesh_node::MeshNode},
+    shared,
+    traits::BindGroupProvider,
     types::{
         ModelMatrixBindingMode,
         ids::{MeshId, UniformBufferId},
         transform::Transform,
-        uniform::UniformBuffer,
     },
 };
 

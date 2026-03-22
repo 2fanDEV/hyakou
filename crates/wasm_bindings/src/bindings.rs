@@ -6,14 +6,14 @@ use hyakou_core::{
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use web_sys::HtmlCanvasElement;
 use winit::{
-    event_loop::{self, EventLoop, EventLoopProxy},
+    event_loop::{EventLoop, EventLoopProxy},
     platform::web::EventLoopExtWebSys,
 };
 
 #[wasm_bindgen]
 pub struct Hyako {
-    app_state: AppState,
-    event_loop: EventLoop<Event>,
+    app_state: Option<AppState>,
+    event_loop: Option<EventLoop<Event>>,
     event_loop_proxy: EventLoopProxy<Event>,
 }
 
@@ -33,15 +33,25 @@ impl Hyako {
         };
         let event_loop_proxy = event_loop.create_proxy();
         Ok(Hyako {
-            app_state,
-            event_loop,
+            app_state: Some(app_state),
+            event_loop: Some(event_loop),
             event_loop_proxy,
         })
     }
 
     #[wasm_bindgen]
-    pub fn start_rendering(self) {
-        self.event_loop.spawn_app(self.app_state)
+    pub fn start_rendering(&mut self) -> Result<(), JsValue> {
+        let event_loop = self
+            .event_loop
+            .take()
+            .ok_or_else(|| JsValue::from_str("Renderer event loop already running or missing"))?;
+        let app_state = self
+            .app_state
+            .take()
+            .ok_or_else(|| JsValue::from_str("Renderer app state already consumed or missing"))?;
+
+        event_loop.spawn_app(app_state);
+        Ok(())
     }
 
     #[wasm_bindgen]
@@ -51,13 +61,13 @@ impl Hyako {
 
     #[wasm_bindgen]
     pub fn upload_file(&self, file: AssetInformation) -> Result<(), JsValue> {
-        self.send_event(Event::UploadFile(file))
+        self.send_event(Event::AssetUpload(file))
     }
 
     fn send_event(&self, event: Event) -> Result<(), JsValue> {
         match self.event_loop_proxy.send_event(event) {
             Ok(_) => Ok(()),
-            Err(_msg) => Err(JsValue::from_str("{msg}")),
+            Err(msg) => Err(JsValue::from_str(&msg.to_string())),
         }
     }
 }

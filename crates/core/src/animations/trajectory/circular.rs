@@ -1,12 +1,12 @@
-use hyakou_core::{
-    Shared, SharedAccess,
-    types::{DeltaTime, ids::MeshId, transform::Transform},
-};
 use std::f32::consts::PI;
 
 use anyhow::{Result, anyhow};
 
-use crate::renderer::{animator::Animation, components::render_mesh::RenderMesh};
+use crate::{
+    Shared, SharedAccess,
+    animations::Animation,
+    types::{DeltaTime, ids::MeshId, transform::Transform},
+};
 
 #[derive(Default, Clone)]
 pub struct CircularTrajectory {
@@ -36,10 +36,6 @@ impl CircularTrajectory {
             speed,
             angle: 0.0,
         })
-    }
-
-    pub fn new(render_mesh: RenderMesh, radius: f32, speed: f32) -> Result<Self> {
-        Self::new_deconstructed_mesh(render_mesh.id, render_mesh.transform, radius, speed)
     }
 }
 
@@ -71,9 +67,10 @@ impl Animation for CircularTrajectory {
 #[cfg(test)]
 mod tests {
 
+    use crate::{SharedAccess, shared};
+
     use super::*;
     use glam::Vec3;
-    use hyakou_core::shared;
 
     #[test]
     fn test_circular_trajectory_rotation_without_target() {

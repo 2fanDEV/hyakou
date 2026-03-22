@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use hyakou_core::types::ModelMatrixBindingMode;
+use hyakou_core::{
+    components::light::LightSource, traits::BindGroupProvider, types::ModelMatrixBindingMode,
+};
 use log::debug;
 use wgpu::{
     Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features,
@@ -10,14 +12,12 @@ use wgpu::{
     TextureUsages, include_wgsl,
 };
 
-use crate::renderer::{
-    components::{
-        camera::CameraUniform, light::LightSource, model_matrix::ModelMatrixUniform,
+use crate::{
+    gpu::{
+        buffers::camera_buffer::CameraUniform, buffers::model_matrix::ModelMatrixUniform,
         render_pipeline::create_render_pipeline, texture::Texture,
     },
-    geometry::BindGroupProvider,
-    util::Size,
-    wrappers::SurfaceProvider,
+    renderer::{util::Size, wrappers::SurfaceProvider},
 };
 
 pub struct RenderContext {

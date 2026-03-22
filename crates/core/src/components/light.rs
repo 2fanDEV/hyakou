@@ -5,8 +5,7 @@ use wgpu::{
     BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,
 };
 
-use crate::renderer::geometry::BindGroupProvider;
-use hyakou_core::{Shared, SharedAccess, types::transform::Transform};
+use crate::{Shared, SharedAccess, traits::BindGroupProvider, types::transform::Transform};
 
 #[derive(Debug, Clone)]
 pub struct LightSource {

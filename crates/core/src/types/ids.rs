@@ -1,8 +1,8 @@
 use std::ops::Deref;
 
-use crate::types::Id;
+use crate::types::BaseId;
 
-pub trait UniformResourceId: Id {
+pub trait UniformResourceId: BaseId {
     fn get(&self) -> &str;
 }
 
@@ -17,7 +17,7 @@ impl UniformBufferId {
     }
 }
 
-impl Id for UniformBufferId {
+impl BaseId for UniformBufferId {
     fn get_id(&self) -> &str {
         &self.id
     }
@@ -40,7 +40,7 @@ impl Deref for MeshId {
     }
 }
 
-impl Id for MeshId {
+impl BaseId for MeshId {
     fn get_id(&self) -> &str {
         &self.0
     }

@@ -6,16 +6,18 @@ use std::{
 };
 
 use anyhow::Result;
-use wasm_bindgen_futures::spawn_local;
 use wgpu::BindGroupLayout;
 use wgpu::Device;
 
-use crate::renderer::{
-    components::{LightType, glTF::GLTFLoader, mesh_node::MeshNode, render_mesh::RenderMesh},
-    util::{self, Concatable},
+use crate::{
+    gpu::{glTF::GLTFLoader, render_mesh::RenderMesh},
+    renderer::util::{self, Concatable},
 };
 
-use hyakou_core::types::{ModelMatrixBindingMode, ids::MeshId};
+use hyakou_core::{
+    components::{LightType, mesh_node::MeshNode},
+    types::{ModelMatrixBindingMode, ids::MeshId},
+};
 
 #[derive(Debug)]
 pub struct AssetHandler {
@@ -43,20 +45,29 @@ impl AssetHandler {
         }
     }
 
-    pub asynfn upload_from_bytes(
+    pub async fn upload_from_bytes(
         &mut self,
         id: String,
         light_type: LightType,
         bytes: Vec<u8>,
     ) -> Result<()> {
-        let mesh_nodes = self.gltf_loader.load_from_slice(bytes).await.unwrap();
+        let mesh_nodes = self.gltf_loader.load_from_bytes(bytes).await?;
         self.upload_mesh_node_as_asset(id, light_type, mesh_nodes);
         Ok(())
     }
 
+    pub fn upload_mesh_nodes(
+        &mut self,
+        id: String,
+        light_type: LightType,
+        mesh_nodes: Vec<MeshNode>,
+    ) -> Option<Rc<RenderMesh>> {
+        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes)
+    }
+
     pub async fn add_from_path(
         &mut self,
-        mut id: String,
+        id: String,
         light_type: LightType,
         path: &Path,
     ) -> Option<Rc<RenderMesh>> {
@@ -65,8 +76,7 @@ impl AssetHandler {
             Ok(nodes) => nodes,
             Err(_) => panic!("Couldn't find model at path: {:?}", path),
         };
-        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes);
-        render_mesh
+        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes)
     }
 
     fn upload_mesh_node_as_asset(

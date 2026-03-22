@@ -5,13 +5,13 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use glam::{Vec2, Vec3, Vec4};
-use hyakou_core::types::transform::Transform;
-
-use crate::renderer::{
+use hyakou_core::{
     components::mesh_node::MeshNode,
     geometry::{mesh::Mesh, vertices::Vertex},
-    util::Concatable,
+    types::transform::Transform,
 };
+
+use crate::renderer::util::Concatable;
 
 #[derive(Debug, Clone)]
 pub struct GLTFLoader {

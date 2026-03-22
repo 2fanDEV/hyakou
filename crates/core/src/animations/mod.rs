@@ -1,5 +1,5 @@
+use crate::types::{DeltaTime, DeltaTime64, ids::MeshId, transform::Transform};
 use anyhow::{Result, anyhow};
-use hyakou_core::types::{DeltaTime, DeltaTime64, ids::MeshId, transform::Transform};
 
 pub mod trajectory;
 

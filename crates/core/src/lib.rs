@@ -6,7 +6,11 @@ use std::{cell::RefCell, rc::Rc};
 #[cfg(not(target_arch = "wasm32"))]
 use parking_lot::RwLock;
 
+pub mod animations;
+pub mod components;
 pub mod events;
+pub mod geometry;
+pub mod traits;
 pub mod types;
 
 #[cfg(target_arch = "wasm32")]

@@ -6,7 +6,7 @@ use wgpu::{
     TextureView, TextureViewDimension, VertexBufferLayout,
 };
 
-use crate::renderer::geometry::{BindGroupProvider, BufferLayoutProvider};
+use crate::traits::{BindGroupProvider, BufferLayoutProvider};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable, Default)]

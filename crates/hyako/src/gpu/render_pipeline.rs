@@ -1,10 +1,9 @@
+use hyakou_core::{geometry::vertices::Vertex, traits::BufferLayoutProvider};
 use wgpu::{
     BlendState, ColorTargetState, ColorWrites, Device, FragmentState, MultisampleState,
     PipelineCompilationOptions, PipelineLayout, PrimitiveState, RenderPipeline,
     RenderPipelineDescriptor, ShaderModule, TextureFormat, VertexState,
 };
-
-use crate::renderer::geometry::{BufferLayoutProvider, vertices::Vertex};
 
 pub fn create_render_pipeline(
     device: &Device,

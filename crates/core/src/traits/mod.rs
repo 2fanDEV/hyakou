@@ -1,8 +1,5 @@
 use wgpu::{BindGroup, BindGroupLayout, Buffer, Device, VertexBufferLayout};
 
-pub mod mesh;
-pub mod render_object;
-pub mod vertices;
 pub trait BufferLayoutProvider {
     fn vertex_buffer_layout() -> VertexBufferLayout<'static>;
 }

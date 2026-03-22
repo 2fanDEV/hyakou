@@ -1,18 +1,14 @@
-use hyakou_core::{
-    Shared, SharedAccess,
-    types::{DeltaTime, ids::MeshId, transform::Transform},
-};
-use log::error;
-
 use anyhow::{Result, anyhow};
 use glam::Vec3;
+use log::error;
 
-use crate::renderer::{
-    animator::{
+use crate::{
+    Shared, SharedAccess,
+    animations::{
         Animation,
         trajectory::{Direction, calculate_direction_vector},
     },
-    components::render_mesh::RenderMesh,
+    types::{DeltaTime, ids::MeshId, transform::Transform},
 };
 
 /// LinearTrajectory is an animation that allows the
@@ -72,29 +68,6 @@ impl LinearTrajectory {
             reversing,
             direction: Direction::FORWARDS,
         })
-    }
-
-    pub fn new(
-        render_mesh: RenderMesh,
-        start_position: Vec3,
-        yaw_radians: f32,
-        pitch_radians: f32,
-        distance: f32,
-        speed: f32,
-        looping: bool,
-        reversing: bool,
-    ) -> Result<Self> {
-        Self::new_deconstructed_mesh(
-            render_mesh.id,
-            render_mesh.transform,
-            start_position,
-            yaw_radians,
-            pitch_radians,
-            distance,
-            speed,
-            looping,
-            reversing,
-        )
     }
 }
 
@@ -156,7 +129,8 @@ impl Animation for LinearTrajectory {
 
 #[cfg(test)]
 mod tests {
-    use hyakou_core::{shared, types::ids::MeshId};
+
+    use crate::{SharedAccess, shared};
 
     use super::*;
 

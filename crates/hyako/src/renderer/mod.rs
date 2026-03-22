@@ -1,33 +1,36 @@
 use std::{collections::HashMap, f32::consts::PI, path::Path, sync::Arc};
 
-use crate::renderer::{
-    animator::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
-    components::{
-        LightType,
-        camera::{Camera, CameraUniform},
-        light::LightSource,
-        model_matrix::ModelMatrixUniform,
+use crate::{
+    gpu::{
+        buffers::{
+            camera_buffer::CameraUniform, model_matrix::ModelMatrixUniform, uniform::UniformBuffer,
+        },
         render_mesh::RenderMesh,
     },
-    geometry::BindGroupProvider,
-    handlers::{
-        asset_handler::AssetHandler,
-        camera_controller::{CameraController, CameraMode},
+    renderer::{
+        handlers::{asset_handler::AssetHandler, camera_controller::CameraController},
+        renderer_context::RenderContext,
+        wrappers::WinitSurfaceProvider,
     },
-    renderer_context::RenderContext,
-    wrappers::WinitSurfaceProvider,
 };
 use anyhow::Result;
 use bytemuck::bytes_of;
 use glam::Vec3;
 use hyakou_core::{
-    SharedAccess, shared,
+    SharedAccess,
+    animations::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
+    components::{
+        LightType,
+        camera::{camera::Camera, data_structures::CameraMode},
+        light::LightSource,
+    },
+    shared,
+    traits::BindGroupProvider,
     types::{
         DeltaTime64, ModelMatrixBindingMode, TransformBuffer,
         camera::{Pitch, Yaw},
         ids::{MeshId, UniformBufferId},
         transform::Transform,
-        uniform::UniformBuffer,
     },
 };
 use log::{error, warn};
@@ -39,9 +42,6 @@ use wgpu::{
 use winit::window::Window;
 
 pub mod actions;
-pub mod animator;
-pub mod components;
-pub mod geometry;
 pub mod handlers;
 pub mod renderer_context;
 pub mod util;
@@ -146,8 +146,9 @@ impl Renderer {
             &ctx.camera_bind_group_layout,
         );
 
-        let test_trajectory = LinearTrajectory::new(
-            cube_light_mesh.as_ref().unwrap().as_ref().clone(),
+        let test_trajectory = LinearTrajectory::new_deconstructed_mesh(
+            cube_light_mesh.as_ref().unwrap().as_ref().clone().id,
+            cube_light_mesh.as_ref().unwrap().as_ref().clone().transform,
             Vec3::new(0.0, 1.0, 0.0),
             f32::to_radians(0.0),
             f32::to_radians(0.0),

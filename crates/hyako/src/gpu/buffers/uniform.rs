@@ -1,20 +1,17 @@
 use std::ops::Deref;
 
-use wgpu::{
-    Buffer, BufferUsages, Device,
-    util::{BufferInitDescriptor, DeviceExt},
-};
-
-use crate::{
+use hyakou_core::{
     Shared,
     types::{
-        BaseBuffer, TransformBuffer,
+        BaseBuffer, BaseId, TransformBuffer,
         ids::{UniformBufferId, UniformResourceId},
         transform::Transform,
     },
 };
-
-use super::Id;
+use wgpu::{
+    Buffer, BufferUsages, Device,
+    util::{BufferInitDescriptor, DeviceExt},
+};
 
 #[derive(Debug, Clone)]
 #[allow(unused)]
@@ -59,7 +56,7 @@ impl BaseBuffer for UniformBuffer {
         self.id.get()
     }
 
-    fn get_id_cloned(&self) -> Box<dyn Id> {
+    fn get_id_cloned(&self) -> Box<dyn BaseId> {
         Box::new(self.id.clone())
     }
 }

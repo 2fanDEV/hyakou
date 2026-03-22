@@ -1,4 +1,4 @@
-use crate::renderer::geometry::vertices::Vertex;
+use crate::geometry::vertices::Vertex;
 
 #[repr(C)]
 #[derive(Debug)]

@@ -1,7 +1,10 @@
 use std::ops::Deref;
 
-use crate::renderer::geometry::{BufferLayoutProvider, mesh::Mesh, vertices::Vertex};
-use hyakou_core::types::transform::Transform;
+use crate::{
+    geometry::{mesh::Mesh, vertices::Vertex},
+    traits::BufferLayoutProvider,
+    types::transform::Transform,
+};
 
 pub struct MeshNode {
     mesh: Mesh,

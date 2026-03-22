@@ -5,12 +5,12 @@ use wgpu::{Buffer, Queue};
 
 use crate::{Shared, types::transform::Transform};
 
+pub mod base;
 pub mod camera;
 pub mod ids;
 pub mod mouse_delta;
 pub mod shared;
 pub mod transform;
-pub mod uniform;
 
 pub type DeltaTime = f32;
 pub type DeltaTime64 = f64;
@@ -24,14 +24,14 @@ pub enum ModelMatrixBindingMode {
     Uniform,
 }
 
-pub trait Id {
+pub trait BaseId {
     fn get_id(&self) -> &str;
 }
 
 #[allow(unused)]
 pub trait BaseBuffer {
     fn get_buffer(&self) -> &Buffer;
-    fn get_id_cloned(&self) -> Box<dyn Id>;
+    fn get_id_cloned(&self) -> Box<dyn BaseId>;
     fn get_id_as_string(&self) -> &str;
 }
 

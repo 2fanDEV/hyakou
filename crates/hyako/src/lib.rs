@@ -1,16 +1,4 @@
-use std::sync::mpsc::Receiver;
-
-use crate::renderer::Renderer;
-
+pub mod flow;
+pub mod gpu;
 pub mod renderer;
 pub mod state;
-
-pub struct RendererCommands {
-   RESUMED
-}
-
-
-pub struct Orchestrator {
-    pub renderer: Renderer,
-    pub rx: Receiver<Renderer>,
-}

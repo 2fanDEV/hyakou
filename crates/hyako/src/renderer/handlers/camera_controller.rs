@@ -1,32 +1,22 @@
+use std::collections::HashMap;
+
 use glam::Vec3;
-use log::debug;
 
-use crate::renderer::{
-    actions::{Action, CameraActions},
-    animator::trajectory::calculate_direction_vector,
-    components::camera::Camera,
+use crate::renderer::actions::{Action, CameraActions};
+
+use hyakou_core::{
+    animations::trajectory::calculate_direction_vector,
+    components::camera::{
+        camera::Camera,
+        data_structures::{CameraAxes, CameraMode, CameraTransition},
+    },
+    types::{DeltaTime, base::Id, mouse_delta::MouseDelta, shared::Coordinates},
 };
-
-use hyakou_core::types::{DeltaTime, mouse_delta::MouseDelta, shared::Coordinates};
-
-#[derive(Debug)]
-pub enum CameraMode {
-    FLY,
-    PAN,
-    ORBIT,
-}
-
-#[derive(Debug)]
-struct CameraAxes {
-    forward: Vec3,
-    forward_mag: f32,
-    right: Vec3,
-    view_up: Vec3,
-}
 
 #[derive(Debug)]
 pub struct CameraController {
     pub camera_mode: CameraMode,
+    pub camera_transition: HashMap<Id, CameraTransition>,
     is_forward_pressed: bool,
     is_backward_pressed: bool,
     is_left_pressed: bool,
@@ -42,6 +32,7 @@ impl CameraController {
     pub fn new(camera_mode: CameraMode) -> CameraController {
         Self {
             camera_mode,
+            camera_transition: HashMap::new(),
             is_backward_pressed: false,
             is_forward_pressed: false,
             is_left_pressed: false,
@@ -59,6 +50,7 @@ impl CameraController {
         camera: &mut Camera,
         coordinates: Coordinates,
     ) {
+      self.camera_transition.
     }
 
     pub fn mouse_movement(
@@ -73,7 +65,6 @@ impl CameraController {
                     let delta_x = mouse_delta.delta_position.x() as f32;
                     let delta_y = mouse_delta.delta_position.y() as f32;
                     let axes = self.get_axes(camera);
-
                     let offset =
                         Self::calculate_pan_offset(delta_x, delta_y, &axes, camera.sensitivity);
                     camera.eye += offset;
@@ -89,7 +80,6 @@ impl CameraController {
     }
 
     pub fn handle_action(&mut self, action: &Action, is_pressed: bool) {
-        debug!("{:?}", action);
         match action {
             Action::Camera(camera_action) => match camera_action {
                 CameraActions::Forwards => self.is_forward_pressed = is_pressed,
