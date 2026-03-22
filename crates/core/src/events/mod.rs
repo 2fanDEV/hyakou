@@ -1,6 +1,6 @@
-use crate::types::shared::{Coordinates, FileInformation};
+use crate::types::shared::{AssetInformation, Coordinates};
 
 pub enum Event {
     SetCoords(Coordinates),
-    UploadFile(FileInformation),
+    AssetUpload(AssetInformation),
 }

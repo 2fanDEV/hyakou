@@ -1,4 +1,3 @@
-use parking_lot::RwLock;
 use std::{collections::HashMap, f32::consts::PI, path::Path, sync::Arc};
 
 use crate::renderer::{
@@ -21,12 +20,15 @@ use crate::renderer::{
 use anyhow::Result;
 use bytemuck::bytes_of;
 use glam::Vec3;
-use hyakou_core::types::{
-    DeltaTime64, ModelMatrixBindingMode, TransformBuffer,
-    camera::{Pitch, Yaw},
-    ids::{MeshId, UniformBufferId},
-    transform::Transform,
-    uniform::UniformBuffer,
+use hyakou_core::{
+    SharedAccess, shared,
+    types::{
+        DeltaTime64, ModelMatrixBindingMode, TransformBuffer,
+        camera::{Pitch, Yaw},
+        ids::{MeshId, UniformBufferId},
+        transform::Transform,
+        uniform::UniformBuffer,
+    },
 };
 use log::{error, warn};
 use wgpu::{
@@ -96,8 +98,7 @@ impl Renderer {
             .as_ref()
             .unwrap()
             .transform
-            .write()
-            .translate(Vec3::new(0.0, 1.0, 1.0));
+            .try_write_shared(|t| t.translate(Vec3::new(0.0, 1.0, 1.0)));
         let light = LightSource::new(
             cube_light_mesh.as_ref().unwrap().transform.clone(),
             Vec3::new(1.0, 1.0, 1.0),
@@ -137,7 +138,7 @@ impl Renderer {
             UniformBufferId::new("Camera".to_string()),
             &ctx.device,
             bytemuck::bytes_of(&camera_uniform),
-            Arc::new(RwLock::new(Transform::default())),
+            shared(Transform::default()),
         );
         let camera_bind_group = CameraUniform::bind_group(
             &ctx.device,
@@ -354,7 +355,7 @@ impl Renderer {
         queue: &Queue,
         model_binding_mode: ModelMatrixBindingMode,
     ) {
-        let model_matrix = render_mesh.transform.read().get_matrix();
+        let model_matrix = render_mesh.transform.read_shared(|t| t.get_matrix());
         match model_binding_mode {
             ModelMatrixBindingMode::Immediate => {
                 render_pass.set_immediates(0, bytes_of(&model_matrix));

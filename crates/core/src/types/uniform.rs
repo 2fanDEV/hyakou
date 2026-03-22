@@ -1,15 +1,17 @@
-use parking_lot::RwLock;
-use std::{ops::Deref, sync::Arc};
+use std::ops::Deref;
 
 use wgpu::{
     Buffer, BufferUsages, Device,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::types::{
-    BaseBuffer, TransformBuffer,
-    ids::{UniformBufferId, UniformResourceId},
-    transform::Transform,
+use crate::{
+    Shared,
+    types::{
+        BaseBuffer, TransformBuffer,
+        ids::{UniformBufferId, UniformResourceId},
+        transform::Transform,
+    },
 };
 
 use super::Id;
@@ -19,7 +21,7 @@ use super::Id;
 pub struct UniformBuffer {
     id: UniformBufferId,
     buffer: Buffer,
-    transform: Arc<RwLock<Transform>>,
+    transform: Shared<Transform>,
 }
 
 impl Deref for UniformBuffer {
@@ -35,7 +37,7 @@ impl UniformBuffer {
         id: UniformBufferId,
         device: &Device,
         contents: &[u8],
-        transform: Arc<RwLock<Transform>>,
+        transform: Shared<Transform>,
     ) -> Self {
         Self {
             id: id.clone(),
@@ -63,7 +65,7 @@ impl BaseBuffer for UniformBuffer {
 }
 
 impl TransformBuffer for UniformBuffer {
-    fn get_transform(&self) -> Arc<RwLock<Transform>> {
+    fn get_transform(&self) -> Shared<Transform> {
         self.transform.clone()
     }
 }

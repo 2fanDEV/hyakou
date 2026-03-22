@@ -9,19 +9,19 @@ pub struct Coordinates {
 }
 
 #[wasm_bindgen]
-pub struct FileInformation {
-    path: String,
+pub struct AssetInformation {
+    bytes: Vec<u8>,
     name: String,
     pub size: u64,
     pub modified: i32,
 }
 
 #[wasm_bindgen]
-impl FileInformation {
+impl AssetInformation {
     #[wasm_bindgen(constructor)]
-    pub fn new(path: String, name: String, size: u64, modified: i32) -> Self {
+    pub fn new(bytes: Vec<u8>, name: String, size: u64, modified: i32) -> Self {
         Self {
-            path,
+            bytes,
             name,
             size,
             modified,
@@ -29,8 +29,8 @@ impl FileInformation {
     }
 
     #[wasm_bindgen(getter)]
-    pub fn path(&self) -> String {
-        self.path.clone()
+    pub fn bytes(&self) -> Vec<u8> {
+        self.bytes.clone()
     }
 
     #[wasm_bindgen(getter)]

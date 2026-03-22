@@ -1,17 +1,19 @@
 use hyako::state::AppState;
 use hyakou_core::{
     events::Event,
-    types::shared::{Coordinates, FileInformation},
+    types::shared::{AssetInformation, Coordinates},
 };
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use web_sys::HtmlCanvasElement;
 use winit::{
-    event_loop::{EventLoop, EventLoopProxy},
+    event_loop::{self, EventLoop, EventLoopProxy},
     platform::web::EventLoopExtWebSys,
 };
 
 #[wasm_bindgen]
 pub struct Hyako {
+    app_state: AppState,
+    event_loop: EventLoop<Event>,
     event_loop_proxy: EventLoopProxy<Event>,
 }
 
@@ -30,9 +32,16 @@ impl Hyako {
             Err(error) => return Err(JsValue::from_str(&error.to_string())),
         };
         let event_loop_proxy = event_loop.create_proxy();
-        event_loop.spawn_app(app_state);
+        Ok(Hyako {
+            app_state,
+            event_loop,
+            event_loop_proxy,
+        })
+    }
 
-        Ok(Hyako { event_loop_proxy })
+    #[wasm_bindgen]
+    pub fn start_rendering(self) {
+        self.event_loop.spawn_app(self.app_state)
     }
 
     #[wasm_bindgen]
@@ -41,7 +50,7 @@ impl Hyako {
     }
 
     #[wasm_bindgen]
-    pub fn upload_file(&self, file: FileInformation) -> Result<(), JsValue> {
+    pub fn upload_file(&self, file: AssetInformation) -> Result<(), JsValue> {
         self.send_event(Event::UploadFile(file))
     }
 

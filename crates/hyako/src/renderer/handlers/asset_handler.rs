@@ -5,11 +5,13 @@ use std::{
     sync::Arc,
 };
 
+use anyhow::Result;
+use wasm_bindgen_futures::spawn_local;
 use wgpu::BindGroupLayout;
 use wgpu::Device;
 
 use crate::renderer::{
-    components::{LightType, glTF::GLTFLoader, render_mesh::RenderMesh},
+    components::{LightType, glTF::GLTFLoader, mesh_node::MeshNode, render_mesh::RenderMesh},
     util::{self, Concatable},
 };
 
@@ -41,6 +43,17 @@ impl AssetHandler {
         }
     }
 
+    pub asynfn upload_from_bytes(
+        &mut self,
+        id: String,
+        light_type: LightType,
+        bytes: Vec<u8>,
+    ) -> Result<()> {
+        let mesh_nodes = self.gltf_loader.load_from_slice(bytes).await.unwrap();
+        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes);
+        Ok(())
+    }
+
     pub async fn add_from_path(
         &mut self,
         mut id: String,
@@ -48,11 +61,21 @@ impl AssetHandler {
         path: &Path,
     ) -> Option<Rc<RenderMesh>> {
         //TODO make rendermesh be a node consisting of multiple nodes
-        let mut idx = 0;
         let mesh_nodes = match self.gltf_loader.load_from_path(path).await {
             Ok(nodes) => nodes,
             Err(_) => panic!("Couldn't find model at path: {:?}", path),
         };
+        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes);
+        render_mesh
+    }
+
+    fn upload_mesh_node_as_asset(
+        &mut self,
+        mut id: String,
+        light_type: LightType,
+        mesh_nodes: Vec<MeshNode>,
+    ) -> Option<Rc<RenderMesh>> {
+        let mut idx = 0;
         let mut render_mesh = None;
         for node in mesh_nodes {
             let id = if idx.eq(&0) {

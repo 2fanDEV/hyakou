@@ -1,6 +1,3 @@
-use parking_lot::RwLock;
-use std::sync::Arc;
-
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use wgpu::{
@@ -9,11 +6,11 @@ use wgpu::{
 };
 
 use crate::renderer::geometry::BindGroupProvider;
-use hyakou_core::types::transform::Transform;
+use hyakou_core::{Shared, SharedAccess, types::transform::Transform};
 
 #[derive(Debug, Clone)]
 pub struct LightSource {
-    pub transform: Arc<RwLock<Transform>>,
+    pub transform: Shared<Transform>,
     color: Vec3,
 }
 
@@ -26,7 +23,7 @@ pub struct GpuLightSource {
 }
 
 impl LightSource {
-    pub fn new(transform: Arc<RwLock<Transform>>, color: Vec3) -> LightSource {
+    pub fn new(transform: Shared<Transform>, color: Vec3) -> LightSource {
         Self { transform, color }
     }
 
@@ -35,11 +32,13 @@ impl LightSource {
     }
 
     pub fn to_gpu(&self) -> Option<GpuLightSource> {
-        self.transform.try_read().map(|t| GpuLightSource {
-            transform: *t,
-            color: self.color,
-            _padding_2: 0.0,
-        })
+        self.transform
+            .try_read_shared(|t| t.clone())
+            .map(|t| GpuLightSource {
+                transform: t,
+                color: self.color,
+                _padding_2: 0.0,
+            })
     }
 }
 

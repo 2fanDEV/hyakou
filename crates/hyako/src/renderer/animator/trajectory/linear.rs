@@ -1,7 +1,8 @@
-use hyakou_core::types::{DeltaTime, ids::MeshId, transform::Transform};
+use hyakou_core::{
+    Shared, SharedAccess,
+    types::{DeltaTime, ids::MeshId, transform::Transform},
+};
 use log::error;
-use parking_lot::RwLock;
-use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use glam::Vec3;
@@ -22,7 +23,7 @@ use crate::renderer::{
 #[derive(Debug, Clone)]
 pub struct LinearTrajectory {
     pub id: MeshId,
-    transform: Arc<RwLock<Transform>>,
+    transform: Shared<Transform>,
     start_position: Vec3,
     yaw_radians: f32,
     /// in radians
@@ -46,7 +47,7 @@ impl LinearTrajectory {
 
     pub fn new_deconstructed_mesh(
         id: MeshId,
-        transform: Arc<RwLock<Transform>>,
+        transform: Shared<Transform>,
         start_position: Vec3,
         yaw_radians: f32,
         pitch_radians: f32,
@@ -101,48 +102,51 @@ impl Animation for LinearTrajectory {
     /// Currently ignoring target since there is no use for it yet.
     /// Maybe sometime in the future this will cause the linear trajectory to be right above the target
     fn animate(&mut self, _target: Option<&Transform>, delta: DeltaTime) -> anyhow::Result<()> {
-        if let Some(mut transform) = self.transform.try_write() {
-            let direction_vector = calculate_direction_vector(self.yaw_radians, self.pitch_radians);
-            match self.direction {
-                Direction::FORWARDS => {
-                    self.progress += (self.speed / self.distance) * delta;
-                }
-                Direction::BACKWARDS => {
-                    self.progress -= (self.speed / self.distance) * delta;
-                }
+        let direction_vector = calculate_direction_vector(self.yaw_radians, self.pitch_radians);
+        match self.direction {
+            Direction::FORWARDS => {
+                self.progress += (self.speed / self.distance) * delta;
             }
-            self.progress = self.progress.clamp(Self::MIN_PROGRESS, Self::MAX_PROGRESS);
-            transform.position =
-                self.start_position + direction_vector * self.distance * self.progress;
-
-            if self.progress >= Self::MAX_PROGRESS && self.reversing {
-                self.direction = Direction::BACKWARDS;
+            Direction::BACKWARDS => {
+                self.progress -= (self.speed / self.distance) * delta;
             }
-            if self.progress <= Self::MIN_PROGRESS && self.looping {
-                self.direction = Direction::FORWARDS;
-            }
-
-            if self.progress >= Self::MAX_PROGRESS && self.looping && !self.reversing {
-                transform.position = self.start_position;
-                self.progress = Self::ZERO_PROGRESS;
-            }
-        } else {
-            return Err(anyhow!(
-                "Failed to acquire lock on transform: {:?}",
-                self.id
-            ));
         }
+        let mut next_progress = self.progress.clamp(Self::MIN_PROGRESS, Self::MAX_PROGRESS);
+        let mut next_direction = self.direction;
+
+        let mut next_position =
+            self.start_position + direction_vector * self.distance * self.progress;
+
+        if next_progress >= Self::MAX_PROGRESS && self.looping && !self.reversing {
+            next_position = self.start_position;
+            next_progress = Self::ZERO_PROGRESS;
+        }
+        self.transform
+            .try_write_shared(|transform| transform.position = next_position)
+            .ok_or_else(|| anyhow!("Failed to aquire lock acquisition!"))?;
+
+        if next_progress >= Self::MAX_PROGRESS && self.reversing {
+            next_direction = Direction::BACKWARDS;
+        }
+        if next_progress <= Self::MIN_PROGRESS && self.looping {
+            next_direction = Direction::FORWARDS;
+        }
+
+        self.direction = next_direction;
+        self.progress = next_progress;
+
         Ok(())
     }
 
     fn reset(&mut self) {
+        self.transform
+            .try_write_shared(|t| t.position = self.start_position)
+            .or_else(|| {
+                error!("Failed to reset animation with id: {:?}", self.id);
+                Some(())
+            });
         self.progress = Self::ZERO_PROGRESS;
         self.direction = Direction::FORWARDS;
-        if let Some(mut transform) = self.transform.try_write() {
-            transform.position = self.start_position;
-        } else {
-            error!("Failed to reset animation with id: {:?}", self.id);
-        }
     }
 
     fn get_id(&self) -> &MeshId {
@@ -152,13 +156,13 @@ impl Animation for LinearTrajectory {
 
 #[cfg(test)]
 mod tests {
-    use hyakou_core::types::ids::MeshId;
+    use hyakou_core::{shared, types::ids::MeshId};
 
     use super::*;
 
     #[test]
     fn test_linear_trajectory_forward_movement() {
-        let transform = Arc::new(RwLock::new(Transform::default()));
+        let transform = shared::<Transform>(Transform::default());
         let start_pos = Vec3::new(0.0, 0.0, 0.0);
         let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
             MeshId("Test".to_string()),
@@ -180,13 +184,13 @@ mod tests {
         assert!((trajectory.progress - 0.5).abs() < 0.001);
 
         // Position should be halfway along the path
-        let pos = transform.read().position;
+        let pos = transform.read_shared(|t| t.position);
         assert!((pos.x - 5.0).abs() < 0.001);
     }
 
     #[test]
     fn test_linear_trajectory_bounce_at_boundaries() {
-        let transform = Arc::new(RwLock::new(Transform::default()));
+        let transform = shared::<Transform>(Transform::default());
         let start_pos = Vec3::new(0.0, 0.0, 0.0);
         let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
             MeshId("Test1".to_string()),
@@ -222,7 +226,7 @@ mod tests {
 
     #[test]
     fn test_linear_trajectory_reset() {
-        let transform = Arc::new(RwLock::new(Transform::default()));
+        let transform = shared(Transform::default());
         let start_pos = Vec3::new(5.0, 10.0, -3.0);
         let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
             MeshId("Test".to_string()),
@@ -248,7 +252,7 @@ mod tests {
         assert_eq!(trajectory.progress, LinearTrajectory::ZERO_PROGRESS);
         assert_eq!(trajectory.direction, Direction::FORWARDS);
 
-        let pos = transform.read().position;
+        let pos = transform.read_shared(|t| t.position);
         assert_eq!(pos, start_pos);
     }
 }

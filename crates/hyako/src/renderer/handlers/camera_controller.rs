@@ -7,7 +7,7 @@ use crate::renderer::{
     components::camera::Camera,
 };
 
-use hyakou_core::types::{DeltaTime, mouse_delta::MouseDelta};
+use hyakou_core::types::{DeltaTime, mouse_delta::MouseDelta, shared::Coordinates};
 
 #[derive(Debug)]
 pub enum CameraMode {
@@ -52,6 +52,13 @@ impl CameraController {
             is_slow_modifier_pressed: false,
             is_mouse_dragging: false,
         }
+    }
+
+    pub fn camera_transition_from_coordinates(
+        &mut self,
+        camera: &mut Camera,
+        coordinates: Coordinates,
+    ) {
     }
 
     pub fn mouse_movement(

@@ -13,7 +13,7 @@ use crate::renderer::{
     util::Concatable,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GLTFLoader {
     BASE_PATH: PathBuf,
 }
@@ -46,10 +46,10 @@ impl GLTFLoader {
             Ok(slice) => slice,
             Err(e) => return Err(e),
         };
-        self.load_from_slice(slice).await
+        self.load_from_bytes(slice).await
     }
 
-    pub async fn load_from_slice(&self, slice: Vec<u8>) -> Result<Vec<MeshNode>> {
+    pub async fn load_from_bytes(&self, slice: Vec<u8>) -> Result<Vec<MeshNode>> {
         let mut mesh_nodes: Vec<MeshNode> = vec![];
         let gltf = match gltf::Gltf::from_slice(&slice) {
             Ok(gltf) => gltf,

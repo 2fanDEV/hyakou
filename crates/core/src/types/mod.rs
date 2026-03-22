@@ -1,10 +1,9 @@
-use parking_lot::RwLock;
-use std::{ops::Deref, sync::Arc};
+use std::ops::Deref;
 
 use anyhow::Result;
 use wgpu::{Buffer, Queue};
 
-use crate::types::transform::Transform;
+use crate::{Shared, types::transform::Transform};
 
 pub mod camera;
 pub mod ids;
@@ -37,7 +36,7 @@ pub trait BaseBuffer {
 }
 
 pub trait TransformBuffer: Deref + BaseBuffer {
-    fn get_transform(&self) -> Arc<RwLock<Transform>>;
+    fn get_transform(&self) -> Shared<Transform>;
     fn update_buffer_transform(&mut self, queue: &Queue, data: &[u8]) -> Result<()> {
         let buffer = self.get_buffer();
         queue.write_buffer(buffer, 0, data);

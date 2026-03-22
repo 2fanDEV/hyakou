@@ -6,10 +6,10 @@ pub mod trajectory;
 pub const NEUTRAL_SPEED: f32 = 1.0;
 
 /// A trait to implement when specific trajectory path are to be implemented.
-/// The animate(...) most likely uses a try_write on a Arc<RwLock<Transform>> which could
+/// The animate(...) most likely uses a try_write on a Shared<Transform>> which could
 /// panic but should be handled gracefully. Nonetheless you can match the result to get the
 /// error that occurs when try_write fails to acquire the lock.
-pub trait Animation: Send {
+pub trait Animation {
     fn get_id(&self) -> &MeshId;
     /// t: Option<&Transform> is a target transform
     /// when an animation allows an animated object to hover around another

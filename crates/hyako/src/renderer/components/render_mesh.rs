@@ -1,6 +1,3 @@
-use parking_lot::RwLock;
-use std::sync::Arc;
-
 use uuid::Uuid;
 use wgpu::{
     BindGroup, BindGroupLayout, Buffer, BufferUsages, Device,
@@ -13,11 +10,14 @@ use crate::renderer::{
     util::Concatable,
 };
 
-use hyakou_core::types::{
-    ModelMatrixBindingMode,
-    ids::{MeshId, UniformBufferId},
-    transform::Transform,
-    uniform::UniformBuffer,
+use hyakou_core::{
+    Shared, SharedAccess, shared,
+    types::{
+        ModelMatrixBindingMode,
+        ids::{MeshId, UniformBufferId},
+        transform::Transform,
+        uniform::UniformBuffer,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -27,7 +27,7 @@ pub struct RenderMesh {
     pub index_buffer: Buffer,
     pub index_count: u32,
     pub light_type: LightType,
-    pub transform: Arc<RwLock<Transform>>,
+    pub transform: Shared<Transform>,
     pub model_uniform_buffer: Option<UniformBuffer>,
     pub model_bind_group: Option<BindGroup>,
 }
@@ -53,8 +53,7 @@ impl RenderMesh {
             contents: bytemuck::cast_slice(&mesh_node.indices),
             usage: BufferUsages::INDEX,
         });
-
-        let transform = Arc::new(RwLock::new(mesh_node.transform));
+        let transform: Shared<Transform> = shared(mesh_node.transform);
         let (model_uniform_buffer, model_bind_group) = Self::create_model_binding_resources(
             device,
             &id,
@@ -78,7 +77,7 @@ impl RenderMesh {
     fn create_model_binding_resources(
         device: &Device,
         id: &MeshId,
-        transform: Arc<RwLock<Transform>>,
+        transform: Shared<Transform>,
         model_binding_mode: ModelMatrixBindingMode,
         model_bind_group_layout: Option<&BindGroupLayout>,
     ) -> (Option<UniformBuffer>, Option<BindGroup>) {
@@ -89,7 +88,7 @@ impl RenderMesh {
         let bind_group_layout = model_bind_group_layout.expect(
             "Uniform model binding mode requires a model bind group layout in RenderMesh::new",
         );
-        let model_uniform = ModelMatrixUniform::new(transform.read().get_matrix());
+        let model_uniform = ModelMatrixUniform::new(transform.read_shared(|t| t.get_matrix()));
         let uniform_buffer = UniformBuffer::new(
             UniformBufferId::new(format!("Model Matrix Buffer: {}", id.0)),
             device,

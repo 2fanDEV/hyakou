@@ -1,5 +1,6 @@
-use std::{io::Result, sync::Arc};
+use std::{io::Result, path::Path, sync::Arc};
 
+use futures::TryFutureExt;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 #[cfg(target_arch = "wasm32")]
@@ -8,11 +9,8 @@ use wasm_bindgen_futures::spawn_local;
 use web_time::Instant;
 
 use log::debug;
-use parking_lot::RwLock;
 #[cfg(target_arch = "wasm32")]
 use wgpu::web_sys::HtmlCanvasElement;
-#[cfg(not(target_arch = "wasm32"))]
-use winit::dpi::PhysicalSize;
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::WindowAttributesExtWebSys;
 use winit::{
@@ -22,12 +20,14 @@ use winit::{
 };
 
 use crate::renderer::{
-    Renderer,
+    self, Renderer,
     handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
 };
 
 use hyakou_core::{
+    Shared, SharedAccess,
     events::Event,
+    shared,
     types::{
         DeltaTime64,
         mouse_delta::{
@@ -40,7 +40,7 @@ pub struct AppState {
     window: Option<Arc<Window>>,
     #[cfg(target_arch = "wasm32")]
     html_canvas_element: Option<HtmlCanvasElement>,
-    renderer: Arc<RwLock<Option<Renderer>>>,
+    renderer: Shared<Option<Renderer>>,
     keyboard_handler: KeyboardHandler,
     mouse_handler: MouseHandler,
     last_frame_time: Instant,
@@ -55,7 +55,7 @@ impl AppState {
             window: None,
             #[cfg(target_arch = "wasm32")]
             html_canvas_element: None,
-            renderer: Arc::new(RwLock::new(None)),
+            renderer: shared(None),
             keyboard_handler: KeyboardHandler::new(),
             mouse_handler: MouseHandler::new(),
             last_frame_time: Instant::now(),
@@ -68,7 +68,7 @@ impl AppState {
         Ok(Self {
             window: None,
             html_canvas_element: Some(canvas_ref),
-            renderer: Arc::new(RwLock::new(None)),
+            renderer: shared(None),
             keyboard_handler: KeyboardHandler::new(),
             mouse_handler: MouseHandler::new(),
             last_frame_time: Instant::now(),
@@ -118,16 +118,16 @@ impl ApplicationHandler<Event> for AppState {
         {
             let renderer_slot = self.renderer.clone();
             let window_for_renderer = window.clone();
+            // TODO: this seems really hacky
             spawn_local(async move {
                 match Renderer::new(window_for_renderer.clone()).await {
                     Ok(renderer) => {
-                        *renderer_slot.write() = Some(renderer);
+                        renderer_slot.try_write_shared(|r| *r = Some(renderer));
                         debug!("Renderer initialized for wasm");
                         window_for_renderer.request_redraw();
                     }
                     Err(e) => {
                         use log::error;
-
                         error!("Failed to initialize renderer for wasm: {e:?}");
                     }
                 }
@@ -139,8 +139,11 @@ impl ApplicationHandler<Event> for AppState {
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: Event) {
         log::debug!("");
         match event {
-            Event::SetCoords(_coordinates) => todo!(),
-            Event::UploadFile(_) => todo!(),
+            Event::SetCoords(_coordinates) => {}
+            Event::AssetUpload(_asset_information) => {
+                let renderer_slot: Shared<Option<Renderer>> = self.renderer.clone();
+                renderer_slot.try_write_shared(|r| );
+            }
         }
     }
 
@@ -153,12 +156,16 @@ impl ApplicationHandler<Event> for AppState {
         match event {
             WindowEvent::RedrawRequested => {
                 let delta = self.get_and_update_last_frame_time();
-                let mut renderer_guard = self.renderer.write();
-                let Some(renderer) = renderer_guard.as_mut() else {
+                let Some(()) = self.renderer.try_write_shared(|renderer_slot| {
+                    let Some(renderer) = renderer_slot.as_mut() else {
+                        return;
+                    };
+
+                    renderer.update(delta);
+                    renderer.render().unwrap();
+                }) else {
                     return;
                 };
-                renderer.update(delta);
-                renderer.render().unwrap();
             }
             #[allow(unused)]
             WindowEvent::CursorEntered { device_id } => {
@@ -179,27 +186,31 @@ impl ApplicationHandler<Event> for AppState {
                 event,
                 is_synthetic: _is_synthetic,
             } => {
-                let mut renderer_guard = self.renderer.write();
-                let Some(renderer) = renderer_guard.as_mut() else {
-                    return;
-                };
-                match event.physical_key {
-                    winit::keyboard::PhysicalKey::Code(key_code) => {
-                        let is_pressed = event.state == ElementState::Pressed;
-                        let events = self.keyboard_handler.handle_key(key_code, is_pressed);
-                        for event in events {
-                            match event {
-                                InputEvent::ActionStarted(action) => {
-                                    renderer.camera_controller.handle_action(&action, true);
-                                }
-                                InputEvent::ActionEnded(action) => {
-                                    renderer.camera_controller.handle_action(&action, false);
+                let Some(()) = self.renderer.try_write_shared(|renderer_slot| {
+                    let Some(renderer) = renderer_slot.as_mut() else {
+                        return;
+                    };
+
+                    match event.physical_key {
+                        winit::keyboard::PhysicalKey::Code(key_code) => {
+                            let is_pressed = event.state == ElementState::Pressed;
+                            let events = self.keyboard_handler.handle_key(key_code, is_pressed);
+                            for event in events {
+                                match event {
+                                    InputEvent::ActionStarted(action) => {
+                                        renderer.camera_controller.handle_action(&action, true);
+                                    }
+                                    InputEvent::ActionEnded(action) => {
+                                        renderer.camera_controller.handle_action(&action, false);
+                                    }
                                 }
                             }
                         }
+                        _ => {}
                     }
-                    _ => {}
-                }
+                }) else {
+                    return;
+                };
             }
             _ => {}
         }
@@ -212,68 +223,73 @@ impl ApplicationHandler<Event> for AppState {
         event: winit::event::DeviceEvent,
     ) {
         let delta_time = self.get_last_frame_time(Instant::now()) as f32;
-        let mut renderer_guard = self.renderer.write();
-        let Some(renderer) = renderer_guard.as_mut() else {
-            return;
-        };
-        match event {
-            DeviceEvent::MouseMotion { delta } => {
-                self.mouse_delta.delta_position = MovementDelta::new(delta.0, delta.1);
-                if self
-                    .mouse_delta
-                    .is_mouse_button_clicked_and_on_window(MouseButton::Left)
-                {}
-                renderer.camera_controller.mouse_movement(
-                    &mut renderer.camera,
-                    &self.mouse_delta,
-                    delta_time,
-                )
-            }
-            DeviceEvent::Button { button, state } => {
-                if let Some(window) = self.window.clone() {
-                    let mouse_button = match button {
-                        0 => MouseButton::Left,
-                        1 => MouseButton::Right,
-                        2 => MouseButton::Middle,
-                        _ => MouseButton::Left,
-                    };
-                    let is_pressed = state == ElementState::Pressed;
+        let Some(()) = self.renderer.try_write_shared(|renderer_slot| {
+            let Some(renderer) = renderer_slot.as_mut() else {
+                return;
+            };
 
-                    self.mouse_delta.state = MouseState::new(
-                        mouse_button,
-                        match state {
-                            ElementState::Pressed => {
-                                if let Err(e) = window.set_cursor_grab(CursorGrabMode::Locked) {
-                                    log::error!("External Error: {:?}", e)
-                                }
-                                window.set_cursor_visible(false);
-                                MouseAction::Clicked
-                            }
-                            ElementState::Released => {
-                                if let Err(e) = window.set_cursor_grab(CursorGrabMode::None) {
-                                    log::error!("External Error: {:?}", e)
-                                }
-                                window.set_cursor_visible(true);
-                                MouseAction::Released
-                            }
-                        },
-                    );
+            match event {
+                DeviceEvent::MouseMotion { delta } => {
+                    self.mouse_delta.delta_position = MovementDelta::new(delta.0, delta.1);
+                    if self
+                        .mouse_delta
+                        .is_mouse_button_clicked_and_on_window(MouseButton::Left)
+                    {
+                    }
+                    renderer.camera_controller.mouse_movement(
+                        &mut renderer.camera,
+                        &self.mouse_delta,
+                        delta_time,
+                    )
+                }
+                DeviceEvent::Button { button, state } => {
+                    if let Some(window) = self.window.clone() {
+                        let mouse_button = match button {
+                            0 => MouseButton::Left,
+                            1 => MouseButton::Right,
+                            2 => MouseButton::Middle,
+                            _ => MouseButton::Left,
+                        };
+                        let is_pressed = state == ElementState::Pressed;
 
-                    let events = self.mouse_handler.handle_button(mouse_button, is_pressed);
-                    for event in events {
-                        match event {
-                            InputEvent::ActionStarted(action) => {
-                                renderer.camera_controller.handle_action(&action, true);
-                            }
-                            InputEvent::ActionEnded(action) => {
-                                renderer.camera_controller.handle_action(&action, false);
+                        self.mouse_delta.state = MouseState::new(
+                            mouse_button,
+                            match state {
+                                ElementState::Pressed => {
+                                    if let Err(e) = window.set_cursor_grab(CursorGrabMode::Locked) {
+                                        log::error!("External Error: {:?}", e)
+                                    }
+                                    window.set_cursor_visible(false);
+                                    MouseAction::Clicked
+                                }
+                                ElementState::Released => {
+                                    if let Err(e) = window.set_cursor_grab(CursorGrabMode::None) {
+                                        log::error!("External Error: {:?}", e)
+                                    }
+                                    window.set_cursor_visible(true);
+                                    MouseAction::Released
+                                }
+                            },
+                        );
+
+                        let events = self.mouse_handler.handle_button(mouse_button, is_pressed);
+                        for event in events {
+                            match event {
+                                InputEvent::ActionStarted(action) => {
+                                    renderer.camera_controller.handle_action(&action, true);
+                                }
+                                InputEvent::ActionEnded(action) => {
+                                    renderer.camera_controller.handle_action(&action, false);
+                                }
                             }
                         }
                     }
                 }
+                _ => {}
             }
-            _ => {}
-        }
+        }) else {
+            return;
+        };
     }
 }
 
