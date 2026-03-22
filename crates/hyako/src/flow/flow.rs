@@ -162,7 +162,7 @@ impl FlowController {
             };
 
             renderer
-                .camera_controller
+                .camera_handler
                 .camera_transition_from_coordinates(&mut renderer.camera, coordinates);
         });
     }
@@ -190,7 +190,7 @@ impl FlowController {
             };
 
             renderer
-                .camera_controller
+                .camera_handler
                 .mouse_movement(&mut renderer.camera, &self.mouse_delta, dt);
         });
     }
@@ -325,10 +325,10 @@ impl FlowController {
     fn handle_input_event(renderer: &mut Renderer, event: InputEvent) {
         match event {
             InputEvent::ActionStarted(action) => {
-                renderer.camera_controller.handle_action(&action, true);
+                renderer.camera_handler.handle_action(&action, true);
             }
             InputEvent::ActionEnded(action) => {
-                renderer.camera_controller.handle_action(&action, false);
+                renderer.camera_handler.handle_action(&action, false);
             }
         }
     }

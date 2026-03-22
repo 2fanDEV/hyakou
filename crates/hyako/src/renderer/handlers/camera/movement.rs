@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use glam::Vec3;
 
 use crate::renderer::actions::{Action, CameraActions};
@@ -8,15 +6,14 @@ use hyakou_core::{
     animations::trajectory::calculate_direction_vector,
     components::camera::{
         camera::Camera,
-        data_structures::{CameraAxes, CameraMode, CameraTransition},
+        data_structures::{CameraAxes, CameraMode},
     },
-    types::{DeltaTime, base::Id, mouse_delta::MouseDelta, shared::Coordinates},
+    types::{DeltaTime, mouse_delta::MouseDelta},
 };
 
 #[derive(Debug)]
-pub struct CameraController {
+pub struct CameraMovementHandler {
     pub camera_mode: CameraMode,
-    pub camera_transition: HashMap<Id, CameraTransition>,
     is_forward_pressed: bool,
     is_backward_pressed: bool,
     is_left_pressed: bool,
@@ -28,11 +25,10 @@ pub struct CameraController {
     is_mouse_dragging: bool,
 }
 
-impl CameraController {
-    pub fn new(camera_mode: CameraMode) -> CameraController {
+impl CameraMovementHandler {
+    pub fn new(camera_mode: CameraMode) -> Self {
         Self {
             camera_mode,
-            camera_transition: HashMap::new(),
             is_backward_pressed: false,
             is_forward_pressed: false,
             is_left_pressed: false,
@@ -43,14 +39,6 @@ impl CameraController {
             is_slow_modifier_pressed: false,
             is_mouse_dragging: false,
         }
-    }
-
-    pub fn camera_transition_from_coordinates(
-        &mut self,
-        camera: &mut Camera,
-        coordinates: Coordinates,
-    ) {
-      self.camera_transition.
     }
 
     pub fn mouse_movement(
@@ -269,7 +257,7 @@ mod tests {
 
     #[test]
     fn test_new_controller_has_correct_initial_state() {
-        let controller = CameraController::new(CameraMode::FLY);
+        let controller = CameraMovementHandler::new(CameraMode::FLY);
         assert!(!controller.is_backward_pressed);
         assert!(!controller.is_forward_pressed);
         assert!(!controller.is_left_pressed);
@@ -280,49 +268,49 @@ mod tests {
 
     #[test]
     fn test_handle_key_w_sets_forward_pressed() {
-        let mut controller = CameraController::new(CameraMode::FLY);
+        let mut controller = CameraMovementHandler::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Forwards), true);
         assert!(controller.is_forward_pressed);
     }
 
     #[test]
     fn test_handle_key_s_sets_backward_pressed() {
-        let mut controller = CameraController::new(CameraMode::FLY);
+        let mut controller = CameraMovementHandler::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Backwards), true);
         assert!(controller.is_backward_pressed);
     }
 
     #[test]
     fn test_handle_key_a_sets_left_pressed() {
-        let mut controller = CameraController::new(CameraMode::FLY);
+        let mut controller = CameraMovementHandler::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Left), true);
         assert!(controller.is_left_pressed);
     }
 
     #[test]
     fn test_handle_key_d_sets_right_pressed() {
-        let mut controller = CameraController::new(CameraMode::FLY);
+        let mut controller = CameraMovementHandler::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Right), true);
         assert!(controller.is_right_pressed);
     }
 
     #[test]
     fn test_handle_key_space_sets_up_pressed() {
-        let mut controller = CameraController::new(CameraMode::FLY);
+        let mut controller = CameraMovementHandler::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Up), true);
         assert!(controller.is_up_pressed);
     }
 
     #[test]
     fn test_handle_key_ctrl_sets_down_pressed() {
-        let mut controller = CameraController::new(CameraMode::FLY);
+        let mut controller = CameraMovementHandler::new(CameraMode::FLY);
         controller.handle_action(&Action::Camera(CameraActions::Down), true);
         assert!(controller.is_down_pressed);
     }
 
     #[test]
     fn test_handle_key_release_clears_state() {
-        let mut controller = CameraController::new(CameraMode::ORBIT);
+        let mut controller = CameraMovementHandler::new(CameraMode::ORBIT);
 
         controller.handle_action(&Action::Camera(CameraActions::Forwards), true);
         assert!(controller.is_forward_pressed);
@@ -336,7 +324,7 @@ mod tests {
         let mut camera = create_test_camera();
         let initial_eye = camera.eye;
 
-        let mut controller = CameraController::new(CameraMode::ORBIT);
+        let mut controller = CameraMovementHandler::new(CameraMode::ORBIT);
         controller.is_forward_pressed = true;
         controller.update_camera_with_keyboard(&mut camera, 0.1); // Smaller delta to avoid overshooting
 
@@ -353,7 +341,7 @@ mod tests {
     fn test_update_camera_backward_movement() {
         let mut camera = create_test_camera();
         let initial_eye = camera.eye;
-        let mut controller = CameraController::new(CameraMode::ORBIT);
+        let mut controller = CameraMovementHandler::new(CameraMode::ORBIT);
 
         controller.is_backward_pressed = true;
         controller.update_camera_with_keyboard(&mut camera, 1.0);
@@ -366,7 +354,7 @@ mod tests {
     fn test_update_camera_left_strafe() {
         let mut camera = create_test_camera();
         let initial_eye = camera.eye;
-        let mut controller = CameraController::new(CameraMode::ORBIT);
+        let mut controller = CameraMovementHandler::new(CameraMode::ORBIT);
 
         controller.is_left_pressed = true;
         controller.update_camera_with_keyboard(&mut camera, 1.0);
@@ -377,7 +365,7 @@ mod tests {
     #[test]
     fn test_update_camera_right_strafe() {
         let mut camera = create_test_camera();
-        let mut controller = CameraController::new(CameraMode::ORBIT);
+        let mut controller = CameraMovementHandler::new(CameraMode::ORBIT);
         let initial_eye = camera.eye;
 
         controller.is_right_pressed = true;
@@ -388,7 +376,7 @@ mod tests {
     #[test]
     fn test_update_camera_up_movement() {
         let mut camera = create_test_camera();
-        let mut controller = CameraController::new(CameraMode::ORBIT);
+        let mut controller = CameraMovementHandler::new(CameraMode::ORBIT);
         let initial_eye = camera.eye;
 
         controller.is_up_pressed = true;
@@ -399,7 +387,7 @@ mod tests {
     #[test]
     fn test_update_camera_down_movement() {
         let mut camera = create_test_camera();
-        let mut controller = CameraController::new(CameraMode::ORBIT);
+        let mut controller = CameraMovementHandler::new(CameraMode::ORBIT);
         let initial_eye = camera.eye;
 
         controller.is_down_pressed = true;
@@ -411,7 +399,7 @@ mod tests {
     fn test_update_camera_respects_delta_time() {
         let mut camera1 = create_test_camera();
         let mut camera2 = create_test_camera();
-        let mut controller = CameraController::new(CameraMode::ORBIT);
+        let mut controller = CameraMovementHandler::new(CameraMode::ORBIT);
         controller.is_forward_pressed = true;
         controller.update_camera_with_keyboard(&mut camera1, 0.1);
         controller.update_camera_with_keyboard(&mut camera2, 0.2);
@@ -430,7 +418,7 @@ mod tests {
     #[test]
     fn test_update_camera_no_movement_when_no_keys_pressed() {
         let mut camera = create_test_camera();
-        let controller = CameraController::new(CameraMode::ORBIT);
+        let controller = CameraMovementHandler::new(CameraMode::ORBIT);
         let initial_eye = camera.eye.clone();
         controller.update_camera_with_keyboard(&mut camera, 1.0);
         assert_eq!(camera.eye, initial_eye);
@@ -453,7 +441,7 @@ mod tests {
             0.5,
         );
 
-        let mut controller = CameraController::new(CameraMode::ORBIT);
+        let mut controller = CameraMovementHandler::new(CameraMode::ORBIT);
         let initial_eye = camera.eye;
 
         controller.is_forward_pressed = true;
@@ -467,7 +455,7 @@ mod tests {
     fn test_update_camera_strafe_changes_position() {
         let mut camera = create_test_camera();
         let initial_eye = camera.eye;
-        let mut controller = CameraController::new(CameraMode::ORBIT);
+        let mut controller = CameraMovementHandler::new(CameraMode::ORBIT);
 
         controller.is_left_pressed = true;
         controller.update_camera_with_keyboard(&mut camera, 0.1);
@@ -479,7 +467,7 @@ mod tests {
     fn test_speed_modifier_doubles_speed() {
         let mut camera1 = create_test_camera();
         let mut camera2 = create_test_camera();
-        let mut controller = CameraController::new(CameraMode::FLY);
+        let mut controller = CameraMovementHandler::new(CameraMode::FLY);
 
         controller.is_forward_pressed = true;
         controller.update_camera_with_keyboard(&mut camera1, 0.1);
@@ -502,7 +490,7 @@ mod tests {
     fn test_slow_modifier_halves_speed() {
         let mut camera1 = create_test_camera();
         let mut camera2 = create_test_camera();
-        let mut controller = CameraController::new(CameraMode::FLY);
+        let mut controller = CameraMovementHandler::new(CameraMode::FLY);
 
         controller.is_forward_pressed = true;
         controller.update_camera_with_keyboard(&mut camera1, 0.1);
@@ -530,7 +518,7 @@ mod tests {
             view_up: Vec3::Y,
         };
 
-        let offset = CameraController::calculate_pan_offset(2.0, -4.0, &axes, 0.25);
+        let offset = CameraMovementHandler::calculate_pan_offset(2.0, -4.0, &axes, 0.25);
 
         assert_eq!(offset, Vec3::new(-0.5, -1.0, 0.0));
     }
@@ -544,7 +532,7 @@ mod tests {
             view_up: Vec3::Y,
         };
 
-        let offset = CameraController::calculate_pan_offset(1.0, 0.0, &axes, 1.0);
+        let offset = CameraMovementHandler::calculate_pan_offset(1.0, 0.0, &axes, 1.0);
 
         assert_eq!(offset, -Vec3::X);
     }
@@ -552,7 +540,7 @@ mod tests {
     #[test]
     fn test_rotation_only_when_mouse_clicked() {
         let mut camera = create_test_camera();
-        let mut controller = CameraController::new(CameraMode::FLY);
+        let mut controller = CameraMovementHandler::new(CameraMode::FLY);
 
         let initial_yaw = camera.yaw;
         let initial_pitch = camera.pitch;

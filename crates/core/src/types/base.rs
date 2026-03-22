@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::types::BaseId;
 
-#[derive(Debug, Default, Hash)]
+#[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
 pub struct Id {
     pub value: String,
 }
