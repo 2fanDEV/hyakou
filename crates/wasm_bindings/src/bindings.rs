@@ -1,7 +1,7 @@
 use hyako::state::AppState;
 use hyakou_core::{
     events::Event,
-    types::shared::{AssetInformation, Coordinates},
+    types::shared::{AssetInformation, Coordinates3},
 };
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use web_sys::HtmlCanvasElement;
@@ -55,7 +55,7 @@ impl Hyako {
     }
 
     #[wasm_bindgen]
-    pub fn set_coords(&self, coordinates: Coordinates) -> Result<(), JsValue> {
+    pub fn set_coords(&self, coordinates: Coordinates3) -> Result<(), JsValue> {
         self.send_event(Event::SetCoords(coordinates))
     }
 

@@ -6,7 +6,7 @@ use hyakou_core::{
     animations::trajectory::calculate_direction_vector,
     components::camera::{
         camera::Camera,
-        data_structures::{CameraAxes, CameraMode},
+        data_structures::{CameraAxes, CameraMode, CameraTransition},
     },
     types::{DeltaTime, mouse_delta::MouseDelta},
 };
@@ -81,6 +81,21 @@ impl CameraMovementHandler {
                 CameraActions::Drag => self.is_mouse_dragging = is_pressed,
             },
         }
+    }
+
+    pub fn transition_camera_incrementally(
+        &self,
+        camera: &mut Camera,
+        transition: &CameraTransition,
+        delta_time: DeltaTime,
+    ) {
+        let position = camera.eye;
+        let target = transition.target_coords().to_vec();
+        let direction = target - position;
+        let distance = direction.length();
+        let increment = delta_time * transition.increments();
+        let new_position = position + direction.normalize() * increment;
+        camera.eye = new_position;
     }
 
     pub fn update_camera_with_keyboard(&self, camera: &mut Camera, delta_time: DeltaTime) {

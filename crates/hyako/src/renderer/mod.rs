@@ -8,10 +8,7 @@ use crate::{
         render_mesh::RenderMesh,
     },
     renderer::{
-        handlers::{
-            asset_handler::AssetHandler,
-            camera_handler::{CameraHandler, CameraHandler},
-        },
+        handlers::{asset_handler::AssetHandler, camera::CameraHandler},
         renderer_context::RenderContext,
         wrappers::WinitSurfaceProvider,
     },
@@ -181,28 +178,15 @@ impl Renderer {
             light_uniform_buffer,
             light_bind_group,
             animators,
-            camera_handler: CameraHandler::new(CameraMode::PAN),
+            camera_handler: CameraHandler::new(),
             camera_state: CameraHandler::new(),
             window,
         })
     }
 
     pub fn update(&mut self, delta_time: DeltaTime64) {
-        let updated = match self.camera_state.get_camera_transition(&self.camera.id) {
-            Some(t) => match t.is_active() {
-                true => {
-                    // here update via transition and increment logic
-                    true
-                }
-                _ => false,
-            },
-            None => false,
-        };
-        if !updated {
-            self.camera_handler
-                .update_camera_with_keyboard(&mut self.camera, delta_time as f32);
-        }
-
+        self.camera_handler
+            .update(&mut self.camera, delta_time as f32);
         self.animators.values_mut().for_each(|animator| {
             if let Err(animator_error) = animator.play(delta_time) {
                 error!("{:?}", animator_error)

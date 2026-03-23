@@ -155,7 +155,7 @@ impl FlowController {
         }
     }
 
-    fn handle_set_coords(&mut self, coordinates: hyakou_core::types::shared::Coordinates) {
+    fn handle_set_coords(&mut self, coordinates: hyakou_core::types::shared::Coordinates3) {
         let _ = self.renderer_slot.try_write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
                 return;
@@ -163,7 +163,8 @@ impl FlowController {
 
             renderer
                 .camera_handler
-                .camera_transition_from_coordinates(&mut renderer.camera, coordinates);
+                .state
+                .set_camera_transition(&mut renderer.camera, coordinates);
         });
     }
 

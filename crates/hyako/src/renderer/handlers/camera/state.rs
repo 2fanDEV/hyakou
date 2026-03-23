@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hyakou_core::{
     components::camera::{camera::Camera, data_structures::CameraTransition},
-    types::{base::Id, shared::Coordinates},
+    types::{base::Id, shared::Coordinates3},
 };
 
 #[derive(Debug)]
@@ -16,11 +16,7 @@ impl CameraState {
             camera_transition: HashMap::new(),
         }
     }
-    pub fn camera_transition_from_coordinates(
-        &mut self,
-        camera: &mut Camera,
-        coordinates: Coordinates,
-    ) {
+    pub fn set_camera_transition(&mut self, camera: &mut Camera, coordinates: Coordinates3) {
         self.camera_transition
             .insert(camera.id.clone(), CameraTransition::new(coordinates));
     }

@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use hyakou_core::{
     components::{LightType, mesh_node::MeshNode},
-    types::{mouse_delta::MouseButton, shared::Coordinates},
+    types::{mouse_delta::MouseButton, shared::Coordinates3},
 };
 use winit::{keyboard::KeyCode, window::Window};
 
 pub enum RendererCommand {
     WindowCreated(Arc<Window>),
-    SetCoords(Coordinates),
+    SetCoords(Coordinates3),
     CursorInWindow {
         is_inside: bool,
     },
