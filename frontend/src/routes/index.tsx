@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import init, { AssetInformation, Hyako } from "@wasm/hyako_wasm_bindings.js";
+import init, {
+  AssetInformation,
+  Coordinates3,
+  Hyako,
+} from "@wasm/hyako_wasm_bindings.js";
 import wasm_url from "@wasm/hyako_wasm_bindings_bg.wasm?url";
 
 export const Route = createFileRoute("/")({ component: App });
@@ -10,6 +14,11 @@ function App() {
   let hyakoRef = useRef<Hyako | null>(null);
   let [wasmReady, setWasmReady] = useState(false);
   let [selectedFile, setSelectedFile] = useState<File | null>(null);
+  let [cameraCoordinates, setCameraCoordinates] = useState<{
+    x: number;
+    y: number;
+    z: number;
+  }>({ x: 0, y: 0, z: 0 });
   let [statusMessage, setStatusMessage] = useState<string>("");
 
   useEffect(() => {
@@ -84,6 +93,62 @@ function App() {
           disabled={!wasmReady || selectedFile === null}
         >
           Upload file
+        </button>
+      </div>
+      <div className="mb-3 mt-3 flex flex-wrap items-center gap-2">
+        <input
+          type="number"
+          step="any"
+          value={cameraCoordinates.x}
+          onChange={(event) =>
+            setCameraCoordinates({
+              ...cameraCoordinates,
+              x: Number(event.target.value),
+            })
+          }
+          placeholder="X"
+          aria-label="Camera X"
+        />
+        <input
+          type="number"
+          step="any"
+          value={cameraCoordinates.y}
+          onChange={(event) =>
+            setCameraCoordinates({
+              ...cameraCoordinates,
+              y: Number(event.target.value),
+            })
+          }
+          placeholder="Y"
+          aria-label="Camera Y"
+        />
+        <input
+          type="number"
+          step="any"
+          value={cameraCoordinates.z}
+          onChange={(event) =>
+            setCameraCoordinates({
+              ...cameraCoordinates,
+              z: Number(event.target.value),
+            })
+          }
+          placeholder="Z"
+          aria-label="Camera Z"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            hyakoRef.current?.set_coords(
+              new Coordinates3(
+                cameraCoordinates.x,
+                cameraCoordinates.y,
+                cameraCoordinates.z,
+              ),
+            );
+          }}
+          disabled={!wasmReady}
+        >
+          Transition
         </button>
       </div>
       <div>{statusMessage}</div>

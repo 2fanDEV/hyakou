@@ -3,6 +3,7 @@ use hyakou_core::{
     events::Event,
     types::shared::{AssetInformation, Coordinates3},
 };
+use log::Record;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use web_sys::HtmlCanvasElement;
 use winit::{
@@ -22,6 +23,7 @@ impl Hyako {
     #[wasm_bindgen(constructor)]
     pub fn new(canvas_ref: HtmlCanvasElement) -> Result<Hyako, JsValue> {
         console_error_panic_hook::set_once();
+        let _ = console_log::init_with_level(log::Level::Info);
         let event_loop = match EventLoop::<Event>::with_user_event().build() {
             Ok(event_loop) => event_loop,
             Err(error) => return Err(JsValue::from_str(&error.to_string())),

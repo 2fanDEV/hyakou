@@ -29,7 +29,7 @@ impl CameraTransition {
         Self {
             target_coords,
             status: TransitionStatus::Active,
-            increments: 0.01,
+            increments: 20.0,
         }
     }
 

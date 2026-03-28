@@ -9,6 +9,14 @@ pub struct Coordinates3 {
     pub z: f32,
 }
 
+#[wasm_bindgen]
+impl Coordinates3 {
+    #[wasm_bindgen(constructor)]
+    pub fn new(x: f32, y: f32, z: f32) -> Self {
+        Self { x, y, z }
+    }
+}
+
 impl Coordinates3 {
     pub fn to_vec(&self) -> Vec3 {
         Vec3::new(self.x, self.y, self.z)

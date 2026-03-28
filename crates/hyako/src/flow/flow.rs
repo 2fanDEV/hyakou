@@ -160,7 +160,6 @@ impl FlowController {
             let Some(renderer) = renderer_slot.as_mut() else {
                 return;
             };
-
             renderer
                 .camera_handler
                 .state
