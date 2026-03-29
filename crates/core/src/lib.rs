@@ -3,6 +3,9 @@ use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use std::{cell::RefCell, rc::Rc};
 
+use anyhow::Result;
+#[cfg(target_arch = "wasm32")]
+use anyhow::anyhow;
 #[cfg(not(target_arch = "wasm32"))]
 use parking_lot::RwLock;
 
@@ -33,8 +36,8 @@ pub fn shared<T>(elem: T) -> Shared<T> {
 pub trait SharedAccess<T> {
     fn read_shared<F>(&self, f: impl FnOnce(&T) -> F) -> F;
     fn write_shared<F>(&self, f: impl FnOnce(&mut T) -> F) -> F;
-    fn try_read_shared<F>(&self, f: impl FnOnce(&T) -> F) -> Option<F>;
-    fn try_write_shared<F>(&self, f: impl FnOnce(&mut T) -> F) -> Option<F>;
+    fn try_read_shared<F>(&self, f: impl FnOnce(&T) -> F) -> Result<F>;
+    fn try_write_shared<F>(&self, f: impl FnOnce(&mut T) -> F) -> Result<F>;
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -47,12 +50,14 @@ impl<T> SharedAccess<T> for Rc<RefCell<T>> {
         f(&mut self.borrow_mut())
     }
 
-    fn try_read_shared<F>(&self, f: impl FnOnce(&T) -> F) -> Option<F> {
-        self.try_borrow().map(|g| f(&g)).ok()
+    fn try_read_shared<F>(&self, f: impl FnOnce(&T) -> F) -> Result<F> {
+        self.try_borrow().map(|g| f(&g)).map_err(|e| anyhow!(e))
     }
 
-    fn try_write_shared<F>(&self, f: impl FnOnce(&mut T) -> F) -> Option<F> {
-        self.try_borrow_mut().map(|mut g| f(&mut g)).ok()
+    fn try_write_shared<F>(&self, f: impl FnOnce(&mut T) -> F) -> Result<F> {
+        self.try_borrow_mut()
+            .map(|mut g| f(&mut g))
+            .map_err(|e| anyhow!(e))
     }
 }
 

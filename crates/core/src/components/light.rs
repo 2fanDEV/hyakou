@@ -38,6 +38,7 @@ impl LightSource {
                 color: self.color,
                 _padding_2: 0.0,
             })
+            .ok()
     }
 }
 

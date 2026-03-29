@@ -2,7 +2,7 @@ use glam::Vec3;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Coordinates3 {
     pub x: f32,
     pub y: f32,
@@ -18,6 +18,14 @@ impl Coordinates3 {
 }
 
 impl Coordinates3 {
+    pub fn from_vec3(vector: Vec3) -> Self {
+        Self {
+            x: vector.x,
+            y: vector.y,
+            z: vector.z,
+        }
+    }
+
     pub fn to_vec(&self) -> Vec3 {
         Vec3::new(self.x, self.y, self.z)
     }

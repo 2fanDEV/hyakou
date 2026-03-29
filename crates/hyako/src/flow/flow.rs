@@ -27,7 +27,7 @@ use crate::{
 pub struct FlowController {
     tx: Sender<RendererCommand>,
     rx: Receiver<RendererCommand>,
-    renderer_slot: Shared<Option<Renderer>>,
+    renderer: Shared<Option<Renderer>>,
     keyboard_handler: KeyboardHandler,
     mouse_handler: MouseHandler,
     mouse_delta: MouseDelta,
@@ -47,7 +47,7 @@ impl FlowController {
         let controller = Self {
             tx: tx.clone(),
             rx,
-            renderer_slot: shared(None),
+            renderer: shared(None),
             keyboard_handler: KeyboardHandler::new(),
             mouse_handler: MouseHandler::new(),
             mouse_delta: MouseDelta::default(),
@@ -55,6 +55,10 @@ impl FlowController {
         };
 
         (controller, FlowHandle::new(tx))
+    }
+
+    pub fn get_renderer(&self) -> Shared<Option<Renderer>> {
+        self.renderer.clone()
     }
 
     pub fn drain_commands(&mut self) {
@@ -112,7 +116,7 @@ impl FlowController {
         self.window = Some(window.clone());
 
         let has_renderer = self
-            .renderer_slot
+            .renderer
             .read_shared(|renderer_slot| renderer_slot.is_some());
         if has_renderer {
             return;
@@ -132,19 +136,19 @@ impl FlowController {
 
         #[cfg(target_arch = "wasm32")]
         {
-            let renderer_slot = self.renderer_slot.clone();
+            let renderer_slot = self.renderer.clone();
             spawn_local(async move {
                 match Renderer::new(window.clone()).await {
                     Ok(renderer) => {
-                        let Some(()) =
-                            renderer_slot.try_write_shared(|slot| *slot = Some(renderer))
+                        let Some(()) = renderer_slot
+                            .try_write_shared(|slot| *slot = Some(renderer))
+                            .ok()
                         else {
                             warn!(
                                 "Renderer initialized but flow slot was busy; skipping this frame"
                             );
                             return;
                         };
-
                         window.request_redraw();
                     }
                     Err(renderer_error) => {
@@ -156,7 +160,7 @@ impl FlowController {
     }
 
     fn handle_set_coords(&mut self, coordinates: hyakou_core::types::shared::Coordinates3) {
-        let _ = self.renderer_slot.try_write_shared(|renderer_slot| {
+        let _ = self.renderer.try_write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
                 return;
             };
@@ -169,7 +173,7 @@ impl FlowController {
 
     fn handle_keyboard_input(&mut self, key: winit::keyboard::KeyCode, pressed: bool) {
         let events = self.keyboard_handler.handle_key(key, pressed);
-        let _ = self.renderer_slot.try_write_shared(|renderer_slot| {
+        let _ = self.renderer.try_write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
                 return;
             };
@@ -184,7 +188,7 @@ impl FlowController {
         self.mouse_delta.delta_position =
             hyakou_core::types::mouse_delta::MovementDelta::new(dx, dy);
 
-        let _ = self.renderer_slot.try_write_shared(|renderer_slot| {
+        let _ = self.renderer.try_write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
                 return;
             };
@@ -224,7 +228,7 @@ impl FlowController {
         }
 
         let events = self.mouse_handler.handle_button(button, pressed);
-        let _ = self.renderer_slot.try_write_shared(|renderer_slot| {
+        let _ = self.renderer.try_write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
                 return;
             };
@@ -290,7 +294,7 @@ impl FlowController {
         asset_type: LightType,
         mesh_nodes: Vec<MeshNode>,
     ) {
-        let _ = self.renderer_slot.try_write_shared(|renderer_slot| {
+        let _ = self.renderer.try_write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
                 warn!("Dropping parsed asset `{id}` because renderer is not ready");
                 return;
@@ -303,7 +307,7 @@ impl FlowController {
     }
 
     fn handle_redraw(&mut self, dt: f64) {
-        let _ = self.renderer_slot.try_write_shared(|renderer_slot| {
+        let _ = self.renderer.try_write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
                 return;
             };
@@ -313,13 +317,6 @@ impl FlowController {
                 error!("Renderer draw call failed: {render_error:?}");
             }
         });
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn send_internal(&self, command: RendererCommand) {
-        if self.tx.send(command).is_err() {
-            warn!("Failed to enqueue flow command: receiver dropped");
-        }
     }
 
     fn handle_input_event(renderer: &mut Renderer, event: InputEvent) {

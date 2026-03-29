@@ -96,7 +96,7 @@ impl Animation for LinearTrajectory {
         }
         self.transform
             .try_write_shared(|transform| transform.position = next_position)
-            .ok_or_else(|| anyhow!("Failed to aquire lock acquisition!"))?;
+            .map_err(|_e| anyhow!("Failed to aquire lock acquisition!"))?;
 
         if next_progress >= Self::MAX_PROGRESS && self.reversing {
             next_direction = Direction::BACKWARDS;
@@ -112,12 +112,16 @@ impl Animation for LinearTrajectory {
     }
 
     fn reset(&mut self) {
-        self.transform
+        match self
+            .transform
             .try_write_shared(|t| t.position = self.start_position)
-            .or_else(|| {
-                error!("Failed to reset animation with id: {:?}", self.id);
-                Some(())
-            });
+            .map_err(|_e| anyhow!("Failed to reset animation with id: {:?}", self.id))
+        {
+            Ok(_) => {}
+            Err(e) => {
+                error!("{}", e)
+            }
+        };
         self.progress = Self::ZERO_PROGRESS;
         self.direction = Direction::FORWARDS;
     }

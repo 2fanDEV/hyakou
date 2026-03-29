@@ -19,11 +19,7 @@ use glam::Vec3;
 use hyakou_core::{
     SharedAccess,
     animations::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
-    components::{
-        LightType,
-        camera::{camera::Camera, data_structures::CameraMode},
-        light::LightSource,
-    },
+    components::{LightType, camera::camera::Camera, light::LightSource},
     shared,
     traits::BindGroupProvider,
     types::{
@@ -99,7 +95,8 @@ impl Renderer {
             .as_ref()
             .unwrap()
             .transform
-            .try_write_shared(|t| t.translate(Vec3::new(0.0, 1.0, 1.0)));
+            .try_write_shared(|t| t.translate(Vec3::new(0.0, 1.0, 1.0)))
+            .unwrap();
         let light = LightSource::new(
             cube_light_mesh.as_ref().unwrap().transform.clone(),
             Vec3::new(1.0, 1.0, 1.0),
@@ -242,10 +239,10 @@ impl Renderer {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(Color {
-                            r: 0.25,
-                            g: (0.1),
-                            b: (0.75),
-                            a: 0.2,
+                            r: 0.0,
+                            g: (0.0),
+                            b: (0.0),
+                            a: 0.0,
                         }),
                         store: wgpu::StoreOp::Store,
                     },

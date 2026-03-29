@@ -1,9 +1,9 @@
-use hyako::state::AppState;
+use hyako::{renderer::Renderer, state::AppState};
 use hyakou_core::{
+    Shared, SharedAccess,
     events::Event,
     types::shared::{AssetInformation, Coordinates3},
 };
-use log::Record;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use web_sys::HtmlCanvasElement;
 use winit::{
@@ -11,9 +11,12 @@ use winit::{
     platform::web::EventLoopExtWebSys,
 };
 
+use crate::CameraDO;
+
 #[wasm_bindgen]
 pub struct Hyako {
     app_state: Option<AppState>,
+    renderer: Shared<Option<Renderer>>,
     event_loop: Option<EventLoop<Event>>,
     event_loop_proxy: EventLoopProxy<Event>,
 }
@@ -34,8 +37,10 @@ impl Hyako {
             Err(error) => return Err(JsValue::from_str(&error.to_string())),
         };
         let event_loop_proxy = event_loop.create_proxy();
+        let renderer = app_state.get_renderer();
         Ok(Hyako {
             app_state: Some(app_state),
+            renderer,
             event_loop: Some(event_loop),
             event_loop_proxy,
         })
@@ -64,6 +69,16 @@ impl Hyako {
     #[wasm_bindgen]
     pub fn upload_file(&self, file: AssetInformation) -> Result<(), JsValue> {
         self.send_event(Event::AssetUpload(file))
+    }
+
+    #[wasm_bindgen]
+    pub fn get_camera(&self) -> Result<CameraDO, JsValue> {
+        self.renderer
+            .try_read_shared(|renderer| match renderer {
+                Some(r) => Ok(CameraDO::from_camera(&r.camera)),
+                None => Err(JsValue::from_str("Renderer missing or not initialized")),
+            })
+            .unwrap()
     }
 
     fn send_event(&self, event: Event) -> Result<(), JsValue> {

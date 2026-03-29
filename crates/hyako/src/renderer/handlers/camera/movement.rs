@@ -92,7 +92,6 @@ impl CameraMovementHandler {
         let position = camera.eye;
         let target = transition.target_coords().to_vec();
         let direction = target - position;
-        let distance = direction.length();
         let increment = delta_time * transition.increments();
         let new_position = position + direction.normalize() * increment;
         camera.eye = new_position;

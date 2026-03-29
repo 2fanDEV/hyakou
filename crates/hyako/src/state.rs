@@ -19,12 +19,16 @@ use winit::{
 };
 
 use hyakou_core::{
+    Shared,
     components::LightType,
     events::Event,
     types::{DeltaTime64, mouse_delta::MouseButton},
 };
 
-use crate::flow::{FlowController, FlowHandle, RendererCommand};
+use crate::{
+    flow::{FlowController, FlowHandle, RendererCommand},
+    renderer::Renderer,
+};
 
 pub struct AppState {
     window: Option<Arc<Window>>,
@@ -48,6 +52,10 @@ impl AppState {
             flow_handle,
             last_frame_time: Instant::now(),
         })
+    }
+
+    pub fn get_renderer(&self) -> Shared<Option<Renderer>> {
+        self.flow_controller.get_renderer()
     }
 
     #[cfg(target_arch = "wasm32")]
