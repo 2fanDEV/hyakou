@@ -126,7 +126,7 @@ impl FlowController {
         match pollster::block_on(Renderer::new(window)) {
             Ok(renderer) => {
                 let _ = self
-                    .renderer_slot
+                    .renderer
                     .try_write_shared(|renderer_slot| *renderer_slot = Some(renderer));
             }
             Err(renderer_error) => {
@@ -317,6 +317,13 @@ impl FlowController {
                 error!("Renderer draw call failed: {render_error:?}");
             }
         });
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn send_internal(&self, command: RendererCommand) {
+        if self.tx.send(command).is_err() {
+            warn!("Failed to enqueue flow command: receiver dropped");
+        }
     }
 
     fn handle_input_event(renderer: &mut Renderer, event: InputEvent) {

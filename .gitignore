@@ -10,3 +10,4 @@ Hyakou/
 gha-creds-*.json
 AGENTS.md
 .env
+.zed/*

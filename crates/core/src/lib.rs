@@ -4,6 +4,8 @@ use std::sync::Arc;
 use std::{cell::RefCell, rc::Rc};
 
 use anyhow::Result;
+#[cfg(not(target_arch = "wasm32"))]
+use anyhow::anyhow;
 #[cfg(target_arch = "wasm32")]
 use anyhow::anyhow;
 #[cfg(not(target_arch = "wasm32"))]
@@ -73,11 +75,15 @@ impl<T> SharedAccess<T> for Arc<RwLock<T>> {
         f(&mut guard)
     }
 
-    fn try_read_shared<F>(&self, f: impl FnOnce(&T) -> F) -> Option<F> {
-        self.try_read().map(|guard| f(&guard))
+    fn try_read_shared<F>(&self, f: impl FnOnce(&T) -> F) -> Result<F> {
+        self.try_read()
+            .map(|guard| f(&guard))
+            .ok_or_else(|| anyhow!("Failed to read shared object"))
     }
 
-    fn try_write_shared<F>(&self, f: impl FnOnce(&mut T) -> F) -> Option<F> {
-        self.try_write().map(|mut guard| f(&mut guard))
+    fn try_write_shared<F>(&self, f: impl FnOnce(&mut T) -> F) -> Result<F> {
+        self.try_write()
+            .map(|mut guard| f(&mut guard))
+            .ok_or_else(|| anyhow!("Failed to write to shared object"))
     }
 }
