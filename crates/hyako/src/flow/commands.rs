@@ -46,4 +46,8 @@ pub enum RendererCommand {
     Redraw {
         dt: f64,
     },
+    Resize {
+        height: f64,
+        width: f64,
+    },
 }

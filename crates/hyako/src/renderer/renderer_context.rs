@@ -186,8 +186,8 @@ impl RenderContext {
     // requires winit window, no test until figured out how to do headless
     pub fn resize(&mut self, size: Size) {
         self.surface_configuration.as_mut().map(|cfg| {
-            cfg.width = size.width;
-            cfg.height = size.height;
+            cfg.width = size.width as u32;
+            cfg.height = size.height as u32;
             self.surface.as_ref().unwrap().configure(&self.device, &cfg);
             cfg
         });

@@ -40,7 +40,7 @@ pub struct FlowHandle {
 }
 
 impl FlowController {
-    const MAX_COMMANDS_PER_TICK: usize = 1024;
+    const MAX_COMMANDS_PER_TICK: usize = 128;
 
     pub fn new_pair() -> (Self, FlowHandle) {
         let (tx, rx) = channel::<RendererCommand>();
@@ -109,6 +109,7 @@ impl FlowController {
                 error!("Asset upload failed for `{id}`: {error}");
             }
             RendererCommand::Redraw { dt } => self.handle_redraw(dt),
+            RendererCommand::Resize { height, width } => self.handle_resize(height, width),
         }
     }
 
@@ -317,6 +318,19 @@ impl FlowController {
                 error!("Renderer draw call failed: {render_error:?}");
             }
         });
+    }
+
+    fn handle_resize(&mut self, height: f64, width: f64) {
+        debug!("{:?}, {:?}", height, width);
+        self.renderer
+            .try_write_shared(|renderer| {
+                let Some(renderer) = renderer.as_mut() else {
+                    return;
+                };
+
+                renderer.resize(height, width);
+            })
+            .unwrap();
     }
 
     #[cfg(not(target_arch = "wasm32"))]

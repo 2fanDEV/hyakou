@@ -10,6 +10,7 @@ use crate::{
     renderer::{
         handlers::{asset_handler::AssetHandler, camera::CameraHandler},
         renderer_context::RenderContext,
+        util::Size,
         wrappers::WinitSurfaceProvider,
     },
 };
@@ -29,7 +30,7 @@ use hyakou_core::{
         transform::Transform,
     },
 };
-use log::{error, warn};
+use log::{debug, error, warn};
 use wgpu::{
     BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations, Queue,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
@@ -114,11 +115,17 @@ impl Renderer {
             &LightSource::bind_group_layout(&ctx.device),
         );
 
+        let aspect = if ctx.size.height == 0 {
+            1.0
+        } else {
+            (ctx.size.width / ctx.size.height) as f32
+        };
+
         let camera = Camera::new(
             Vec3::new(0.0, 0.0, 15.0),
             Vec3::new(0.0, 0.0, 0.0),
             Vec3::Y,
-            (ctx.size.width / ctx.size.height) as f32,
+            aspect,
             45.0_f32.to_radians(),
             0.1,
             1000.0,
@@ -179,6 +186,13 @@ impl Renderer {
             camera_state: CameraHandler::new(),
             window,
         })
+    }
+
+    pub fn resize(&mut self, height: f64, width: f64) {
+        self.ctx.resize(Size {
+            width: width as u32,
+            height: height as u32,
+        });
     }
 
     pub fn update(&mut self, delta_time: DeltaTime64) {
