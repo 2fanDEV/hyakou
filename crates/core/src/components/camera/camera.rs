@@ -3,6 +3,7 @@ use glam::{Mat4, Vec3};
 use crate::{
     animations::trajectory::calculate_direction_vector,
     types::{
+        Size,
         base::Id,
         camera::{Pitch, Yaw},
     },
@@ -27,6 +28,16 @@ pub struct Camera {
 }
 
 impl Camera {
+    const DEFAULT_ASPECT_RATIO: f32 = 1.0;
+
+    pub fn aspect_ratio_from_size(size: Size) -> f32 {
+        if size.height == 0 {
+            Self::DEFAULT_ASPECT_RATIO
+        } else {
+            size.width as f32 / size.height as f32
+        }
+    }
+
     pub fn new(
         eye: Vec3,
         target: Vec3,
@@ -57,6 +68,18 @@ impl Camera {
             smoothing_factor,
             precalculated_smoothing: 1.0 - smoothing_factor,
         }
+    }
+
+    pub fn set_aspect(&mut self, aspect: f32) {
+        self.aspect = if aspect.is_finite() && aspect > 0.0 {
+            aspect
+        } else {
+            Self::DEFAULT_ASPECT_RATIO
+        };
+    }
+
+    pub fn set_aspect_from_size(&mut self, size: Size) {
+        self.set_aspect(Self::aspect_ratio_from_size(size));
     }
 
     pub fn update_yaw(&mut self, yaw_delta: f32) {
@@ -95,7 +118,10 @@ mod tests {
 
     use crate::{
         components::camera::camera::Camera,
-        types::camera::{Pitch, Yaw},
+        types::{
+            Size,
+            camera::{Pitch, Yaw},
+        },
     };
 
     fn create_test_camera() -> Camera {
@@ -237,12 +263,10 @@ mod tests {
     fn test_pitch_clamping_at_upper_limit() {
         let mut camera = create_test_camera();
 
-        // Apply large upward rotation to exceed pitch limit
         for _ in 0..100 {
             camera.move_camera(0.0, 10.0);
         }
 
-        // Pitch should be clamped to max (89 degrees)
         let max_pitch = 89.0_f32.to_radians();
         assert!(
             *camera.pitch <= max_pitch,
@@ -256,18 +280,52 @@ mod tests {
     fn test_pitch_clamping_at_lower_limit() {
         let mut camera = create_test_camera();
 
-        // Apply large downward rotation to exceed pitch limit
         for _ in 0..100 {
             camera.move_camera(0.0, -10.0);
         }
 
-        // Pitch should be clamped to min (-89 degrees)
         let min_pitch = -89.0_f32.to_radians();
         assert!(
             *camera.pitch >= min_pitch,
             "Pitch should be clamped at lower limit. Got: {}, Min: {}",
             *camera.pitch,
             min_pitch
+        );
+    }
+
+    #[test]
+    fn test_set_aspect_updates_projection_matrix() {
+        let mut camera = create_test_camera();
+        let initial_matrix = camera.build_view_proj_matrix().to_cols_array();
+
+        camera.set_aspect(4.0 / 3.0);
+
+        assert_ne!(
+            initial_matrix,
+            camera.build_view_proj_matrix().to_cols_array(),
+            "Projection matrix should change when the aspect ratio changes"
+        );
+    }
+
+    #[test]
+    fn test_set_aspect_rejects_invalid_values() {
+        let mut camera = create_test_camera();
+
+        camera.set_aspect(0.0);
+        assert_eq!(camera.aspect, 1.0);
+
+        camera.set_aspect(f32::NAN);
+        assert_eq!(camera.aspect, 1.0);
+    }
+
+    #[test]
+    fn test_aspect_ratio_from_size_defaults_for_zero_height() {
+        assert_eq!(
+            Camera::aspect_ratio_from_size(Size {
+                width: 1920,
+                height: 0,
+            }),
+            1.0
         );
     }
 }

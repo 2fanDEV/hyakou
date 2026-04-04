@@ -10,11 +10,10 @@ use crate::{
     renderer::{
         handlers::{asset_handler::AssetHandler, camera::CameraHandler},
         renderer_context::RenderContext,
-        util::Size,
         wrappers::WinitSurfaceProvider,
     },
 };
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use bytemuck::bytes_of;
 use glam::Vec3;
 use hyakou_core::{
@@ -24,17 +23,17 @@ use hyakou_core::{
     shared,
     traits::BindGroupProvider,
     types::{
-        DeltaTime64, ModelMatrixBindingMode, TransformBuffer,
+        DeltaTime64, ModelMatrixBindingMode, Size, TransformBuffer,
         camera::{Pitch, Yaw},
         ids::{MeshId, UniformBufferId},
         transform::Transform,
     },
 };
-use log::{debug, error, warn};
+use log::{error, warn};
 use wgpu::{
     BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations, Queue,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RenderPipeline, TextureView, TextureViewDescriptor,
+    RenderPipeline, SurfaceError, TextureView, TextureViewDescriptor,
 };
 use winit::window::Window;
 
@@ -115,11 +114,7 @@ impl Renderer {
             &LightSource::bind_group_layout(&ctx.device),
         );
 
-        let aspect = if ctx.size.height == 0 {
-            1.0
-        } else {
-            (ctx.size.width / ctx.size.height) as f32
-        };
+        let aspect = Camera::aspect_ratio_from_size(ctx.size);
         let camera = Camera::new(
             Vec3::new(0.0, 0.0, 15.0),
             Vec3::new(0.0, 0.0, 0.0),
@@ -187,11 +182,14 @@ impl Renderer {
         })
     }
 
-    pub fn resize(&mut self, height: f64, width: f64) {
-        self.ctx.resize(Size {
-            width: width as u32,
-            height: height as u32,
-        });
+    pub fn resize(&mut self, height: f64, width: f64) -> Result<()> {
+        let size = Self::size_from_dimensions(width, height);
+
+        if !size.is_zero() {
+            self.camera.set_aspect_from_size(size);
+        }
+
+        self.ctx.resize(size)
     }
 
     pub fn update(&mut self, delta_time: DeltaTime64) {
@@ -220,11 +218,14 @@ impl Renderer {
 
     pub fn render(&mut self) -> Result<()> {
         self.window.request_redraw();
-        if self.ctx.surface_configuration.is_none() {
+        if self.ctx.surface_configuration.is_none() || self.ctx.size.is_zero() {
             return Ok(());
         }
 
-        let output = self.ctx.surface.as_ref().unwrap().get_current_texture()?;
+        let output = match self.ctx.surface.as_ref().unwrap().get_current_texture() {
+            Ok(output) => output,
+            Err(surface_error) => return self.handle_surface_error(surface_error),
+        };
         let view = output
             .texture
             .create_view(&TextureViewDescriptor::default());
@@ -315,6 +316,29 @@ impl Renderer {
         Ok(())
     }
 
+    fn handle_surface_error(&mut self, surface_error: SurfaceError) -> Result<()> {
+        match surface_error {
+            SurfaceError::Timeout => {
+                warn!("Timed out while acquiring the next surface texture; skipping frame");
+                Ok(())
+            }
+            SurfaceError::Outdated | SurfaceError::Lost | SurfaceError::Other => {
+                warn!("Recovering renderer surface after resize-related error: {surface_error}");
+                self.ctx.resize(self.ctx.size)
+            }
+            SurfaceError::OutOfMemory => Err(anyhow!(
+                "Renderer ran out of memory while acquiring the next surface texture"
+            )),
+        }
+    }
+
+    fn size_from_dimensions(width: f64, height: f64) -> Size {
+        Size {
+            width: width.max(0.0).round() as u32,
+            height: height.max(0.0).round() as u32,
+        }
+    }
+
     fn record_scene_pass_command_encoder(
         encoder: &mut CommandEncoder,
         render_mesh: &RenderMesh,
@@ -386,5 +410,25 @@ impl Renderer {
                 render_pass.set_bind_group(2, model_bind_group, &[]);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use hyakou_core::types::Size;
+
+    use crate::renderer::Renderer;
+
+    #[test]
+    fn test_size_from_dimensions_rounds_and_clamps_negative_values() {
+        let size = Renderer::size_from_dimensions(640.6, -5.2);
+
+        assert_eq!(
+            size,
+            Size {
+                width: 641,
+                height: 0,
+            }
+        );
     }
 }

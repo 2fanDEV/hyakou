@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use hyakou_core::{
-    components::light::LightSource, traits::BindGroupProvider, types::ModelMatrixBindingMode,
+    components::light::LightSource,
+    traits::BindGroupProvider,
+    types::{ModelMatrixBindingMode, Size},
 };
-use log::debug;
+use log::warn;
 use wgpu::{
     Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features,
     FeaturesWebGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints, Queue,
@@ -17,7 +19,7 @@ use crate::{
         buffers::camera_buffer::CameraUniform, buffers::model_matrix::ModelMatrixUniform,
         render_pipeline::create_render_pipeline, texture::Texture,
     },
-    renderer::{util::Size, wrappers::SurfaceProvider},
+    renderer::wrappers::SurfaceProvider,
 };
 
 pub struct RenderContext {
@@ -38,6 +40,7 @@ pub struct RenderContext {
 
 impl RenderContext {
     const IMMEDIATE_MODEL_MATRIX_SIZE: u32 = 64;
+    const DEPTH_TEXTURE_LABEL: &str = "Depth Texture";
 
     pub async fn new<T>(provider: Option<T>) -> Result<Self>
     where
@@ -106,7 +109,8 @@ impl RenderContext {
             None => None,
         };
 
-        let depth_texture = Texture::create_depth_texture("Depth Texture", &device, &size);
+        let depth_texture =
+            Texture::create_depth_texture(Self::DEPTH_TEXTURE_LABEL, &device, &size);
 
         let camera_bind_group_layout = CameraUniform::bind_group_layout(&device);
         let light_bind_group_layout = LightSource::bind_group_layout(&device);
@@ -179,13 +183,36 @@ impl RenderContext {
     }
 
     // requires winit window, no test until figured out how to do headless
-    pub fn resize(&mut self, size: Size) {
-        self.surface_configuration.as_mut().map(|cfg| {
-            cfg.width = size.width as u32;
-            cfg.height = size.height as u32;
-            self.surface.as_ref().unwrap().configure(&self.device, &cfg);
-            cfg
-        });
+    pub fn resize(&mut self, size: Size) -> Result<()> {
+        self.size = size;
+
+        if size.is_zero() {
+            warn!(
+                "Ignoring resize because wgpu surfaces cannot be configured with zero width or height: {}x{}",
+                size.width, size.height
+            );
+            return Ok(());
+        }
+
+        let Some(surface) = self.surface.as_ref() else {
+            self.depth_texture =
+                Texture::create_depth_texture(Self::DEPTH_TEXTURE_LABEL, &self.device, &self.size);
+            return Ok(());
+        };
+
+        let Some(surface_configuration) = self.surface_configuration.as_mut() else {
+            return Err(anyhow!(
+                "Cannot resize render surface because the surface configuration is missing"
+            ));
+        };
+
+        surface_configuration.width = size.width;
+        surface_configuration.height = size.height;
+        surface.configure(&self.device, surface_configuration);
+        self.depth_texture =
+            Texture::create_depth_texture(Self::DEPTH_TEXTURE_LABEL, &self.device, &self.size);
+
+        Ok(())
     }
 }
 
@@ -276,22 +303,23 @@ fn init_surface_configuration(
                 .copied()
                 .unwrap_or(capabilities.formats[0]);
 
-            if size.height == 0 || size.width == 0 {
-                return None;
-            }
+            let configured_size = size.clamp_size_for_gpu();
 
             let surface_configuration = SurfaceConfiguration {
                 usage: TextureUsages::RENDER_ATTACHMENT,
                 format,
-                width: size.width,
-                height: size.height,
+                width: configured_size.width,
+                height: configured_size.height,
                 present_mode: capabilities.present_modes[0],
                 desired_maximum_frame_latency: 2,
                 alpha_mode: capabilities.alpha_modes[0],
                 view_formats: vec![],
             };
 
-            surface.configure(device, &surface_configuration);
+            if !size.is_zero() {
+                surface.configure(device, &surface_configuration);
+            }
+
             Some(surface_configuration)
         }
         None => None,

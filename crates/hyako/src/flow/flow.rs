@@ -324,15 +324,17 @@ impl FlowController {
     }
 
     fn handle_resize(&mut self, height: f64, width: f64) {
-        self.renderer
-            .try_write_shared(|renderer| {
-                let Some(renderer) = renderer.as_mut() else {
-                    return;
-                };
+        if let Err(lock_error) = self.renderer.try_write_shared(|renderer| {
+            let Some(renderer) = renderer.as_mut() else {
+                return;
+            };
 
-                renderer.resize(height, width);
-            })
-            .unwrap();
+            if let Err(resize_error) = renderer.resize(height, width) {
+                error!("Failed to resize renderer: {resize_error:?}");
+            }
+        }) {
+            error!("Failed to acquire renderer lock during resize: {lock_error:?}");
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]

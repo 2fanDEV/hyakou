@@ -1,6 +1,5 @@
 use std::{io::Result, sync::Arc};
 
-use log::debug;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 #[cfg(target_arch = "wasm32")]

@@ -1,9 +1,8 @@
+use hyakou_core::types::Size;
 use wgpu::{
     CompareFunction, Device, Extent3d, FilterMode, MipmapFilterMode, Sampler, SamplerDescriptor,
     TextureDescriptor, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
 };
-
-use crate::renderer::util::Size;
 
 #[derive(Debug, Clone)]
 pub struct Texture {
@@ -16,6 +15,7 @@ impl Texture {
     pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 
     pub fn create_depth_texture(label: &str, device: &Device, size: &Size) -> Texture {
+        let size = size.clamp_size_for_gpu();
         let extent_size = Extent3d {
             width: size.width,
             height: size.height,
