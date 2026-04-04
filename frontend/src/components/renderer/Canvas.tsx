@@ -1,4 +1,3 @@
-import { useMutation } from "@tanstack/react-query";
 import { useCallback, useRef } from "react";
 import type { Size } from "./types/geometry";
 
@@ -14,16 +13,28 @@ export default function RendererCanvas({ onMount, onResize }: RendererProps) {
       let frame = 0;
       const observedSize = () => {
         const rect = canvas.getBoundingClientRect();
+        const cssWidth = rect.width;
+        const cssHeight = rect.height;
+        if (cssHeight === 0 || cssWidth === 0) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        const physicalWidth = Math.round(cssWidth * dpr);
+        const physicalHeight = Math.round(cssHeight * dpr);
+
+        canvas.width = physicalWidth;
+        canvas.height = physicalHeight;
+
         const size: Size = {
-          width: rect.width,
-          height: rect.height,
+          width: cssWidth,
+          height: cssHeight,
         };
-        if (size.height === 0 || size.width === 0) return;
+
         if (!startedRef.current) {
           onMount(canvas);
           startedRef.current = true;
         }
-        onResize(size.width, size.height);
+
+        onResize(physicalWidth, physicalHeight);
         return size;
       };
 
@@ -43,5 +54,5 @@ export default function RendererCanvas({ onMount, onResize }: RendererProps) {
     [onMount, onResize],
   );
 
-  return <canvas ref={canvasRef} className="p-10 w-full h-full" />;
+  return <canvas ref={canvasRef} className="block h-full w-full" />;
 }

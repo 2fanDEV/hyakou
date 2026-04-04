@@ -182,7 +182,7 @@ impl Renderer {
         })
     }
 
-    pub fn resize(&mut self, height: f64, width: f64) -> Result<()> {
+    pub fn resize(&mut self, width: f64, height: f64) -> Result<()> {
         let size = Self::size_from_dimensions(width, height);
 
         if !size.is_zero() {

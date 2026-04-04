@@ -4,7 +4,7 @@ export const Route = createFileRoute("/")({ component: App });
 
 function App() {
   return (
-    <main className="min-h-screen min-w-screen">
+    <main className="h-screen w-screen overflow-hidden">
       <Renderer />
     </main>
   );

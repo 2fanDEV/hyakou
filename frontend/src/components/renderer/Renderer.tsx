@@ -9,7 +9,7 @@ export default function Renderer() {
   useWasm((ref: Hyako) => (hyakoRef.current = ref), canvasState);
 
   return (
-    <div className="min-h-max min-w-min">
+    <div className="relative w-full h-full">
       <RendererCanvas
         onMount={setCanvasState}
         onResize={(width, height) => hyakoRef.current?.resize(width, height)}

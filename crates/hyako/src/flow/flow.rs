@@ -109,8 +109,9 @@ impl FlowController {
                 error!("Asset upload failed for `{id}`: {error}");
             }
             RendererCommand::Redraw { dt } => self.handle_redraw(dt),
-            RendererCommand::Resize { dt, height, width } => {
-                self.handle_resize(height, width);
+            RendererCommand::Resize { dt, width, height } => {
+                debug!("RESIZE: {:?}, {:?}", width, height);
+                self.handle_resize(width, height);
                 self.handle_redraw(dt);
             }
         }
@@ -323,13 +324,13 @@ impl FlowController {
         });
     }
 
-    fn handle_resize(&mut self, height: f64, width: f64) {
+    fn handle_resize(&mut self, width: f64, height: f64) {
         if let Err(lock_error) = self.renderer.try_write_shared(|renderer| {
             let Some(renderer) = renderer.as_mut() else {
                 return;
             };
 
-            if let Err(resize_error) = renderer.resize(height, width) {
+            if let Err(resize_error) = renderer.resize(width, height) {
                 error!("Failed to resize renderer: {resize_error:?}");
             }
         }) {
