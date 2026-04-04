@@ -137,11 +137,6 @@ impl RenderContext {
                 },
             });
 
-        debug!(
-            "Selected model matrix binding mode: {:?}",
-            model_binding_mode
-        );
-
         let format = if surface_configuration.is_some() {
             surface_configuration.as_ref().unwrap().format
         } else {
@@ -280,6 +275,10 @@ fn init_surface_configuration(
                 .find(|f| f.is_srgb())
                 .copied()
                 .unwrap_or(capabilities.formats[0]);
+
+            if size.height == 0 || size.width == 0 {
+                return None;
+            }
 
             let surface_configuration = SurfaceConfiguration {
                 usage: TextureUsages::RENDER_ATTACHMENT,

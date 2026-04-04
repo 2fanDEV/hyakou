@@ -120,7 +120,6 @@ impl Renderer {
         } else {
             (ctx.size.width / ctx.size.height) as f32
         };
-
         let camera = Camera::new(
             Vec3::new(0.0, 0.0, 15.0),
             Vec3::new(0.0, 0.0, 0.0),
@@ -189,6 +188,7 @@ impl Renderer {
     }
 
     pub fn resize(&mut self, height: f64, width: f64) {
+        debug!("WE IN");
         self.ctx.resize(Size {
             width: width as u32,
             height: height as u32,

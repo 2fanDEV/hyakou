@@ -14,7 +14,7 @@ export default function RendererCanvas({ onMount }: RendererProps) {
 
   return (
     <div>
-      <canvas ref={canvasRef} className="p-10  w-full h-full"></canvas>
+      <canvas ref={canvasRef} className="p-10 w-full h-full"></canvas>
     </div>
   );
 }

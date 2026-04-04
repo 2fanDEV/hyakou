@@ -81,6 +81,11 @@ impl Hyako {
             .unwrap()
     }
 
+    #[wasm_bindgen]
+    pub fn resize(&mut self, width: f64, height: f64) -> Result<(), JsValue> {
+        self.send_event(Event::Resize(width, height))
+    }
+
     fn send_event(&self, event: Event) -> Result<(), JsValue> {
         match self.event_loop_proxy.send_event(event) {
             Ok(_) => Ok(()),

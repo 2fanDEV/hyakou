@@ -1,5 +1,6 @@
 use std::{io::Result, sync::Arc};
 
+use log::debug;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 #[cfg(target_arch = "wasm32")]
@@ -120,6 +121,10 @@ impl ApplicationHandler<Event> for AppState {
                     asset_type: LightType::LIGHT,
                     bytes: asset_information.bytes(),
                 });
+            }
+            Event::Resize(width, height) => {
+                debug!("RESIZE: {:?}, {:?}", width, height);
+                self.send_and_drain(RendererCommand::Resize { width, height });
             }
         }
     }

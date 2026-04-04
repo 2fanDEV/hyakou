@@ -321,7 +321,6 @@ impl FlowController {
     }
 
     fn handle_resize(&mut self, height: f64, width: f64) {
-        debug!("{:?}, {:?}", height, width);
         self.renderer
             .try_write_shared(|renderer| {
                 let Some(renderer) = renderer.as_mut() else {
