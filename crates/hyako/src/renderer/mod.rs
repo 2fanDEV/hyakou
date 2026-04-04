@@ -188,7 +188,6 @@ impl Renderer {
     }
 
     pub fn resize(&mut self, height: f64, width: f64) {
-        debug!("WE IN");
         self.ctx.resize(Size {
             width: width as u32,
             height: height as u32,

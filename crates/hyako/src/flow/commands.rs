@@ -47,6 +47,7 @@ pub enum RendererCommand {
         dt: f64,
     },
     Resize {
+        dt: f64,
         height: f64,
         width: f64,
     },

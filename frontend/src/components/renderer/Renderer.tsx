@@ -10,7 +10,10 @@ export default function Renderer() {
 
   return (
     <div className="min-h-max min-w-min">
-      <RendererCanvas onMount={setCanvasState} />
+      <RendererCanvas
+        onMount={setCanvasState}
+        onResize={(width, height) => hyakoRef.current?.resize(width, height)}
+      />
     </div>
   );
 }

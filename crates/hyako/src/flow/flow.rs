@@ -109,7 +109,10 @@ impl FlowController {
                 error!("Asset upload failed for `{id}`: {error}");
             }
             RendererCommand::Redraw { dt } => self.handle_redraw(dt),
-            RendererCommand::Resize { height, width } => self.handle_resize(height, width),
+            RendererCommand::Resize { dt, height, width } => {
+                self.handle_resize(height, width);
+                self.handle_redraw(dt);
+            }
         }
     }
 

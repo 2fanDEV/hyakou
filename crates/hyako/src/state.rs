@@ -123,8 +123,8 @@ impl ApplicationHandler<Event> for AppState {
                 });
             }
             Event::Resize(width, height) => {
-                debug!("RESIZE: {:?}, {:?}", width, height);
-                self.send_and_drain(RendererCommand::Resize { width, height });
+                let dt = self.get_and_update_last_frame_time();
+                self.send_and_drain(RendererCommand::Resize { dt, width, height });
             }
         }
     }
