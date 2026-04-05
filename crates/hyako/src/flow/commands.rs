@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
 use hyakou_core::{
-    components::{LightType, mesh_node::MeshNode},
-    types::{mouse_delta::MouseButton, shared::Coordinates3},
+    components::{LightType, camera::data_structures::CameraAnimationRequest, mesh_node::MeshNode},
+    types::mouse_delta::MouseButton,
 };
 use winit::{keyboard::KeyCode, window::Window};
 
 pub enum RendererCommand {
     WindowCreated(Arc<Window>),
-    SetCoords(Coordinates3),
+    AnimateCamera(CameraAnimationRequest),
+    StopCameraAnimation,
     CursorInWindow {
         is_inside: bool,
     },

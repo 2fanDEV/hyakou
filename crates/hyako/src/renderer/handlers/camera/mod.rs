@@ -38,18 +38,16 @@ impl CameraHandler {
         self.movement_handler.handle_action(action, is_pressed);
     }
 
-    pub fn update(&self, camera: &mut Camera, delta_time: DeltaTime) {
-        let updated = match self.state.get_camera_transition(&camera.id) {
-            Some(t) => match t.is_active() {
-                true => {
-                    self.movement_handler
-                        .transition_camera_incrementally(camera, t, delta_time);
-                    true
-                }
-                _ => false,
-            },
-            None => false,
+    pub fn update(&mut self, camera: &mut Camera, delta_time: DeltaTime) {
+        let updated = match self.state.get_camera_transition_mut(&camera.id) {
+            Some(transition) if transition.is_active() => {
+                self.movement_handler
+                    .transition_camera_incrementally(camera, transition, delta_time);
+                true
+            }
+            _ => false,
         };
+
         if !updated {
             self.movement_handler
                 .update_camera_with_keyboard(camera, delta_time as f32);

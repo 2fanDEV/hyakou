@@ -111,8 +111,11 @@ impl ApplicationHandler<Event> for AppState {
 
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: Event) {
         match event {
-            Event::SetCoords(coordinates) => {
-                self.send_and_drain(RendererCommand::SetCoords(coordinates));
+            Event::AnimateCamera(request) => {
+                self.send_and_drain(RendererCommand::AnimateCamera(request));
+            }
+            Event::StopCameraAnimation => {
+                self.send_and_drain(RendererCommand::StopCameraAnimation);
             }
             Event::AssetUpload(asset_information) => {
                 self.send_and_drain(RendererCommand::AssetUploadRequested {

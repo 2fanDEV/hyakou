@@ -1,7 +1,10 @@
-use crate::types::shared::{AssetInformation, Coordinates3};
+use crate::{
+    components::camera::data_structures::CameraAnimationRequest, types::shared::AssetInformation,
+};
 
 pub enum Event {
-    SetCoords(Coordinates3),
+    AnimateCamera(CameraAnimationRequest),
+    StopCameraAnimation,
     AssetUpload(AssetInformation),
     Resize(f64, f64),
 }

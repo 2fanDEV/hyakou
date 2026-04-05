@@ -30,6 +30,9 @@ jobs:
       - name: Run cargo tests
         run: RUST_LOG=debug RUST_BACKTRACE=1 HYAKOU_RUN_GPU_TESTS=0 cargo test -p hyako --all-targets --all-features -- --nocapture
 
+      - name: Run wasm bindings unit tests
+        run: cargo test -p hyako_wasm_bindings --lib -- --nocapture
+
   web:
     name: Frontend build
     runs-on: ubuntu-latest
@@ -56,6 +59,9 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
+
+      - name: Run wasm bindings browser tests
+        run: wasm-pack test crates/wasm_bindings --headless --chrome
 
       - name: Build frontend
         run: npm run build --prefix frontend

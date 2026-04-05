@@ -2,7 +2,7 @@ use glam::Vec3;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Coordinates3 {
     pub x: f32,
     pub y: f32,

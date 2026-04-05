@@ -5,13 +5,15 @@ use hyakou_core::{
     types::shared::{AssetInformation, Coordinates3},
 };
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
-use web_sys::HtmlCanvasElement;
-use winit::{
-    event_loop::{EventLoop, EventLoopProxy},
-    platform::web::EventLoopExtWebSys,
-};
 
-use crate::CameraDO;
+#[cfg(target_arch = "wasm32")]
+use web_sys::HtmlCanvasElement;
+use winit::event_loop::{EventLoop, EventLoopProxy};
+
+#[cfg(target_arch = "wasm32")]
+use winit::platform::web::EventLoopExtWebSys;
+
+use crate::{CameraAnimationOptions, CameraAnimationStateDO, CameraDO};
 
 #[wasm_bindgen]
 pub struct Hyako {
@@ -23,6 +25,7 @@ pub struct Hyako {
 
 #[wasm_bindgen]
 impl Hyako {
+    #[cfg(target_arch = "wasm32")]
     #[wasm_bindgen(constructor)]
     pub fn new(canvas_ref: HtmlCanvasElement) -> Result<Hyako, JsValue> {
         console_error_panic_hook::set_once();
@@ -46,6 +49,7 @@ impl Hyako {
         })
     }
 
+    #[cfg(target_arch = "wasm32")]
     #[wasm_bindgen]
     pub fn start_rendering(&mut self) -> Result<(), JsValue> {
         let event_loop = self
@@ -62,8 +66,27 @@ impl Hyako {
     }
 
     #[wasm_bindgen]
+    pub fn animate_camera_to(
+        &self,
+        coordinates: Coordinates3,
+        options: Option<CameraAnimationOptions>,
+    ) -> Result<(), JsValue> {
+        let request = match options {
+            Some(options) => options.to_request(coordinates),
+            None => CameraAnimationOptions::default().to_request(coordinates),
+        };
+
+        self.send_event(Event::AnimateCamera(request))
+    }
+
+    #[wasm_bindgen(js_name = set_coords)]
     pub fn set_coords(&self, coordinates: Coordinates3) -> Result<(), JsValue> {
-        self.send_event(Event::SetCoords(coordinates))
+        self.animate_camera_to(coordinates, None)
+    }
+
+    #[wasm_bindgen]
+    pub fn stop_camera_animation(&self) -> Result<(), JsValue> {
+        self.send_event(Event::StopCameraAnimation)
     }
 
     #[wasm_bindgen]
@@ -79,6 +102,26 @@ impl Hyako {
                 None => Err(JsValue::from_str("Renderer missing or not initialized")),
             })
             .unwrap()
+    }
+
+    #[wasm_bindgen]
+    pub fn get_camera_animation_state(&self) -> Result<CameraAnimationStateDO, JsValue> {
+        self.renderer
+            .try_read_shared(|renderer| match renderer {
+                Some(renderer) => Ok(CameraAnimationStateDO::from_snapshot(
+                    renderer
+                        .camera_handler
+                        .state
+                        .camera_animation_state(&renderer.camera),
+                )),
+                None => Err(JsValue::from_str("Renderer missing or not initialized")),
+            })
+            .unwrap()
+    }
+
+    #[wasm_bindgen]
+    pub fn is_camera_animating(&self) -> Result<bool, JsValue> {
+        self.get_camera_animation_state().map(|state| state.active)
     }
 
     #[wasm_bindgen]

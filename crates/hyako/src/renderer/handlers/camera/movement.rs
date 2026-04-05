@@ -86,15 +86,10 @@ impl CameraMovementHandler {
     pub fn transition_camera_incrementally(
         &self,
         camera: &mut Camera,
-        transition: &CameraTransition,
+        transition: &mut CameraTransition,
         delta_time: DeltaTime,
     ) {
-        let position = camera.eye;
-        let target = transition.target_coords().to_vec();
-        let direction = target - position;
-        let increment = delta_time * transition.increments();
-        let new_position = position + direction.normalize() * increment;
-        camera.eye = new_position;
+        camera.eye = transition.advance(delta_time).to_vec();
     }
 
     pub fn update_camera_with_keyboard(&self, camera: &mut Camera, delta_time: DeltaTime) {

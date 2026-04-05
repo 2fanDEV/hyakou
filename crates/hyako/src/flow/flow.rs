@@ -5,7 +5,7 @@ use std::sync::{
 
 use hyakou_core::{
     Shared, SharedAccess,
-    components::{LightType, mesh_node::MeshNode},
+    components::{LightType, camera::data_structures::CameraAnimationRequest, mesh_node::MeshNode},
     shared,
     types::mouse_delta::{MouseAction, MouseDelta, MousePosition, MouseState},
 };
@@ -79,7 +79,8 @@ impl FlowController {
     fn handle_command(&mut self, command: RendererCommand) {
         match command {
             RendererCommand::WindowCreated(window) => self.handle_window_created(window),
-            RendererCommand::SetCoords(coordinates) => self.handle_set_coords(coordinates),
+            RendererCommand::AnimateCamera(request) => self.handle_animate_camera(request),
+            RendererCommand::StopCameraAnimation => self.handle_stop_camera_animation(),
             RendererCommand::CursorInWindow { is_inside } => {
                 self.mouse_delta.set_is_mouse_on_window(is_inside)
             }
@@ -164,7 +165,7 @@ impl FlowController {
         }
     }
 
-    fn handle_set_coords(&mut self, coordinates: hyakou_core::types::shared::Coordinates3) {
+    fn handle_animate_camera(&mut self, request: CameraAnimationRequest) {
         let _ = self.renderer.try_write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
                 return;
@@ -172,7 +173,20 @@ impl FlowController {
             renderer
                 .camera_handler
                 .state
-                .set_camera_transition(&mut renderer.camera, coordinates);
+                .animate_camera(&renderer.camera, request);
+        });
+    }
+
+    fn handle_stop_camera_animation(&mut self) {
+        let _ = self.renderer.try_write_shared(|renderer_slot| {
+            let Some(renderer) = renderer_slot.as_mut() else {
+                return;
+            };
+
+            renderer
+                .camera_handler
+                .state
+                .stop_camera_animation(&renderer.camera.id);
         });
     }
 
