@@ -97,8 +97,8 @@ impl CameraAnimationStateDO {
 }
 
 #[wasm_bindgen]
+#[derive(Debug)]
 pub struct CameraDO {
-    #[allow(dead_code)]
     id: Id,
     pub eye: Coordinates3,
     pub target: Coordinates3,
@@ -127,6 +127,14 @@ impl CameraDO {
             sensitivity: camera.sensitivity,
             smoothing_factor: camera.smoothing_factor,
         }
+    }
+}
+
+#[wasm_bindgen]
+impl CameraDO {
+    #[wasm_bindgen(getter)]
+    pub fn get_camera_id(&self) -> Id {
+        self.id.clone()
     }
 }
 

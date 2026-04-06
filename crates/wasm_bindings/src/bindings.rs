@@ -4,6 +4,7 @@ use hyakou_core::{
     events::Event,
     types::shared::{AssetInformation, Coordinates3},
 };
+use log::debug;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 #[cfg(target_arch = "wasm32")]
@@ -60,7 +61,6 @@ impl Hyako {
             .app_state
             .take()
             .ok_or_else(|| JsValue::from_str("Renderer app state already consumed or missing"))?;
-
         event_loop.spawn_app(app_state);
         Ok(())
     }
@@ -96,12 +96,14 @@ impl Hyako {
 
     #[wasm_bindgen]
     pub fn get_camera(&self) -> Result<CameraDO, JsValue> {
-        self.renderer
+        let x = self
+            .renderer
             .try_read_shared(|renderer| match renderer {
                 Some(r) => Ok(CameraDO::from_camera(&r.camera)),
                 None => Err(JsValue::from_str("Renderer missing or not initialized")),
             })
-            .unwrap()
+            .unwrap();
+        x
     }
 
     #[wasm_bindgen]
@@ -127,6 +129,11 @@ impl Hyako {
     #[wasm_bindgen]
     pub fn resize(&mut self, width: f64, height: f64) -> Result<(), JsValue> {
         self.send_event(Event::Resize(width, height))
+    }
+
+    #[wasm_bindgen]
+    pub fn is_renderer_ready(&mut self) -> Result<bool, JsValue> {
+        Ok(self.renderer.try_read_shared(|rnd| rnd.is_some()).unwrap())
     }
 
     fn send_event(&self, event: Event) -> Result<(), JsValue> {

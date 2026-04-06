@@ -1236,6 +1236,7 @@ dependencies = [
  "hyakou_core",
  "log",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "web-sys",
  "wgpu",

@@ -1,12 +1,16 @@
 use std::ops::Deref;
 
+use wasm_bindgen::prelude::wasm_bindgen;
+
 use crate::types::BaseId;
 
+#[wasm_bindgen]
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
 pub struct Id {
-    pub value: String,
+    value: String,
 }
 
+#[wasm_bindgen]
 impl Id {
     pub fn new(value: String) -> Self {
         Self { value }
@@ -16,6 +20,11 @@ impl Id {
         Self {
             value: uuid::Uuid::new_v4().to_string(),
         }
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn get_value(&self) -> String {
+        self.value.clone()
     }
 }
 
