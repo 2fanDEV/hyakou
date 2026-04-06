@@ -32,7 +32,7 @@ export default function useWasm(
 
 const waitUntilRendererReady = async (hyako: Hyako) => {
   while (!hyako.is_renderer_ready()) {
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 10));
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 2));
     console.log("LOL", hyako.is_renderer_ready());
   }
   return true;

@@ -12,6 +12,26 @@
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
 }
 
+@keyframes slideDown {
+  from {
+    height: 0;
+  }
+
+  to {
+    height: var(--radix-collapsible-content-height);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    height: var(--radix-collapsible-content-height);
+  }
+
+  to {
+    height: 0;
+  }
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.148 0.004 228.8);
@@ -36,7 +56,7 @@
   --chart-3: oklch(0.511 0.262 276.966);
   --chart-4: oklch(0.457 0.24 277.023);
   --chart-5: oklch(0.398 0.195 277.366);
-  --radius: 0;
+  --radius: 10px;
   --sidebar: oklch(0.987 0.002 197.1);
   --sidebar-foreground: oklch(0.148 0.004 228.8);
   --sidebar-primary: oklch(0.646 0.222 41.116);
@@ -45,7 +65,7 @@
   --sidebar-accent-foreground: oklch(0.218 0.008 223.9);
   --sidebar-border: oklch(0.925 0.005 214.3);
   --sidebar-ring: oklch(0.723 0.014 214.4);
-  --shadow-left: -8px -8px 24px rgb(0 0 0 / 0.18);
+  --shadow-left: 2px 4px 8px rgb(0 0 0 / 0.5);
 }
 
 :root[data-theme="dark"] {
@@ -104,6 +124,8 @@ body {
 }
 
 @theme inline {
+  --animate-slide-down: slideDown 180ms ease-out;
+  --animate-slide-up: slideUp 180ms ease-out;
   --font-sans: "Public Sans Variable", sans-serif;
   --font-heading: "Outfit Variable", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);

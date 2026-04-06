@@ -234,7 +234,7 @@ impl FlowController {
 
         if let Some(window) = self.window.as_ref() {
             let grab_mode = if pressed {
-                CursorGrabMode::Locked
+                CursorGrabMode::None
             } else {
                 CursorGrabMode::None
             };
