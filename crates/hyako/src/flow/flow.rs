@@ -111,7 +111,6 @@ impl FlowController {
             }
             RendererCommand::Redraw { dt } => self.handle_redraw(dt),
             RendererCommand::Resize { dt, width, height } => {
-                debug!("RESIZE: {:?}, {:?}", width, height);
                 self.handle_resize(width, height);
                 self.handle_redraw(dt);
             }
