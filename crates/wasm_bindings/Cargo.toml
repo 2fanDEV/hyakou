@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 console_error_panic_hook = "0.1.7"
@@ -16,3 +16,9 @@ wasm-bindgen = "0.2.114"
 web-sys = { version = "0.3.91", features = ["HtmlCanvasElement"] }
 wgpu = "28.0.0"
 winit = "0.30.13"
+hyakou_core = { path = "../core" }
+glam = { version = "0.32.1", features = ["bytemuck"] }
+wasm-bindgen-futures = "0.4.67"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.67"

@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use smallvec::{SmallVec, smallvec};
 
-use crate::renderer::types::mouse_delta::MouseButton;
 use crate::renderer::{
     actions::Action,
     handlers::{
@@ -10,6 +9,7 @@ use crate::renderer::{
         mouse_bindings::{MouseBinding, MouseBindingMap},
     },
 };
+use hyakou_core::types::mouse_delta::MouseButton;
 
 #[derive(Debug, Default)]
 pub struct MouseHandler {

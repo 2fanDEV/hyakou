@@ -2,16 +2,6 @@ use std::path::PathBuf;
 
 use bytemuck::bytes_of;
 use glam::Mat4;
-
-pub type Width = u32;
-pub type Height = u32;
-
-#[derive(Debug, Clone, Copy)]
-pub struct Size {
-    pub width: Width,
-    pub height: Height,
-}
-
 pub trait Concatable {
     fn concat(&mut self, text: &str) -> &str;
 }
@@ -30,4 +20,25 @@ pub fn get_matrix_as_bytes(mat: &Mat4) -> &[u8] {
 pub fn get_relative_path() -> PathBuf {
     let path = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
     PathBuf::from(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use hyakou_core::types::Size;
+
+    #[test]
+    fn test_clamped_for_gpu_keeps_dimensions_non_zero() {
+        let size = Size {
+            width: 0,
+            height: 0,
+        };
+
+        assert_eq!(
+            size.clamp_size_for_gpu(),
+            Size {
+                width: 1,
+                height: 1,
+            }
+        );
+    }
 }

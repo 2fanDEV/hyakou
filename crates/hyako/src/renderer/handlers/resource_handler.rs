@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use wgpu::BindGroup;
 
-use crate::renderer::types::ids::UniformResourceId;
+use hyakou_core::types::ids::UniformResourceId;
 
 #[derive(Default)]
 pub struct ResourceHandler {

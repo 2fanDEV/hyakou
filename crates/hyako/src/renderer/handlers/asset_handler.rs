@@ -5,13 +5,18 @@ use std::{
     sync::Arc,
 };
 
+use anyhow::Result;
 use wgpu::BindGroupLayout;
 use wgpu::Device;
 
-use crate::renderer::{
-    components::{LightType, glTF::GLTFLoader, render_mesh::RenderMesh},
+use crate::{
+    gpu::{glTF::GLTFLoader, render_mesh::RenderMesh},
+    renderer::util::{self, Concatable},
+};
+
+use hyakou_core::{
+    components::{LightType, mesh_node::MeshNode},
     types::{ModelMatrixBindingMode, ids::MeshId},
-    util::{self, Concatable},
 };
 
 #[derive(Debug)]
@@ -40,18 +45,47 @@ impl AssetHandler {
         }
     }
 
+    pub async fn upload_from_bytes(
+        &mut self,
+        id: String,
+        light_type: LightType,
+        bytes: Vec<u8>,
+    ) -> Result<()> {
+        let mesh_nodes = self.gltf_loader.load_from_bytes(bytes).await?;
+        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes);
+        Ok(())
+    }
+
+    pub fn upload_mesh_nodes(
+        &mut self,
+        id: String,
+        light_type: LightType,
+        mesh_nodes: Vec<MeshNode>,
+    ) -> Option<Rc<RenderMesh>> {
+        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes)
+    }
+
     pub async fn add_from_path(
         &mut self,
-        mut id: String,
+        id: String,
         light_type: LightType,
         path: &Path,
     ) -> Option<Rc<RenderMesh>> {
         //TODO make rendermesh be a node consisting of multiple nodes
-        let mut idx = 0;
         let mesh_nodes = match self.gltf_loader.load_from_path(path).await {
             Ok(nodes) => nodes,
             Err(_) => panic!("Couldn't find model at path: {:?}", path),
         };
+        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes)
+    }
+
+    fn upload_mesh_node_as_asset(
+        &mut self,
+        mut id: String,
+        light_type: LightType,
+        mesh_nodes: Vec<MeshNode>,
+    ) -> Option<Rc<RenderMesh>> {
+        let mut idx = 0;
         let mut render_mesh = None;
         for node in mesh_nodes {
             let id = if idx.eq(&0) {

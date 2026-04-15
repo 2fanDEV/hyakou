@@ -1,49 +1,45 @@
-use parking_lot::RwLock;
 use std::{collections::HashMap, f32::consts::PI, path::Path, sync::Arc};
 
-use anyhow::Result;
+use crate::{
+    gpu::{
+        buffers::{
+            camera_buffer::CameraUniform, model_matrix::ModelMatrixUniform, uniform::UniformBuffer,
+        },
+        render_mesh::RenderMesh,
+    },
+    renderer::{
+        handlers::{asset_handler::AssetHandler, camera::CameraHandler},
+        renderer_context::RenderContext,
+        wrappers::WinitSurfaceProvider,
+    },
+};
+use anyhow::{Result, anyhow};
 use bytemuck::bytes_of;
 use glam::Vec3;
+use hyakou_core::{
+    SharedAccess,
+    animations::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
+    components::{LightType, camera::camera::Camera, light::LightSource},
+    shared,
+    traits::BindGroupProvider,
+    types::{
+        DeltaTime64, ModelMatrixBindingMode, Size, TransformBuffer,
+        camera::{Pitch, Yaw},
+        ids::{MeshId, UniformBufferId},
+        transform::Transform,
+    },
+};
 use log::{error, warn};
 use wgpu::{
     BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations, Queue,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RenderPipeline, TextureView, TextureViewDescriptor,
+    RenderPipeline, SurfaceError, TextureView, TextureViewDescriptor,
 };
 use winit::window::Window;
 
-use crate::renderer::{
-    animator::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
-    components::{
-        LightType,
-        camera::{Camera, CameraUniform},
-        light::LightSource,
-        model_matrix::ModelMatrixUniform,
-        render_mesh::RenderMesh,
-        transform::Transform,
-    },
-    geometry::BindGroupProvider,
-    handlers::{
-        asset_handler::AssetHandler,
-        camera_controller::{CameraController, CameraMode},
-    },
-    renderer_context::RenderContext,
-    types::{
-        DeltaTime64, ModelMatrixBindingMode, TransformBuffer,
-        camera::{Pitch, Yaw},
-        ids::{MeshId, UniformBufferId},
-        uniform::UniformBuffer,
-    },
-    wrappers::WinitSurfaceProvider,
-};
-
 pub mod actions;
-pub mod animator;
-pub mod components;
-pub mod geometry;
 pub mod handlers;
 pub mod renderer_context;
-pub mod types;
 pub mod util;
 pub mod wrappers;
 
@@ -59,7 +55,8 @@ pub struct Renderer {
     light_uniform_buffer: UniformBuffer,
     light_bind_group: BindGroup,
     animators: HashMap<MeshId, Animator>,
-    pub camera_controller: CameraController,
+    pub camera_handler: CameraHandler,
+    pub camera_state: CameraHandler,
     pub asset_manager: AssetHandler,
 }
 
@@ -98,8 +95,8 @@ impl Renderer {
             .as_ref()
             .unwrap()
             .transform
-            .write()
-            .translate(Vec3::new(0.0, 1.0, 1.0));
+            .try_write_shared(|t| t.translate(Vec3::new(0.0, 1.0, 1.0)))
+            .unwrap();
         let light = LightSource::new(
             cube_light_mesh.as_ref().unwrap().transform.clone(),
             Vec3::new(1.0, 1.0, 1.0),
@@ -117,11 +114,12 @@ impl Renderer {
             &LightSource::bind_group_layout(&ctx.device),
         );
 
+        let aspect = Camera::aspect_ratio_from_size(ctx.size);
         let camera = Camera::new(
             Vec3::new(0.0, 0.0, 15.0),
             Vec3::new(0.0, 0.0, 0.0),
             Vec3::Y,
-            (ctx.size.width / ctx.size.height) as f32,
+            aspect,
             45.0_f32.to_radians(),
             0.1,
             1000.0,
@@ -139,7 +137,7 @@ impl Renderer {
             UniformBufferId::new("Camera".to_string()),
             &ctx.device,
             bytemuck::bytes_of(&camera_uniform),
-            Arc::new(RwLock::new(Transform::default())),
+            shared(Transform::default()),
         );
         let camera_bind_group = CameraUniform::bind_group(
             &ctx.device,
@@ -147,8 +145,9 @@ impl Renderer {
             &ctx.camera_bind_group_layout,
         );
 
-        let test_trajectory = LinearTrajectory::new(
-            cube_light_mesh.as_ref().unwrap().as_ref().clone(),
+        let test_trajectory = LinearTrajectory::new_deconstructed_mesh(
+            cube_light_mesh.as_ref().unwrap().as_ref().clone().id,
+            cube_light_mesh.as_ref().unwrap().as_ref().clone().transform,
             Vec3::new(0.0, 1.0, 0.0),
             f32::to_radians(0.0),
             f32::to_radians(0.0),
@@ -177,14 +176,25 @@ impl Renderer {
             light_uniform_buffer,
             light_bind_group,
             animators,
-            camera_controller: CameraController::new(CameraMode::PAN),
+            camera_handler: CameraHandler::new(),
+            camera_state: CameraHandler::new(),
             window,
         })
     }
 
+    pub fn resize(&mut self, width: f64, height: f64) -> Result<()> {
+        let size = Self::size_from_dimensions(width, height);
+
+        if !size.is_zero() {
+            self.camera.set_aspect_from_size(size);
+        }
+
+        self.ctx.resize(size)
+    }
+
     pub fn update(&mut self, delta_time: DeltaTime64) {
-        self.camera_controller
-            .update_camera_with_keyboard(&mut self.camera, delta_time as f32);
+        self.camera_handler
+            .update(&mut self.camera, delta_time as f32);
         self.animators.values_mut().for_each(|animator| {
             if let Err(animator_error) = animator.play(delta_time) {
                 error!("{:?}", animator_error)
@@ -208,11 +218,14 @@ impl Renderer {
 
     pub fn render(&mut self) -> Result<()> {
         self.window.request_redraw();
-        if self.ctx.surface_configuration.is_none() {
+        if self.ctx.surface_configuration.is_none() || self.ctx.size.is_zero() {
             return Ok(());
         }
 
-        let output = self.ctx.surface.as_ref().unwrap().get_current_texture()?;
+        let output = match self.ctx.surface.as_ref().unwrap().get_current_texture() {
+            Ok(output) => output,
+            Err(surface_error) => return self.handle_surface_error(surface_error),
+        };
         let view = output
             .texture
             .create_view(&TextureViewDescriptor::default());
@@ -240,10 +253,10 @@ impl Renderer {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(Color {
-                            r: 0.25,
-                            g: (0.1),
-                            b: (0.75),
-                            a: 0.2,
+                            r: 0.3,
+                            g: (0.2),
+                            b: (0.8),
+                            a: 1.0,
                         }),
                         store: wgpu::StoreOp::Store,
                     },
@@ -303,6 +316,29 @@ impl Renderer {
         Ok(())
     }
 
+    fn handle_surface_error(&mut self, surface_error: SurfaceError) -> Result<()> {
+        match surface_error {
+            SurfaceError::Timeout => {
+                warn!("Timed out while acquiring the next surface texture; skipping frame");
+                Ok(())
+            }
+            SurfaceError::Outdated | SurfaceError::Lost | SurfaceError::Other => {
+                warn!("Recovering renderer surface after resize-related error: {surface_error}");
+                self.ctx.resize(self.ctx.size)
+            }
+            SurfaceError::OutOfMemory => Err(anyhow!(
+                "Renderer ran out of memory while acquiring the next surface texture"
+            )),
+        }
+    }
+
+    fn size_from_dimensions(width: f64, height: f64) -> Size {
+        Size {
+            width: width.max(0.0).round() as u32,
+            height: height.max(0.0).round() as u32,
+        }
+    }
+
     fn record_scene_pass_command_encoder(
         encoder: &mut CommandEncoder,
         render_mesh: &RenderMesh,
@@ -356,7 +392,7 @@ impl Renderer {
         queue: &Queue,
         model_binding_mode: ModelMatrixBindingMode,
     ) {
-        let model_matrix = render_mesh.transform.read().get_matrix();
+        let model_matrix = render_mesh.transform.read_shared(|t| t.get_matrix());
         match model_binding_mode {
             ModelMatrixBindingMode::Immediate => {
                 render_pass.set_immediates(0, bytes_of(&model_matrix));
@@ -374,5 +410,25 @@ impl Renderer {
                 render_pass.set_bind_group(2, model_bind_group, &[]);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use hyakou_core::types::Size;
+
+    use crate::renderer::Renderer;
+
+    #[test]
+    fn test_size_from_dimensions_rounds_and_clamps_negative_values() {
+        let size = Renderer::size_from_dimensions(640.6, -5.2);
+
+        assert_eq!(
+            size,
+            Size {
+                width: 641,
+                height: 0,
+            }
+        );
     }
 }

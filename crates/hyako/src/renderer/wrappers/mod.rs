@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
+use hyakou_core::types::Size;
 use mockall::automock;
 use wgpu::{Instance, Surface};
 use winit::window::Window;
-
-use crate::renderer::util::Size;
 
 #[automock]
 pub trait SurfaceProvider {
