@@ -56,7 +56,6 @@ pub struct Renderer {
     light_bind_group: BindGroup,
     animators: HashMap<MeshId, Animator>,
     pub camera_handler: CameraHandler,
-    pub camera_state: CameraHandler,
     pub asset_manager: AssetHandler,
 }
 
@@ -177,7 +176,6 @@ impl Renderer {
             light_bind_group,
             animators,
             camera_handler: CameraHandler::new(),
-            camera_state: CameraHandler::new(),
             window,
         })
     }

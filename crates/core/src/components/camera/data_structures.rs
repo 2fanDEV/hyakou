@@ -1,8 +1,11 @@
 use glam::Vec3;
+use strum_macros::{EnumIter, VariantArray};
+use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::types::{DeltaTime, shared::Coordinates3};
 
-#[derive(Debug)]
+#[wasm_bindgen]
+#[derive(Clone, Debug, VariantArray, EnumIter)]
 pub enum CameraMode {
     FLY,
     PAN,
@@ -29,7 +32,6 @@ pub enum CameraAnimationEasing {
 impl CameraAnimationEasing {
     pub fn apply(self, progress: f32) -> f32 {
         let progress = progress.clamp(0.0, 1.0);
-
         match self {
             Self::Linear => progress,
             Self::EaseIn => progress * progress,

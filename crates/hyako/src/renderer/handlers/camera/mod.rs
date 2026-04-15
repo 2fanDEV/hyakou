@@ -1,5 +1,5 @@
 use hyakou_core::{
-    components::camera::{camera::Camera, data_structures::CameraMode},
+    components::camera::{camera::Camera, data_structures::{CameraMode, CameraModeIter}},
     types::{DeltaTime, mouse_delta::MouseDelta},
 };
 
@@ -11,8 +11,19 @@ use crate::renderer::{
 pub mod movement;
 pub mod state;
 
+pub struct CameraModeHandler {
+   camera_mode: CameraModeIter,
+}
+
+impl CameraModeHandler {
+   pub fn set_camera_mode(self, mode: CameraMode) {
+
+   }
+}
+
 pub struct CameraHandler {
     movement_handler: CameraMovementHandler,
+    pub camera_mode_handler: CameraModeHandler,
     pub state: CameraState,
 }
 
@@ -53,4 +64,6 @@ impl CameraHandler {
                 .update_camera_with_keyboard(camera, delta_time as f32);
         }
     }
+
+    pub fn
 }

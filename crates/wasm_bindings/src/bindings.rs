@@ -1,10 +1,15 @@
-use hyako::{renderer::Renderer, state::AppState};
+use hyako::{
+    renderer::{self, Renderer},
+    state::AppState,
+};
 use hyakou_core::{
     Shared, SharedAccess,
+    components::camera::data_structures::CameraMode,
     events::Event,
     types::shared::{AssetInformation, Coordinates3},
 };
 use log::debug;
+use strum::{IntoEnumIterator, VariantArray};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 #[cfg(target_arch = "wasm32")]
@@ -124,6 +129,19 @@ impl Hyako {
     #[wasm_bindgen]
     pub fn is_camera_animating(&self) -> Result<bool, JsValue> {
         self.get_camera_animation_state().map(|state| state.active)
+    }
+
+    #[wasm_bindgen]
+    pub fn get_camera_modes(&self) -> Result<Vec<CameraMode>, JsValue> {
+        Ok(CameraMode::VARIANTS.to_vec())
+    }
+
+    #[wasm_bindgen]
+    pub fn set_camera_mode(&self, mode: CameraMode) -> Result<(), JsValue> {
+        self.renderer.try_write_shared(|rend| match rend {
+            Some(r) => ,
+            None => Err(JsValue::from_str("Failed to write the renderer")),
+        })
     }
 
     #[wasm_bindgen]
