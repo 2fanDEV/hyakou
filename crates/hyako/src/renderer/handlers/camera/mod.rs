@@ -1,25 +1,18 @@
 use hyakou_core::{
-    components::camera::{camera::Camera, data_structures::{CameraMode, CameraModeIter}},
+    components::camera::{camera::Camera, data_structures::CameraMode},
     types::{DeltaTime, mouse_delta::MouseDelta},
 };
 
 use crate::renderer::{
     actions::Action,
-    handlers::camera::{movement::CameraMovementHandler, state::CameraState},
+    handlers::camera::{
+        mode::CameraModeHandler, movement::CameraMovementHandler, state::CameraState,
+    },
 };
 
+pub mod mode;
 pub mod movement;
 pub mod state;
-
-pub struct CameraModeHandler {
-   camera_mode: CameraModeIter,
-}
-
-impl CameraModeHandler {
-   pub fn set_camera_mode(self, mode: CameraMode) {
-
-   }
-}
 
 pub struct CameraHandler {
     movement_handler: CameraMovementHandler,
@@ -28,11 +21,21 @@ pub struct CameraHandler {
 }
 
 impl CameraHandler {
-    pub fn new() -> Self {
+    pub fn new(mode: CameraMode) -> Self {
+        let camera_mode_handler = CameraModeHandler::new(mode);
         Self {
-            movement_handler: CameraMovementHandler::new(CameraMode::PAN),
+            camera_mode_handler,
+            movement_handler: CameraMovementHandler::new(),
             state: CameraState::new(),
         }
+    }
+
+    pub fn set_mode(&mut self, mode: CameraMode) {
+        self.camera_mode_handler.set(mode);
+    }
+
+    pub fn mode(&self) -> &CameraMode {
+        self.camera_mode_handler.mode()
     }
 
     pub fn mouse_movement(
@@ -41,8 +44,12 @@ impl CameraHandler {
         mouse_delta: &MouseDelta,
         delta_time: DeltaTime,
     ) {
-        self.movement_handler
-            .mouse_movement(camera, mouse_delta, delta_time);
+        self.movement_handler.mouse_movement(
+            camera,
+            self.camera_mode_handler.mode(),
+            mouse_delta,
+            delta_time,
+        );
     }
 
     pub fn handle_action(&mut self, action: &Action, is_pressed: bool) {
@@ -60,10 +67,11 @@ impl CameraHandler {
         };
 
         if !updated {
-            self.movement_handler
-                .update_camera_with_keyboard(camera, delta_time as f32);
+            self.movement_handler.update_camera_with_keyboard(
+                camera,
+                self.camera_mode_handler.mode(),
+                delta_time as f32,
+            );
         }
     }
-
-    pub fn
 }

@@ -1,15 +1,11 @@
-use hyako::{
-    renderer::{self, Renderer},
-    state::AppState,
-};
+use hyako::{renderer::Renderer, state::AppState};
 use hyakou_core::{
     Shared, SharedAccess,
     components::camera::data_structures::CameraMode,
     events::Event,
     types::shared::{AssetInformation, Coordinates3},
 };
-use log::debug;
-use strum::{IntoEnumIterator, VariantArray};
+use strum::VariantArray;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 #[cfg(target_arch = "wasm32")]
@@ -101,14 +97,12 @@ impl Hyako {
 
     #[wasm_bindgen]
     pub fn get_camera(&self) -> Result<CameraDO, JsValue> {
-        let x = self
-            .renderer
+        self.renderer
             .try_read_shared(|renderer| match renderer {
                 Some(r) => Ok(CameraDO::from_camera(&r.camera)),
                 None => Err(JsValue::from_str("Renderer missing or not initialized")),
             })
-            .unwrap();
-        x
+            .unwrap()
     }
 
     #[wasm_bindgen]
@@ -138,10 +132,12 @@ impl Hyako {
 
     #[wasm_bindgen]
     pub fn set_camera_mode(&self, mode: CameraMode) -> Result<(), JsValue> {
-        self.renderer.try_write_shared(|rend| match rend {
-            Some(r) => ,
-            None => Err(JsValue::from_str("Failed to write the renderer")),
-        })
+        self.renderer
+            .try_write_shared(|renderer| match renderer {
+                Some(rend) => Ok(rend.camera_handler.set_mode(mode)),
+                None => Err(JsValue::from_str("Renderer missing or not initialized")),
+            })
+            .unwrap()
     }
 
     #[wasm_bindgen]
