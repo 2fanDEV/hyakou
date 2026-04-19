@@ -33,6 +33,7 @@ impl Coordinates3 {
 
 #[wasm_bindgen]
 pub struct AssetInformation {
+    id: String,
     bytes: Vec<u8>,
     name: String,
     pub size: u64,
@@ -42,13 +43,19 @@ pub struct AssetInformation {
 #[wasm_bindgen]
 impl AssetInformation {
     #[wasm_bindgen(constructor)]
-    pub fn new(bytes: Vec<u8>, name: String, size: u64, modified: i32) -> Self {
+    pub fn new(id: String, bytes: Vec<u8>, name: String, size: u64, modified: i32) -> Self {
         Self {
+            id,
             bytes,
             name,
             size,
             modified,
         }
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn id(&self) -> String {
+        self.id.clone()
     }
 
     #[wasm_bindgen(getter)]

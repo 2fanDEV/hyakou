@@ -32,16 +32,19 @@ pub enum RendererCommand {
     },
     AssetUploadRequested {
         id: String,
+        file_name: String,
         asset_type: LightType,
         bytes: Vec<u8>,
     },
     ApplyParsedAsset {
         id: String,
+        file_name: String,
         asset_type: LightType,
         mesh_nodes: Vec<MeshNode>,
     },
     AssetUploadFailed {
         id: String,
+        file_name: String,
         error: String,
     },
     Redraw {

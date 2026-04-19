@@ -1,8 +1,9 @@
 use hyako::{renderer::Renderer, state::AppState};
 use hyakou_core::{
     Shared, SharedAccess,
-    components::camera::data_structures::CameraMode,
+    components::{LightType, camera::data_structures::CameraMode},
     events::Event,
+    shared,
     types::shared::{AssetInformation, Coordinates3},
 };
 use strum::VariantArray;
@@ -23,6 +24,7 @@ pub struct Hyako {
     renderer: Shared<Option<Renderer>>,
     event_loop: Option<EventLoop<Event>>,
     event_loop_proxy: EventLoopProxy<Event>,
+    upload_status_callback: Shared<Option<js_sys::Function>>,
 }
 
 #[wasm_bindgen]
@@ -37,7 +39,9 @@ impl Hyako {
             Err(error) => return Err(JsValue::from_str(&error.to_string())),
         };
         log::info!("Event loop initialized!");
-        let app_state = match AppState::from_canvas_ref(canvas_ref) {
+        let upload_status_callback: Shared<Option<js_sys::Function>> = shared(None);
+        let app_state = match AppState::from_canvas_ref(canvas_ref, upload_status_callback.clone())
+        {
             Ok(app_state) => app_state,
             Err(error) => return Err(JsValue::from_str(&error.to_string())),
         };
@@ -48,6 +52,7 @@ impl Hyako {
             renderer,
             event_loop: Some(event_loop),
             event_loop_proxy,
+            upload_status_callback,
         })
     }
 
@@ -91,8 +96,13 @@ impl Hyako {
     }
 
     #[wasm_bindgen]
-    pub fn upload_file(&self, file: AssetInformation) -> Result<(), JsValue> {
-        self.send_event(Event::AssetUpload(file))
+    pub fn upload_file(
+        &self,
+        file: AssetInformation,
+        light_type: Option<LightType>,
+    ) -> Result<(), JsValue> {
+        let light_type = light_type.unwrap_or(LightType::LIGHT);
+        self.send_event(Event::AssetUpload(file, light_type))
     }
 
     #[wasm_bindgen]
@@ -148,6 +158,13 @@ impl Hyako {
     #[wasm_bindgen]
     pub fn is_renderer_ready(&mut self) -> Result<bool, JsValue> {
         Ok(self.renderer.try_read_shared(|rnd| rnd.is_some()).unwrap())
+    }
+
+    #[wasm_bindgen(js_name = setUploadStatusListener)]
+    pub fn set_upload_status_listener(&self, callback: js_sys::Function) {
+        let _ = self
+            .upload_status_callback
+            .try_write_shared(|slot| *slot = Some(callback));
     }
 
     fn send_event(&self, event: Event) -> Result<(), JsValue> {

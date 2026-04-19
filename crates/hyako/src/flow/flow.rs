@@ -32,6 +32,8 @@ pub struct FlowController {
     mouse_handler: MouseHandler,
     mouse_delta: MouseDelta,
     window: Option<Arc<Window>>,
+    #[cfg(target_arch = "wasm32")]
+    upload_status_callback: Shared<Option<js_sys::Function>>,
 }
 
 #[derive(Clone)]
@@ -42,6 +44,7 @@ pub struct FlowHandle {
 impl FlowController {
     const MAX_COMMANDS_PER_TICK: usize = 128;
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new_pair() -> (Self, FlowHandle) {
         let (tx, rx) = channel::<RendererCommand>();
         let controller = Self {
@@ -52,6 +55,25 @@ impl FlowController {
             mouse_handler: MouseHandler::new(),
             mouse_delta: MouseDelta::default(),
             window: None,
+        };
+
+        (controller, FlowHandle::new(tx))
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn new_pair(
+        upload_status_callback: Shared<Option<js_sys::Function>>,
+    ) -> (Self, FlowHandle) {
+        let (tx, rx) = channel::<RendererCommand>();
+        let controller = Self {
+            tx: tx.clone(),
+            rx,
+            renderer: shared(None),
+            keyboard_handler: KeyboardHandler::new(),
+            mouse_handler: MouseHandler::new(),
+            mouse_delta: MouseDelta::default(),
+            window: None,
+            upload_status_callback,
         };
 
         (controller, FlowHandle::new(tx))
@@ -98,16 +120,19 @@ impl FlowController {
             }
             RendererCommand::AssetUploadRequested {
                 id,
+                file_name,
                 asset_type,
                 bytes,
-            } => self.handle_asset_upload_requested(id, asset_type, bytes),
+            } => self.handle_asset_upload_requested(id, file_name, asset_type, bytes),
             RendererCommand::ApplyParsedAsset {
                 id,
+                file_name,
                 asset_type,
                 mesh_nodes,
-            } => self.handle_apply_parsed_asset(id, asset_type, mesh_nodes),
-            RendererCommand::AssetUploadFailed { id, error } => {
-                error!("Asset upload failed for `{id}`: {error}");
+            } => self.handle_apply_parsed_asset(id, file_name, asset_type, mesh_nodes),
+            RendererCommand::AssetUploadFailed { id, file_name, error } => {
+                error!("Asset upload failed for `{id}` ({file_name}): {error}");
+                self.fire_upload_status_error(id, file_name, error);
             }
             RendererCommand::Redraw { dt } => self.handle_redraw(dt),
             RendererCommand::Resize { dt, width, height } => {
@@ -257,7 +282,13 @@ impl FlowController {
         });
     }
 
-    fn handle_asset_upload_requested(&mut self, id: String, asset_type: LightType, bytes: Vec<u8>) {
+    fn handle_asset_upload_requested(
+        &mut self,
+        id: String,
+        file_name: String,
+        asset_type: LightType,
+        bytes: Vec<u8>,
+    ) {
         #[cfg(not(target_arch = "wasm32"))]
         {
             use crate::gpu::glTF::GLTFLoader;
@@ -267,6 +298,7 @@ impl FlowController {
                 Ok(mesh_nodes) => {
                     self.send_internal(RendererCommand::ApplyParsedAsset {
                         id,
+                        file_name,
                         asset_type,
                         mesh_nodes,
                     });
@@ -274,6 +306,7 @@ impl FlowController {
                 Err(upload_error) => {
                     self.send_internal(RendererCommand::AssetUploadFailed {
                         id,
+                        file_name,
                         error: upload_error.to_string(),
                     });
                 }
@@ -290,11 +323,13 @@ impl FlowController {
                 let next_command = match parsed_mesh_nodes {
                     Ok(mesh_nodes) => RendererCommand::ApplyParsedAsset {
                         id,
+                        file_name,
                         asset_type,
                         mesh_nodes,
                     },
                     Err(upload_error) => RendererCommand::AssetUploadFailed {
                         id,
+                        file_name,
                         error: upload_error.to_string(),
                     },
                 };
@@ -309,19 +344,31 @@ impl FlowController {
     fn handle_apply_parsed_asset(
         &mut self,
         id: String,
+        file_name: String,
         asset_type: LightType,
         mesh_nodes: Vec<MeshNode>,
     ) {
-        let _ = self.renderer.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                warn!("Dropping parsed asset `{id}` because renderer is not ready");
-                return;
-            };
+        let upload_id = id.clone();
+        let upload_file_name = file_name.clone();
+        let success = self
+            .renderer
+            .try_write_shared(|renderer_slot| {
+                let Some(renderer) = renderer_slot.as_mut() else {
+                    warn!("Dropping parsed asset `{id}` because renderer is not ready");
+                    return false;
+                };
 
-            renderer
-                .asset_manager
-                .upload_mesh_nodes(id, asset_type, mesh_nodes);
-        });
+                renderer
+                    .asset_manager
+                    .upload_mesh_nodes(id, asset_type, mesh_nodes);
+                true
+            })
+            .unwrap_or(false);
+
+        if success {
+            debug!("Successfully loaded asset: {file_name}");
+            self.fire_upload_status_success(upload_id, upload_file_name);
+        }
     }
 
     fn handle_redraw(&mut self, dt: f64) {
@@ -368,6 +415,42 @@ impl FlowController {
             }
         }
     }
+
+    #[cfg(target_arch = "wasm32")]
+    fn fire_upload_status_success(&self, upload_id: String, file_name: String) {
+        use hyakou_core::types::upload_status::UploadStatusEvent;
+        use wasm_bindgen::JsValue;
+
+        let _ = self.upload_status_callback.try_read_shared(|callback| {
+            if let Some(callback) = callback {
+                let event = UploadStatusEvent::success(upload_id, file_name);
+                if let Err(err) = callback.call1(&JsValue::NULL, &event.into()) {
+                    warn!("Failed to invoke upload status callback: {err:?}");
+                }
+            }
+        });
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn fire_upload_status_success(&self, _upload_id: String, _file_name: String) {}
+
+    #[cfg(target_arch = "wasm32")]
+    fn fire_upload_status_error(&self, upload_id: String, file_name: String, error: String) {
+        use hyakou_core::types::upload_status::UploadStatusEvent;
+        use wasm_bindgen::JsValue;
+
+        let _ = self.upload_status_callback.try_read_shared(|callback| {
+            if let Some(callback) = callback {
+                let event = UploadStatusEvent::error(upload_id, file_name, error);
+                if let Err(err) = callback.call1(&JsValue::NULL, &event.into()) {
+                    warn!("Failed to invoke upload status callback: {err:?}");
+                }
+            }
+        });
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn fire_upload_status_error(&self, _upload_id: String, _file_name: String, _error: String) {}
 }
 
 impl FlowHandle {
