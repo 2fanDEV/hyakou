@@ -5,11 +5,13 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use glam::{Vec2, Vec3, Vec4};
+use gltf::mesh::Mode;
 use hyakou_core::{
     components::mesh_node::MeshNode,
     geometry::{mesh::Mesh, vertices::Vertex},
     types::transform::Transform,
 };
+use log::debug;
 
 use crate::renderer::util::Concatable;
 
@@ -19,8 +21,8 @@ pub struct GLTFLoader {
 }
 
 impl GLTFLoader {
-    pub fn new(p: PathBuf) -> Self {
-        Self { BASE_PATH: p }
+    pub fn new(path: PathBuf) -> Self {
+        Self { BASE_PATH: path }
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -59,6 +61,7 @@ impl GLTFLoader {
                 ));
             }
         };
+
         let buffer_async_handles = gltf.buffers().map(async |buffer| match buffer.source() {
             gltf::buffer::Source::Bin => gltf
                 .blob
@@ -89,35 +92,54 @@ impl GLTFLoader {
             let meshes = mesh
                 .primitives()
                 .map(|primitive| {
+                    if primitive.mode() != Mode::Triangles {
+                        return Err(anyhow!(
+                            "We only support PrimitiveMode Triangle mode. Found Mode was: {:?}",
+                            primitive.mode()
+                        ));
+                    }
+
                     let reader = primitive.reader(|buffer| {
                         let index = buffer.index();
                         buffer_data.get(index).map(|data| data.as_slice())
                     });
 
-                    let positions = reader
-                        .read_positions()
-                        .unwrap()
-                        .map(|vec| Vec3::new(vec[0], vec[1], vec[2]))
-                        .collect::<Vec<_>>();
+                    let positions = match reader.read_positions() {
+                        Some(pos) => pos
+                            .map(|iter| Vec3::new(iter[0], iter[1], iter[2]))
+                            .collect::<Vec<_>>(),
+                        None => {
+                            return Err(anyhow!("No positions found for node: {:?}", node.index()));
+                        }
+                    };
 
-                    let indices = reader
-                        .read_indices()
-                        .unwrap()
-                        .into_u32()
-                        .collect::<Vec<_>>();
+                    let vertex_count = positions.len();
 
-                    let normals = reader
-                        .read_normals()
-                        .unwrap()
-                        .map(|vec| Vec3::new(vec[0], vec[1], vec[2]))
-                        .collect::<Vec<_>>();
+                    let indices = match reader.read_indices() {
+                        Some(idx) => idx.into_u32().collect::<Vec<_>>(),
+                        None => (0..vertex_count)
+                            .map(u32::try_from)
+                            .collect::<Result<Vec<_>, _>>()?,
+                    };
 
-                    let tex_coords = reader
-                        .read_tex_coords(0)
-                        .unwrap()
-                        .into_f32()
-                        .map(|vec| Vec2::new(vec[0], vec[1]))
-                        .collect::<Vec<_>>();
+                    let normals = match reader.read_normals() {
+                        Some(normal) => normal
+                            .map(|iter| Vec3::new(iter[0], iter[1], iter[2]))
+                            .collect::<Vec<_>>(),
+                        None => {
+                            return Err(anyhow!("No normals found for node: {:?}", node.index()));
+                        }
+                    };
+
+                    let tex_coords = match reader.read_tex_coords(0) {
+                        Some(tex_coord) => tex_coord
+                            .into_f32()
+                            .map(|tx_coords| Vec2::new(tx_coords[0], tx_coords[1]))
+                            .collect::<Vec<_>>(),
+                        None => {
+                            vec![Vec2::ZERO; vertex_count]
+                        }
+                    };
 
                     let gltf_colors = reader.read_colors(0);
 
@@ -129,25 +151,28 @@ impl GLTFLoader {
                         None => vec![Vec4::new(0.0, 0.0, 0.0, 0.0)],
                     };
 
+                    debug!("{:?}", tex_coords);
+
                     let vertices = zip(zip(positions, normals), tex_coords)
                         .map(|((pos, normals), tex_coords)| {
                             Vertex::new(pos, tex_coords, normals, colors[0])
                         })
                         .collect::<Vec<_>>();
 
-                    Mesh {
+                    Ok(Mesh {
                         name: mesh.name().map(|s| s.to_owned()),
                         vertices,
                         indices,
-                    }
+                    })
                 })
-                .collect::<Vec<_>>();
-            meshes.into_iter().for_each(|mesh| {
+                .collect::<Result<Vec<_>>>()?;
+
+            for mesh in meshes {
                 mesh_nodes.push(MeshNode::new(
                     mesh,
                     Transform::new(translation, rotation, scale),
                 ))
-            });
+            }
         }
         Ok(mesh_nodes)
     }

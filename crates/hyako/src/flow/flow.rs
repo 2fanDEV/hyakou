@@ -20,7 +20,6 @@ use crate::{
     renderer::{
         Renderer,
         handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
-        util,
     },
 };
 
@@ -130,7 +129,11 @@ impl FlowController {
                 asset_type,
                 mesh_nodes,
             } => self.handle_apply_parsed_asset(id, file_name, asset_type, mesh_nodes),
-            RendererCommand::AssetUploadFailed { id, file_name, error } => {
+            RendererCommand::AssetUploadFailed {
+                id,
+                file_name,
+                error,
+            } => {
                 error!("Asset upload failed for `{id}` ({file_name}): {error}");
                 self.fire_upload_status_error(id, file_name, error);
             }
@@ -291,7 +294,7 @@ impl FlowController {
     ) {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            use crate::gpu::glTF::GLTFLoader;
+            use crate::{gpu::glTF::GLTFLoader, renderer::util};
             let gltf_loader = GLTFLoader::new(util::get_relative_path());
             let parsed_mesh_nodes = pollster::block_on(gltf_loader.load_from_bytes(bytes));
             match parsed_mesh_nodes {
@@ -317,7 +320,7 @@ impl FlowController {
         {
             let tx = self.tx.clone();
             spawn_local(async move {
-                use crate::gpu::glTF::GLTFLoader;
+                use crate::{gpu::glTF::GLTFLoader, renderer::util};
                 let gltf_loader = GLTFLoader::new(util::get_relative_path());
                 let parsed_mesh_nodes = gltf_loader.load_from_bytes(bytes).await;
                 let next_command = match parsed_mesh_nodes {
