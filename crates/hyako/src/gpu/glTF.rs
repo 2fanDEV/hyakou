@@ -153,10 +153,8 @@ impl GLTFLoader {
 
                     debug!("{:?}", tex_coords);
 
-                    let vertices = zip(zip(positions, normals), tex_coords)
-                        .map(|((pos, normals), tex_coords)| {
-                            Vertex::new(pos, tex_coords, normals, colors[0])
-                        })
+                    let vertices = (0..vertex_count)
+                        .map(|i| Vertex::new(positions[i], tex_coords[i], normals[i], colors[i]))
                         .collect::<Vec<_>>();
 
                     Ok(Mesh {
