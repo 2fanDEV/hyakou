@@ -14,13 +14,8 @@ export default function Renderer() {
 		null,
 	);
 	const [camera, setCamera] = useState<CameraDO | null>(null);
-	const {
-		state,
-		onHyakoReady,
-		uploadFiles,
-		createDirectory,
-		moveItemToDirectory,
-	} = useFileDrop();
+	const { state, onHyakoReady, uploadFiles, createDirectory, moveItems } =
+		useFileDrop();
 
 	useWasm((instance: Hyako) => {
 		hyakoRef.current = instance;
@@ -38,7 +33,7 @@ export default function Renderer() {
 			<FileDirectory
 				state={state}
 				onCreateDirectory={createDirectory}
-				onMoveItem={moveItemToDirectory}
+				onMoveItems={moveItems}
 			/>
 			<div className="fixed left-4 top-4 z-10 sm:left-10 sm:top-10">
 				<Camera key={camera?.get_camera_id.get_value} camera={camera} />

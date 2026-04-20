@@ -1,16 +1,17 @@
 import type { Hyako, UploadStatusEvent } from "@wasm/hyako_wasm_bindings";
 import { AssetInformation } from "@wasm/hyako_wasm_bindings";
 import { useCallback, useState } from "react";
-import type {
-	FileDirectory,
-	FileDirectoryItem,
-	FileDirectoryState,
-	UploadStatus,
+import type { FileDirectoryState, UploadStatus } from "#/lib/fileDirectory";
+import {
+	createFileNode,
+	createFolderNode,
+	moveNodes,
+	updateNodeById,
 } from "#/lib/fileDirectory";
 
 const CHECKMARK_DISMISS_MS = 2000;
 
-const emptyState = (): FileDirectoryState => ({ items: [], directories: [] });
+const emptyState = (): FileDirectoryState => ({ nodes: [] });
 
 export default function useFileDrop() {
 	const [state, setState] = useState<FileDirectoryState>(emptyState);
@@ -19,26 +20,24 @@ export default function useFileDrop() {
 		hyako.setUploadStatusListener((event: UploadStatusEvent) => {
 			const status = event.status as UploadStatus;
 			setState((prev) => {
-				const items = prev.items.map((item) =>
-					item.id === event.uploadId
-						? {
-								...item,
-								status,
-								errorMessage: event.message,
-							}
-						: item,
-				);
-				return { ...prev, items };
+				return {
+					...prev,
+					nodes: updateNodeById(prev.nodes, event.uploadId, (node) =>
+						node.kind === "file"
+							? { ...node, status, errorMessage: event.message }
+							: node,
+					),
+				};
 			});
 
 			if (status === "success") {
 				setTimeout(() => {
 					setState((prev) => ({
 						...prev,
-						items: prev.items.map((item) =>
-							item.id === event.uploadId
-								? { ...item, status: "done" as const }
-								: item,
+						nodes: updateNodeById(prev.nodes, event.uploadId, (node) =>
+							node.kind === "file"
+								? { ...node, status: "done" as const }
+								: node,
 						),
 					}));
 				}, CHECKMARK_DISMISS_MS);
@@ -49,12 +48,10 @@ export default function useFileDrop() {
 	const uploadFiles = useCallback(async (hyako: Hyako, fileList: FileList) => {
 		const uploads = Array.from(fileList).map(async (file) => {
 			const id = crypto.randomUUID();
-			const pending: FileDirectoryItem = {
-				id,
-				fileName: file.name,
-				status: "pending",
-			};
-			setState((prev) => ({ ...prev, items: [...prev.items, pending] }));
+			setState((prev) => ({
+				...prev,
+				nodes: [...prev.nodes, createFileNode(id, file.name)],
+			}));
 
 			const bytes = new Uint8Array(await file.arrayBuffer());
 			hyako.upload_file(
@@ -71,20 +68,17 @@ export default function useFileDrop() {
 	}, []);
 
 	const createDirectory = useCallback((name: string) => {
-		const directory: FileDirectory = { id: crypto.randomUUID(), name };
 		setState((prev) => ({
 			...prev,
-			directories: [...prev.directories, directory],
+			nodes: [...prev.nodes, createFolderNode(name)],
 		}));
 	}, []);
 
-	const moveItemToDirectory = useCallback(
-		(itemId: string, directoryId: string | undefined) => {
+	const moveItems = useCallback(
+		(itemIds: string[], directoryId: string | null, index: number) => {
 			setState((prev) => ({
 				...prev,
-				items: prev.items.map((item) =>
-					item.id === itemId ? { ...item, directoryId } : item,
-				),
+				nodes: moveNodes(prev.nodes, itemIds, directoryId, index),
 			}));
 		},
 		[],
@@ -95,6 +89,6 @@ export default function useFileDrop() {
 		onHyakoReady,
 		uploadFiles,
 		createDirectory,
-		moveItemToDirectory,
+		moveItems,
 	};
 }

@@ -1,16 +1,153 @@
-import { PlusIcon } from "@phosphor-icons/react";
+import {
+	CaretDownIcon,
+	CaretRightIcon,
+	CheckIcon,
+	FolderIcon,
+	type Icon,
+	PlusIcon,
+	XIcon,
+} from "@phosphor-icons/react";
 import { ContextMenu as ContextMenuPrimitive } from "radix-ui";
 import { useRef, useState } from "react";
+import {
+	type MoveHandler,
+	type NodeRendererProps,
+	type RowRendererProps,
+	Tree,
+} from "react-arborist";
 import { DraggablePanel } from "#/components/ui/DraggablePanel";
-import type { FileDirectoryState } from "#/lib/fileDirectory";
-import FileDirectoryFolder from "./FileDirectoryFolder";
-import FileDirectoryItem from "./FileDirectoryItem";
+import type {
+	FileDirectoryNode,
+	FileDirectoryState,
+} from "#/lib/fileDirectory";
+import { getFileIcon } from "#/lib/fileIcon";
+import { cn } from "#/lib/utils";
 
 type Props = {
 	state: FileDirectoryState;
 	onCreateDirectory: (name: string) => void;
-	onMoveItem: (itemId: string, directoryId: string | undefined) => void;
+	onMoveItems: (
+		itemIds: string[],
+		directoryId: string | null,
+		index: number,
+	) => void;
 };
+
+const PANEL_WIDTH = 280;
+const PANEL_HEIGHT = 320;
+const TREE_ROW_HEIGHT = 28;
+const TREE_INDENT = 8;
+
+function StatusSlot({
+	status,
+}: {
+	status: Extract<FileDirectoryNode, { kind: "file" }>["status"];
+}) {
+	if (status === "done") {
+		return <span className="upload-status-slot" aria-hidden="true" />;
+	}
+
+	const isSettled = status === "success" || status === "error";
+	const StatusIcon =
+		status === "success" ? CheckIcon : status === "error" ? XIcon : null;
+
+	return (
+		<span className="upload-status-slot" aria-hidden="true">
+			{(status === "pending" || isSettled) && (
+				<span
+					className={cn(
+						"upload-progress-track",
+						isSettled && "upload-progress-track-exit",
+					)}
+				>
+					<span className="upload-progress-bar" />
+				</span>
+			)}
+			{StatusIcon && (
+				<span className="upload-status-pop">
+					<StatusIcon
+						className={cn(
+							"upload-status-symbol",
+							status === "error"
+								? "text-[var(--color-upload-error)]"
+								: "text-[var(--color-upload-success)]",
+						)}
+						weight="bold"
+						size={14}
+					/>
+				</span>
+			)}
+		</span>
+	);
+}
+
+function ExplorerNode({
+	node,
+	style,
+	dragHandle,
+}: NodeRendererProps<FileDirectoryNode>) {
+	const data = node.data;
+	const isFolder = data.kind === "folder";
+	const FileIcon = !isFolder ? (getFileIcon(data.name) as Icon) : undefined;
+
+	return (
+		<div style={style} className="px-1.5">
+			<div
+				role="treeitem"
+				tabIndex={-1}
+				ref={dragHandle}
+				className={cn(
+					"upload-item rounded-md",
+					node.isSelected && "bg-accent text-accent-foreground",
+					node.willReceiveDrop && "bg-accent/70",
+					!isFolder && data.status === "error" && "text-destructive",
+				)}
+				onClick={node.handleClick}
+				onKeyDown={(event) => {
+					if (event.key === "Enter" || event.key === " ") {
+						event.preventDefault();
+						node.handleClick(event as never);
+					}
+				}}
+				title={
+					!isFolder && data.status === "error" ? data.errorMessage : data.name
+				}
+			>
+				{isFolder ? (
+					<>
+						<button
+							type="button"
+							className="upload-file-icon rounded hover:bg-muted"
+							onClick={(event) => {
+								event.stopPropagation();
+								node.toggle();
+							}}
+							aria-label={node.isOpen ? "Collapse folder" : "Expand folder"}
+						>
+							{node.isOpen ? (
+								<CaretDownIcon size={12} weight="bold" />
+							) : (
+								<CaretRightIcon size={12} weight="bold" />
+							)}
+						</button>
+						<span className="upload-file-icon" aria-hidden="true">
+							<FolderIcon size={14} weight="regular" />
+						</span>
+					</>
+				) : (
+					<>
+						<span className="upload-file-icon" aria-hidden="true">
+							{FileIcon ? <FileIcon size={14} weight="regular" /> : null}
+						</span>
+						<span className="upload-file-spacer" aria-hidden="true" />
+					</>
+				)}
+				<span className="min-w-0 flex-1 truncate">{data.name}</span>
+				{!isFolder && <StatusSlot status={data.status} />}
+			</div>
+		</div>
+	);
+}
 
 function NewDirectoryInput({
 	onConfirm,
@@ -23,16 +160,16 @@ function NewDirectoryInput({
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	return (
-		<div className="flex items-center gap-1 px-2.5 py-1.5">
+		<div className="px-2.5 py-1.5">
 			<input
 				ref={inputRef}
 				type="text"
 				value={value}
-				onChange={(e) => setValue(e.target.value)}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" && value.trim()) {
+				onChange={(event) => setValue(event.target.value)}
+				onKeyDown={(event) => {
+					if (event.key === "Enter" && value.trim()) {
 						onConfirm(value.trim());
-					} else if (e.key === "Escape") {
+					} else if (event.key === "Escape") {
 						onCancel();
 					}
 				}}
@@ -40,9 +177,21 @@ function NewDirectoryInput({
 					if (value.trim()) onConfirm(value.trim());
 					else onCancel();
 				}}
-				placeholder="Directory name…"
-				className="min-w-0 flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs outline-none focus:border-ring"
+				placeholder="Directory name..."
+				className="w-full rounded border border-border bg-background px-2 py-1 text-xs outline-none focus:border-ring"
 			/>
+		</div>
+	);
+}
+
+function TreeRow({
+	innerRef,
+	attrs,
+	children,
+}: RowRendererProps<FileDirectoryNode>) {
+	return (
+		<div ref={innerRef} {...attrs}>
+			{children}
 		</div>
 	);
 }
@@ -50,7 +199,7 @@ function NewDirectoryInput({
 export default function FileDirectory({
 	state,
 	onCreateDirectory,
-	onMoveItem,
+	onMoveItems,
 }: Props) {
 	const [addingDirectory, setAddingDirectory] = useState(false);
 
@@ -58,8 +207,6 @@ export default function FileDirectory({
 		onCreateDirectory(name);
 		setAddingDirectory(false);
 	};
-
-	const ungroupedItems = state.items.filter((item) => !item.directoryId);
 
 	const addDirectoryButton = (
 		<button
@@ -72,31 +219,56 @@ export default function FileDirectory({
 		</button>
 	);
 
+	const treeHeight = Math.max(
+		TREE_ROW_HEIGHT,
+		PANEL_HEIGHT - (addingDirectory ? TREE_ROW_HEIGHT + 10 : 0),
+	);
+
+	const handleMove: MoveHandler<FileDirectoryNode> = ({
+		dragIds,
+		parentId,
+		index,
+	}) => {
+		onMoveItems(dragIds, parentId, index);
+	};
+
+	const emptyState = state.nodes.length === 0 && !addingDirectory;
+
 	return (
 		<ContextMenuPrimitive.Root>
 			<ContextMenuPrimitive.Trigger asChild>
 				<div>
-					<DraggablePanel title="Files" headerActions={addDirectoryButton}>
-						{ungroupedItems.map((item) => (
-							<FileDirectoryItem
-								key={item.id}
-								item={item}
-								onDragStart={
-									state.directories.length > 0 ? () => {} : undefined
+					<DraggablePanel
+						title="Explorer"
+						headerActions={addDirectoryButton}
+						defaultWidth={PANEL_WIDTH}
+						defaultHeight={PANEL_HEIGHT}
+					>
+						{emptyState ? (
+							<p className="px-3 py-4 text-center text-xs text-muted-foreground/50 italic">
+								Drop files anywhere to load them
+							</p>
+						) : (
+							<Tree<FileDirectoryNode>
+								data={state.nodes}
+								width="100%"
+								height={treeHeight}
+								rowHeight={TREE_ROW_HEIGHT}
+								indent={TREE_INDENT}
+								padding={4}
+								openByDefault={true}
+								disableMultiSelection
+								disableEdit
+								childrenAccessor={(node) =>
+									node.kind === "folder" ? node.children : null
 								}
-							/>
-						))}
-
-						{state.directories.map((dir) => (
-							<FileDirectoryFolder
-								key={dir.id}
-								directory={dir}
-								items={state.items.filter(
-									(item) => item.directoryId === dir.id,
-								)}
-								onMoveItem={onMoveItem}
-							/>
-						))}
+								idAccessor="id"
+								onMove={handleMove}
+								renderRow={TreeRow}
+							>
+								{ExplorerNode}
+							</Tree>
+						)}
 
 						{addingDirectory && (
 							<NewDirectoryInput
@@ -104,14 +276,6 @@ export default function FileDirectory({
 								onCancel={() => setAddingDirectory(false)}
 							/>
 						)}
-
-						{state.items.length === 0 &&
-							state.directories.length === 0 &&
-							!addingDirectory && (
-								<p className="px-3 py-4 text-center text-xs text-muted-foreground/50 italic">
-									Drop files anywhere to load them
-								</p>
-							)}
 					</DraggablePanel>
 				</div>
 			</ContextMenuPrimitive.Trigger>
