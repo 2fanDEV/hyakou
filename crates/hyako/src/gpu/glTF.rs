@@ -1,7 +1,4 @@
-use std::{
-    iter::zip,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow};
 use glam::{Vec2, Vec3, Vec4};
@@ -11,7 +8,6 @@ use hyakou_core::{
     geometry::{mesh::Mesh, vertices::Vertex},
     types::transform::Transform,
 };
-use log::debug;
 
 use crate::renderer::util::Concatable;
 
@@ -99,6 +95,18 @@ impl GLTFLoader {
                         ));
                     }
 
+                    let base_color_factor = primitive
+                        .material()
+                        .pbr_metallic_roughness()
+                        .base_color_factor();
+
+                    let base_color_factor_vec4 = Vec4::new(
+                        base_color_factor[0],
+                        base_color_factor[1],
+                        base_color_factor[2],
+                        base_color_factor[3],
+                    );
+
                     let reader = primitive.reader(|buffer| {
                         let index = buffer.index();
                         buffer_data.get(index).map(|data| data.as_slice())
@@ -142,19 +150,24 @@ impl GLTFLoader {
                     };
 
                     let gltf_colors = reader.read_colors(0);
-
                     let colors: Vec<Vec4> = match gltf_colors {
                         Some(read_colors) => read_colors
                             .into_rgba_f32()
                             .map(|v| Vec4::new(v[0], v[1], v[2], v[3]))
                             .collect::<Vec<_>>(),
-                        None => vec![Vec4::new(0.0, 0.0, 0.0, 0.0)],
+                        None => vec![Vec4::ONE; vertex_count],
                     };
 
-                    debug!("{:?}", tex_coords);
-
                     let vertices = (0..vertex_count)
-                        .map(|i| Vertex::new(positions[i], tex_coords[i], normals[i], colors[i]))
+                        .map(|i| {
+                            Vertex::new(
+                                positions[i],
+                                tex_coords[i],
+                                normals[i],
+                                colors[i],
+                                base_color_factor_vec4,
+                            )
+                        })
                         .collect::<Vec<_>>();
 
                     Ok(Mesh {
@@ -174,4 +187,6 @@ impl GLTFLoader {
         }
         Ok(mesh_nodes)
     }
+
+    fn build_primitives(&self, mesh: &gltf::Mesh) -> Mesh {}
 }

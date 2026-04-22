@@ -24,7 +24,8 @@ struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) tex_coords: vec2<f32>,
     @location(2) normals: vec3<f32>,
-    @location(3) colors: vec4<f32>
+    @location(3) colors: vec4<f32>,
+    @location(4) pbr_base_color_factor: vec4<f32>
 };
 
 struct VertexOutput {
@@ -32,6 +33,8 @@ struct VertexOutput {
     @location(1) position: vec3<f32>,
     @location(2) tex_coords: vec2<f32>,
     @location(3) normals: vec3<f32>,
+    @location(4) colors: vec4<f32>,
+    @location(5) pbr_base_color_factor: vec4<f32>,
 };
 
 @group(0) @binding(0)
@@ -48,6 +51,8 @@ fn vs_main(
     out.normals = mesh.normals;
     out.position = mesh.position;
     out.clip_position = camera.view_projection_matrix * model.model_matrix * vec4<f32>(mesh.position, 1.0);
+    out.colors = mesh.colors;
+    out.pbr_base_color_factor = mesh.pbr_base_color_factor;
     return out;
 }
 
@@ -68,5 +73,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var NdotH = max(dot(H, in.normals), 0.0);
     var specular_intensity = pow(clamp(NdotH, 0.0, 1.0), 2.0);
     var specular = specular_intensity * color * 1.0 / distance;
-    return vec4<f32>(specular, 1.0) + vec4(diffuse, 1.0) * vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    return vec4<f32>(specular, 1.0) + vec4(diffuse, 1.0) * (in.colors * in.pbr_base_color_factor);
 }
