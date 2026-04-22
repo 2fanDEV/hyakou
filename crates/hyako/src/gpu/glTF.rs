@@ -212,6 +212,7 @@ impl GLTFLoader {
                 .map(u32::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         };
+        self.ensure_indices_in_range(&indices, vertex_count, node_index)?;
 
         let normals = match reader.read_normals() {
             Some(normal) => normal
@@ -274,5 +275,48 @@ impl GLTFLoader {
         }
 
         Ok(())
+    }
+
+    fn ensure_indices_in_range(
+        &self,
+        indices: &[u32],
+        vertex_count: usize,
+        node_index: usize,
+    ) -> Result<()> {
+        let vertex_count_u32 = u32::try_from(vertex_count).map_err(|_| {
+            anyhow!(
+                "Vertex count exceeds supported indexed range for node {node_index}: {vertex_count}"
+            )
+        })?;
+
+        for (position, index) in indices.iter().copied().enumerate() {
+            if index >= vertex_count_u32 {
+                return Err(anyhow!(
+                    "Index out of range for node {node_index}: index buffer entry {position} references vertex {index}, but vertex count is {vertex_count}"
+                ));
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ensure_indices_in_range_rejects_out_of_range_index() {
+        let loader = GLTFLoader::new(PathBuf::new());
+        let result = loader.ensure_indices_in_range(&[0, 1, 99], 3, 0);
+
+        match result {
+            Ok(()) => panic!("Expected loader to reject out-of-range index"),
+            Err(error) => assert!(
+                error.to_string().contains(
+                    "Index out of range for node 0: index buffer entry 2 references vertex 99, but vertex count is 3"
+                )
+            ),
+        }
     }
 }
