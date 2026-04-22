@@ -14,15 +14,21 @@ impl Deref for NodeId {
 }
 
 pub struct NodeGraph {
-    node_ids: Vec<NodeId>,
+    root_ids: Vec<NodeId>,
     nodes: Vec<Node>,
 }
 
 impl NodeGraph {
-    pub fn new() -> Self {
+    /*
+     TODO: Add runtime graph validation.
+     Validation should verify that all root, child, and parent NodeIds are in
+     bounds, that parent/child relationships are consistent, and that we have a
+     defined policy for unreachable nodes before wiring NodeGraph into glTF.
+    */
+    pub fn new(nodes: Vec<Node>, node_ids: Vec<NodeId>) -> Self {
         Self {
-            nodes: Vec::new(),
-            node_ids: Vec::new(),
+            nodes,
+            root_ids: node_ids,
         }
     }
 
@@ -30,7 +36,7 @@ impl NodeGraph {
         let mut result = Vec::new();
 
         let _ = self
-            .node_ids
+            .root_ids
             .iter()
             .map(|nd| self.flatten_nodes(*nd, &Mat4::IDENTITY, &mut result))
             .collect::<Vec<_>>();

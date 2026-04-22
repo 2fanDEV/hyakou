@@ -45,7 +45,7 @@ fn flatten_empty_graph_returns_empty_vec() {
 #[test]
 fn flatten_single_root_with_one_mesh_returns_one_mesh_node() {
     let graph = NodeGraph {
-        node_ids: vec![NodeId(0)],
+        root_ids: vec![NodeId(0)],
         nodes: vec![Node {
             local_transform: test_transform(1.0, 2.0, 3.0),
             meshes: vec![test_mesh("root")],
@@ -78,7 +78,7 @@ fn flatten_single_root_with_one_mesh_returns_one_mesh_node() {
 #[test]
 fn flatten_single_node_with_multiple_meshes_returns_multiple_mesh_nodes() {
     let graph = NodeGraph {
-        node_ids: vec![NodeId(0)],
+        root_ids: vec![NodeId(0)],
         nodes: vec![Node {
             local_transform: test_transform(4.0, 5.0, 6.0),
             meshes: vec![test_mesh("mesh_a"), test_mesh("mesh_b")],
@@ -107,7 +107,7 @@ fn flatten_single_node_with_multiple_meshes_returns_multiple_mesh_nodes() {
 #[test]
 fn flatten_accumulates_parent_and_child_transforms() {
     let graph = NodeGraph {
-        node_ids: vec![NodeId(0)],
+        root_ids: vec![NodeId(0)],
         nodes: vec![
             Node {
                 local_transform: test_transform(10.0, 0.0, 0.0),
@@ -144,7 +144,7 @@ fn flatten_accumulates_parent_and_child_transforms() {
 #[test]
 fn flatten_two_independent_roots_returns_mesh_nodes_for_both_roots() {
     let graph = NodeGraph {
-        node_ids: vec![NodeId(0), NodeId(1)],
+        root_ids: vec![NodeId(0), NodeId(1)],
         nodes: vec![
             Node {
                 local_transform: test_transform(1.0, 0.0, 0.0),
@@ -181,7 +181,7 @@ fn flatten_two_independent_roots_returns_mesh_nodes_for_both_roots() {
 #[test]
 fn flatten_accumulates_parent_child_and_grandchild_transforms() {
     let graph = NodeGraph {
-        node_ids: vec![NodeId(0)],
+        root_ids: vec![NodeId(0)],
         nodes: vec![
             Node {
                 local_transform: test_transform(10.0, 0.0, 0.0),
