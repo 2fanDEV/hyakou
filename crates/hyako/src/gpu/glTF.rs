@@ -187,6 +187,4 @@ impl GLTFLoader {
         }
         Ok(mesh_nodes)
     }
-
-    fn build_primitives(&self, mesh: &gltf::Mesh) -> Mesh {}
 }
