@@ -37,7 +37,7 @@ fn assert_quat_eq(actual: Quat, expected: Quat, message: &str) {
 
 #[test]
 fn flatten_empty_graph_returns_empty_vec() {
-    let graph = NodeGraph::new();
+    let graph = NodeGraph::new(vec![], vec![]);
     let result = graph.flatten();
     assert!(result.is_empty());
 }
