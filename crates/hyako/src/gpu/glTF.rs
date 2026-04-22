@@ -4,7 +4,6 @@ use anyhow::{Result, anyhow};
 use glam::{Vec2, Vec3, Vec4};
 use gltf::mesh::Mode;
 use hyakou_core::{
-    components::mesh_node::MeshNode,
     geometry::{
         mesh::Mesh,
         node::{Node, NodeGraph, NodeId},
@@ -21,16 +20,6 @@ pub struct GLTFLoader {
 impl GLTFLoader {
     pub fn new(path: PathBuf) -> Self {
         Self { BASE_PATH: path }
-    }
-
-    pub async fn load_from_path(&self, path: &Path) -> Result<Vec<MeshNode>> {
-        let node_graph = self.load_node_graph_from_path(path).await?;
-        Ok(node_graph.flatten())
-    }
-
-    pub async fn load_from_bytes(&self, slice: Vec<u8>) -> Result<Vec<MeshNode>> {
-        let node_graph = self.load_node_graph_from_bytes(slice).await?;
-        Ok(node_graph.flatten())
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -51,15 +40,15 @@ impl GLTFLoader {
         Ok(slice)
     }
 
-    pub async fn load_node_graph_from_path(&self, path: &Path) -> Result<NodeGraph> {
+    pub async fn load_from_path(&self, path: &Path) -> Result<NodeGraph> {
         let slice = match self.read_bytes(path).await {
             Ok(slice) => slice,
             Err(e) => return Err(e),
         };
-        self.load_node_graph_from_bytes(slice).await
+        self.load_from_bytes(slice).await
     }
 
-    pub async fn load_node_graph_from_bytes(&self, slice: Vec<u8>) -> Result<NodeGraph> {
+    pub async fn load_from_bytes(&self, slice: Vec<u8>) -> Result<NodeGraph> {
         let gltf = match gltf::Gltf::from_slice(&slice) {
             Ok(gltf) => gltf,
             Err(_) => {

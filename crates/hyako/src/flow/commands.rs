@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use hyakou_core::{
-    components::{LightType, camera::data_structures::CameraAnimationRequest, mesh_node::MeshNode},
+    components::{LightType, camera::data_structures::CameraAnimationRequest},
+    geometry::node::NodeGraph,
     types::mouse_delta::MouseButton,
 };
 use winit::{keyboard::KeyCode, window::Window};
@@ -40,7 +41,7 @@ pub enum RendererCommand {
         id: String,
         file_name: String,
         asset_type: LightType,
-        mesh_nodes: Vec<MeshNode>,
+        node_graph: NodeGraph,
     },
     AssetUploadFailed {
         id: String,

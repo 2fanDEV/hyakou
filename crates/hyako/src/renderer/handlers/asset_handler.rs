@@ -11,11 +11,12 @@ use wgpu::Device;
 
 use crate::{
     gpu::{glTF::GLTFLoader, render_mesh::RenderMesh},
-    renderer::util::{self, Concatable},
+    renderer::util,
 };
 
 use hyakou_core::{
     components::{LightType, mesh_node::MeshNode},
+    geometry::node::NodeGraph,
     types::{ModelMatrixBindingMode, ids::MeshId},
 };
 
@@ -51,17 +52,18 @@ impl AssetHandler {
         light_type: LightType,
         bytes: Vec<u8>,
     ) -> Result<()> {
-        let mesh_nodes = self.gltf_loader.load_from_bytes(bytes).await?;
-        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes);
+        let node_graph = self.gltf_loader.load_from_bytes(bytes).await?;
+        self.upload_node_graph(id, light_type, node_graph);
         Ok(())
     }
 
-    pub fn upload_mesh_nodes(
+    pub fn upload_node_graph(
         &mut self,
         id: String,
         light_type: LightType,
-        mesh_nodes: Vec<MeshNode>,
+        node_graph: NodeGraph,
     ) -> Option<Rc<RenderMesh>> {
+        let mesh_nodes = node_graph.flatten();
         self.upload_mesh_node_as_asset(id, light_type, mesh_nodes)
     }
 
@@ -72,16 +74,16 @@ impl AssetHandler {
         path: &Path,
     ) -> Option<Rc<RenderMesh>> {
         //TODO make rendermesh be a node consisting of multiple nodes
-        let mesh_nodes = match self.gltf_loader.load_from_path(path).await {
-            Ok(nodes) => nodes,
+        let node_graph = match self.gltf_loader.load_from_path(path).await {
+            Ok(node_graph) => node_graph,
             Err(e) => panic!("Couldn't find model at path: {:?} with msg: {:?}", path, e),
         };
-        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes)
+        self.upload_node_graph(id, light_type, node_graph)
     }
 
     fn upload_mesh_node_as_asset(
         &mut self,
-        mut id: String,
+        id: String,
         light_type: LightType,
         mesh_nodes: Vec<MeshNode>,
     ) -> Option<Rc<RenderMesh>> {
