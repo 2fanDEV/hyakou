@@ -32,7 +32,9 @@ impl Coordinates3 {
 }
 
 #[wasm_bindgen]
+#[derive(Debug, Clone)]
 pub struct AssetInformation {
+    id: String,
     bytes: Vec<u8>,
     name: String,
     pub size: u64,
@@ -42,13 +44,19 @@ pub struct AssetInformation {
 #[wasm_bindgen]
 impl AssetInformation {
     #[wasm_bindgen(constructor)]
-    pub fn new(bytes: Vec<u8>, name: String, size: u64, modified: i32) -> Self {
+    pub fn new(id: String, bytes: Vec<u8>, name: String, size: u64, modified: i32) -> Self {
         Self {
+            id,
             bytes,
             name,
             size,
             modified,
         }
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn id(&self) -> String {
+        self.id.clone()
     }
 
     #[wasm_bindgen(getter)]
@@ -59,5 +67,34 @@ impl AssetInformation {
     #[wasm_bindgen(getter)]
     pub fn name(&self) -> String {
         self.name.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AssetBundleInformation {
+    id: String,
+    entry_file_name: String,
+    files: Vec<AssetInformation>,
+}
+
+impl AssetBundleInformation {
+    pub fn new(id: String, entry_file_name: String, files: Vec<AssetInformation>) -> Self {
+        Self {
+            id,
+            entry_file_name,
+            files,
+        }
+    }
+
+    pub fn id(&self) -> String {
+        self.id.clone()
+    }
+
+    pub fn entry_file_name(&self) -> String {
+        self.entry_file_name.clone()
+    }
+
+    pub fn files(&self) -> Vec<AssetInformation> {
+        self.files.clone()
     }
 }

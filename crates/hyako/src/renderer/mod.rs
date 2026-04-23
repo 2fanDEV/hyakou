@@ -1,4 +1,4 @@
-use std::{collections::HashMap, f32::consts::PI, path::Path, sync::Arc};
+use std::{collections::HashMap, f32::consts::PI, sync::Arc};
 
 use crate::{
     gpu::{
@@ -19,7 +19,11 @@ use glam::Vec3;
 use hyakou_core::{
     SharedAccess,
     animations::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
-    components::{LightType, camera::camera::Camera, light::LightSource},
+    components::{
+        LightType,
+        camera::{camera::Camera, data_structures::CameraMode},
+        light::LightSource,
+    },
     shared,
     traits::BindGroupProvider,
     types::{
@@ -56,7 +60,6 @@ pub struct Renderer {
     light_bind_group: BindGroup,
     animators: HashMap<MeshId, Animator>,
     pub camera_handler: CameraHandler,
-    pub camera_state: CameraHandler,
     pub asset_manager: AssetHandler,
 }
 
@@ -74,38 +77,34 @@ impl Renderer {
 
         let mut asset_handler = AssetHandler::new(
             ctx.device.clone(),
+            ctx.queue.clone(),
             ctx.model_binding_mode,
             ctx.model_bind_group_layout.clone(),
+            ctx.material_bind_group_layout.clone(),
         );
         let _suzanne_mesh = asset_handler
             .add_from_path(
                 "Suzanne".to_string(),
                 LightType::LIGHT,
-                &Path::new(&assets_dir).join("assets/gltf/Suzanne.gltf"),
+                assets_dir.join("assets/gltf/Suzanne.gltf").as_path(),
             )
-            .await;
+            .await?;
         let cube_light_mesh = asset_handler
             .add_from_path(
                 "Cube".to_string(),
                 LightType::NO_LIGHT,
                 assets_dir.join("assets/gltf/Cube.gltf").as_path(),
             )
-            .await;
+            .await?;
         cube_light_mesh
-            .as_ref()
-            .unwrap()
             .transform
-            .try_write_shared(|t| t.translate(Vec3::new(0.0, 1.0, 1.0)))
-            .unwrap();
-        let light = LightSource::new(
-            cube_light_mesh.as_ref().unwrap().transform.clone(),
-            Vec3::new(1.0, 1.0, 1.0),
-        );
+            .try_write_shared(|t| t.translate(Vec3::new(0.0, 1.0, 1.0)))?;
+        let light = LightSource::new(cube_light_mesh.transform.clone(), Vec3::new(1.0, 1.0, 1.0));
         let light_uniform_buffer = UniformBuffer::new(
             UniformBufferId::new("Light Uniform Buffer".to_string()),
             &ctx.device,
             bytes_of(&light.to_gpu().unwrap()),
-            cube_light_mesh.as_ref().unwrap().transform.clone(),
+            cube_light_mesh.transform.clone(),
         );
 
         let light_bind_group = LightSource::bind_group(
@@ -146,8 +145,8 @@ impl Renderer {
         );
 
         let test_trajectory = LinearTrajectory::new_deconstructed_mesh(
-            cube_light_mesh.as_ref().unwrap().as_ref().clone().id,
-            cube_light_mesh.as_ref().unwrap().as_ref().clone().transform,
+            cube_light_mesh.id.clone(),
+            cube_light_mesh.transform.clone(),
             Vec3::new(0.0, 1.0, 0.0),
             f32::to_radians(0.0),
             f32::to_radians(0.0),
@@ -176,8 +175,7 @@ impl Renderer {
             light_uniform_buffer,
             light_bind_group,
             animators,
-            camera_handler: CameraHandler::new(),
-            camera_state: CameraHandler::new(),
+            camera_handler: CameraHandler::new(CameraMode::ORBIT),
             window,
         })
     }
@@ -254,8 +252,8 @@ impl Renderer {
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(Color {
                             r: 0.3,
-                            g: (0.2),
-                            b: (0.8),
+                            g: 0.2,
+                            b: 0.8,
                             a: 1.0,
                         }),
                         store: wgpu::StoreOp::Store,
@@ -353,7 +351,7 @@ impl Renderer {
         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("Main Command Buffer"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view: &view,
+                view,
                 depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
@@ -365,7 +363,7 @@ impl Renderer {
             timestamp_writes: None,
             occlusion_query_set: None,
             depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                view: &depth_view,
+                view: depth_view,
                 depth_ops: Some(Operations {
                     load: wgpu::LoadOp::Load,
                     store: wgpu::StoreOp::Store,
@@ -379,11 +377,16 @@ impl Renderer {
         render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
         render_pass.set_bind_group(1, light_bind_group, &[]);
         render_pass.set_bind_group(0, camera_bind_group, &[]);
+        render_pass.set_bind_group(
+            Self::material_bind_group_index(model_binding_mode),
+            &render_mesh.material.bind_group,
+            &[],
+        );
         render_pass.set_index_buffer(
             render_mesh.index_buffer.slice(..),
             wgpu::IndexFormat::Uint32,
         );
-        render_pass.draw_indexed(0..render_mesh.index_count as u32, 0, 0..1);
+        render_pass.draw_indexed(0..render_mesh.index_count, 0, 0..1);
     }
 
     fn apply_model_matrix(
@@ -409,6 +412,13 @@ impl Renderer {
                 queue.write_buffer(model_uniform_buffer, 0, bytes_of(&model_uniform));
                 render_pass.set_bind_group(2, model_bind_group, &[]);
             }
+        }
+    }
+
+    fn material_bind_group_index(model_binding_mode: ModelMatrixBindingMode) -> u32 {
+        match model_binding_mode {
+            ModelMatrixBindingMode::Immediate => 2,
+            ModelMatrixBindingMode::Uniform => 3,
         }
     }
 }

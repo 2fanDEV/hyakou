@@ -1,10 +1,12 @@
 use crate::{
-    components::camera::data_structures::CameraAnimationRequest, types::shared::AssetInformation,
+    components::{LightType, camera::data_structures::CameraAnimationRequest},
+    types::shared::{AssetBundleInformation, AssetInformation},
 };
 
 pub enum Event {
     AnimateCamera(CameraAnimationRequest),
     StopCameraAnimation,
-    AssetUpload(AssetInformation),
+    AssetUpload(AssetInformation, LightType),
+    AssetBundleUpload(AssetBundleInformation, LightType),
     Resize(f64, f64),
 }

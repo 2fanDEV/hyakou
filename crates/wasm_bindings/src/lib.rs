@@ -15,6 +15,7 @@ pub mod bindings;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod bindings {}
 
+pub use hyakou_core::types::upload_status::UploadStatusEvent;
 #[wasm_bindgen(typescript_custom_section)]
 const CAMERA_ANIMATION_TYPES: &str = r#"
 export type CameraAnimationEasingName = "linear" | "ease-in" | "ease-out" | "ease-in-out";
