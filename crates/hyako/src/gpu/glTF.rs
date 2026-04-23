@@ -36,8 +36,8 @@ impl GLTFLoader {
 
     #[cfg(not(target_arch = "wasm32"))]
     async fn read_bytes(&self, path: &Path) -> Result<Vec<u8>> {
-        let slice = std::fs::read(path).unwrap();
-        Ok(slice)
+        std::fs::read(path)
+            .map_err(|error| anyhow!("Failed to read glTF buffer `{}`: {error}", path.display()))
     }
 
     pub async fn load_from_path(&self, path: &Path) -> Result<NodeGraph> {
@@ -51,9 +51,9 @@ impl GLTFLoader {
     pub async fn load_from_bytes(&self, slice: Vec<u8>) -> Result<NodeGraph> {
         let gltf = match gltf::Gltf::from_slice(&slice) {
             Ok(gltf) => gltf,
-            Err(_) => {
+            Err(error) => {
                 return Err(anyhow!(
-                    "The given slice does not contain any mesh or gltf object!"
+                    "The given slice does not contain any mesh or gltf object! {error}"
                 ));
             }
         };
@@ -302,21 +302,5 @@ impl GLTFLoader {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_ensure_indices_in_range_rejects_out_of_range_index() {
-        let loader = GLTFLoader::new(PathBuf::new());
-        let result = loader.ensure_indices_in_range(&[0, 1, 99], 3, 0);
-
-        match result {
-            Ok(()) => panic!("Expected loader to reject out-of-range index"),
-            Err(error) => assert!(
-                error.to_string().contains(
-                    "Index out of range for node 0: index buffer entry 2 references vertex 99, but vertex count is 3"
-                )
-            ),
-        }
-    }
-}
+#[path = "gltf_tests.rs"]
+mod tests;
