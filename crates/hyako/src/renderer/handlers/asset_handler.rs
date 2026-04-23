@@ -11,11 +11,12 @@ use wgpu::Device;
 
 use crate::{
     gpu::{glTF::GLTFLoader, render_mesh::RenderMesh},
-    renderer::util::{self, Concatable},
+    renderer::util,
 };
 
 use hyakou_core::{
     components::{LightType, mesh_node::MeshNode},
+    geometry::node::NodeGraph,
     types::{ModelMatrixBindingMode, ids::MeshId},
 };
 
@@ -51,17 +52,18 @@ impl AssetHandler {
         light_type: LightType,
         bytes: Vec<u8>,
     ) -> Result<()> {
-        let mesh_nodes = self.gltf_loader.load_from_bytes(bytes).await?;
-        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes);
+        let node_graph = self.gltf_loader.load_from_bytes(bytes).await?;
+        self.upload_node_graph(id, light_type, node_graph);
         Ok(())
     }
 
-    pub fn upload_mesh_nodes(
+    pub fn upload_node_graph(
         &mut self,
         id: String,
         light_type: LightType,
-        mesh_nodes: Vec<MeshNode>,
+        node_graph: NodeGraph,
     ) -> Option<Rc<RenderMesh>> {
+        let mesh_nodes = node_graph.flatten();
         self.upload_mesh_node_as_asset(id, light_type, mesh_nodes)
     }
 
@@ -72,40 +74,35 @@ impl AssetHandler {
         path: &Path,
     ) -> Option<Rc<RenderMesh>> {
         //TODO make rendermesh be a node consisting of multiple nodes
-        let mesh_nodes = match self.gltf_loader.load_from_path(path).await {
-            Ok(nodes) => nodes,
-            Err(_) => panic!("Couldn't find model at path: {:?}", path),
+        let node_graph = match self.gltf_loader.load_from_path(path).await {
+            Ok(node_graph) => node_graph,
+            Err(e) => panic!("Couldn't find model at path: {:?} with msg: {:?}", path, e),
         };
-        self.upload_mesh_node_as_asset(id, light_type, mesh_nodes)
+        self.upload_node_graph(id, light_type, node_graph)
     }
 
     fn upload_mesh_node_as_asset(
         &mut self,
-        mut id: String,
+        id: String,
         light_type: LightType,
         mesh_nodes: Vec<MeshNode>,
     ) -> Option<Rc<RenderMesh>> {
-        let mut idx = 0;
-        let mut render_mesh = None;
-        for node in mesh_nodes {
-            let id = if idx.eq(&0) {
-                id.concat("_".to_string().concat(&idx.to_string()))
-                    .to_string()
-            } else {
-                id.clone()
-            };
-            render_mesh = Some(Rc::new(RenderMesh::new(
+        let base_id = id;
+        let mut render_mesh: Option<Rc<RenderMesh>> = None;
+        for (idx, node) in mesh_nodes.into_iter().enumerate() {
+            let mesh_id = format!("{base_id}_{idx}");
+            let next_mesh = Rc::new(RenderMesh::new(
                 &self.device,
                 node,
                 &light_type,
-                Some(MeshId(id.clone())),
+                Some(MeshId(mesh_id.clone())),
                 self.model_binding_mode,
                 self.model_bind_group_layout.as_ref(),
-            )));
+            ));
             self.memory_loaded_assets
-                .insert(id.clone(), render_mesh.as_ref().unwrap().clone());
-            self.visible_assets.insert(id);
-            idx += 1;
+                .insert(mesh_id.clone(), next_mesh.clone());
+            self.visible_assets.insert(mesh_id);
+            render_mesh = Some(next_mesh);
         }
         render_mesh
     }

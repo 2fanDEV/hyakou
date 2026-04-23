@@ -19,7 +19,11 @@ use glam::Vec3;
 use hyakou_core::{
     SharedAccess,
     animations::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
-    components::{LightType, camera::camera::Camera, light::LightSource},
+    components::{
+        LightType,
+        camera::{camera::Camera, data_structures::CameraMode},
+        light::LightSource,
+    },
     shared,
     traits::BindGroupProvider,
     types::{
@@ -56,7 +60,6 @@ pub struct Renderer {
     light_bind_group: BindGroup,
     animators: HashMap<MeshId, Animator>,
     pub camera_handler: CameraHandler,
-    pub camera_state: CameraHandler,
     pub asset_manager: AssetHandler,
 }
 
@@ -176,8 +179,7 @@ impl Renderer {
             light_uniform_buffer,
             light_bind_group,
             animators,
-            camera_handler: CameraHandler::new(),
-            camera_state: CameraHandler::new(),
+            camera_handler: CameraHandler::new(CameraMode::ORBIT),
             window,
         })
     }
