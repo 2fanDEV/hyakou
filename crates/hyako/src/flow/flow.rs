@@ -295,9 +295,11 @@ impl FlowController {
     ) {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            use crate::{gpu::glTF::GLTFLoader, renderer::util};
-            let gltf_loader = GLTFLoader::new(util::get_relative_path());
-            let parsed_node_graph = pollster::block_on(gltf_loader.load_from_bytes(bytes));
+            use crate::gpu::glTF::GLTFLoader;
+            let gltf_loader = GLTFLoader::new();
+            let parsed_node_graph = pollster::block_on(
+                gltf_loader.load_from_bytes_with_label(bytes, file_name.clone()),
+            );
             match parsed_node_graph {
                 Ok(node_graph) => {
                     self.send_internal(RendererCommand::ApplyParsedAsset {
@@ -321,9 +323,11 @@ impl FlowController {
         {
             let tx = self.tx.clone();
             spawn_local(async move {
-                use crate::{gpu::glTF::GLTFLoader, renderer::util};
-                let gltf_loader = GLTFLoader::new(util::get_relative_path());
-                let parsed_node_graph = gltf_loader.load_from_bytes(bytes).await;
+                use crate::gpu::glTF::GLTFLoader;
+                let gltf_loader = GLTFLoader::new();
+                let parsed_node_graph = gltf_loader
+                    .load_from_bytes_with_label(bytes, file_name.clone())
+                    .await;
                 let next_command = match parsed_node_graph {
                     Ok(node_graph) => RendererCommand::ApplyParsedAsset {
                         id,

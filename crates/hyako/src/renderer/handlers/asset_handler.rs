@@ -5,14 +5,11 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use wgpu::BindGroupLayout;
 use wgpu::Device;
 
-use crate::{
-    gpu::{glTF::GLTFLoader, render_mesh::RenderMesh},
-    renderer::util,
-};
+use crate::gpu::{glTF::GLTFLoader, render_mesh::RenderMesh};
 
 use hyakou_core::{
     components::{LightType, mesh_node::MeshNode},
@@ -38,7 +35,7 @@ impl AssetHandler {
     ) -> AssetHandler {
         AssetHandler {
             memory_loaded_assets: HashMap::new(),
-            gltf_loader: GLTFLoader::new(util::get_relative_path()),
+            gltf_loader: GLTFLoader::new(),
             visible_assets: HashSet::new(),
             device,
             model_binding_mode,
@@ -72,13 +69,16 @@ impl AssetHandler {
         id: String,
         light_type: LightType,
         path: &Path,
-    ) -> Option<Rc<RenderMesh>> {
+    ) -> Result<Rc<RenderMesh>> {
         //TODO make rendermesh be a node consisting of multiple nodes
-        let node_graph = match self.gltf_loader.load_from_path(path).await {
-            Ok(node_graph) => node_graph,
-            Err(e) => panic!("Couldn't find model at path: {:?} with msg: {:?}", path, e),
-        };
+        let node_graph = self.gltf_loader.load_from_path(path).await?;
         self.upload_node_graph(id, light_type, node_graph)
+            .ok_or_else(|| {
+                anyhow!(
+                    "glTF asset `{}` produced no renderable meshes",
+                    path.display()
+                )
+            })
     }
 
     fn upload_mesh_node_as_asset(

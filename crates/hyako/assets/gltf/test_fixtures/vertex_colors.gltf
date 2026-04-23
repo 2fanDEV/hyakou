@@ -41,7 +41,7 @@
   "buffers": [
     {
       "byteLength": 128,
-      "uri": "test_fixtures/vertex_colors.bin"
+      "uri": "vertex_colors.bin"
     }
   ],
   "bufferViews": [

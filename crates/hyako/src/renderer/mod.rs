@@ -1,4 +1,4 @@
-use std::{collections::HashMap, f32::consts::PI, path::Path, sync::Arc};
+use std::{collections::HashMap, f32::consts::PI, sync::Arc};
 
 use crate::{
     gpu::{
@@ -84,31 +84,25 @@ impl Renderer {
             .add_from_path(
                 "Suzanne".to_string(),
                 LightType::LIGHT,
-                &Path::new(&assets_dir).join("assets/gltf/Suzanne.gltf"),
+                assets_dir.join("assets/gltf/Suzanne.gltf").as_path(),
             )
-            .await;
+            .await?;
         let cube_light_mesh = asset_handler
             .add_from_path(
                 "Cube".to_string(),
                 LightType::NO_LIGHT,
                 assets_dir.join("assets/gltf/Cube.gltf").as_path(),
             )
-            .await;
+            .await?;
         cube_light_mesh
-            .as_ref()
-            .unwrap()
             .transform
-            .try_write_shared(|t| t.translate(Vec3::new(0.0, 1.0, 1.0)))
-            .unwrap();
-        let light = LightSource::new(
-            cube_light_mesh.as_ref().unwrap().transform.clone(),
-            Vec3::new(1.0, 1.0, 1.0),
-        );
+            .try_write_shared(|t| t.translate(Vec3::new(0.0, 1.0, 1.0)))?;
+        let light = LightSource::new(cube_light_mesh.transform.clone(), Vec3::new(1.0, 1.0, 1.0));
         let light_uniform_buffer = UniformBuffer::new(
             UniformBufferId::new("Light Uniform Buffer".to_string()),
             &ctx.device,
             bytes_of(&light.to_gpu().unwrap()),
-            cube_light_mesh.as_ref().unwrap().transform.clone(),
+            cube_light_mesh.transform.clone(),
         );
 
         let light_bind_group = LightSource::bind_group(
@@ -149,8 +143,8 @@ impl Renderer {
         );
 
         let test_trajectory = LinearTrajectory::new_deconstructed_mesh(
-            cube_light_mesh.as_ref().unwrap().as_ref().clone().id,
-            cube_light_mesh.as_ref().unwrap().as_ref().clone().transform,
+            cube_light_mesh.id.clone(),
+            cube_light_mesh.transform.clone(),
             Vec3::new(0.0, 1.0, 0.0),
             f32::to_radians(0.0),
             f32::to_radians(0.0),
