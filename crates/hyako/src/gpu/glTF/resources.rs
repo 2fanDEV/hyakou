@@ -212,19 +212,26 @@ fn resolve_external_resource_path(
     resource_kind: &str,
     resource_index: usize,
 ) -> Result<PathBuf> {
-    let normalized_uri = normalize_relative_uri(uri).map_err(|error| {
-        anyhow!(
-            "Failed to resolve {resource_kind} URI `{uri}` for {resource_kind} {resource_index} in asset `{}`: {error}",
-            context.asset_label
-        )
-    })?;
+    if context.bundled_files.is_some() {
+        let normalized_uri = normalize_relative_uri(uri).map_err(|error| {
+            anyhow!(
+                "Failed to resolve {resource_kind} URI `{uri}` for {resource_kind} {resource_index} in asset `{}`: {error}",
+                context.asset_label
+            )
+        })?;
 
-    if let Some(buffer_base_dir) = context.buffer_base_dir.as_ref() {
-        return Ok(buffer_base_dir.join(&normalized_uri));
+        return Ok(PathBuf::from(normalized_uri));
     }
 
-    if context.bundled_files.is_some() {
-        return Ok(PathBuf::from(normalized_uri));
+    if uri.contains(':') {
+        return Err(anyhow!(
+            "Unsupported {resource_kind} URI scheme `{uri}` for {resource_kind} {resource_index} in asset `{}`",
+            context.asset_label
+        ));
+    }
+
+    if let Some(buffer_base_dir) = context.buffer_base_dir.as_ref() {
+        return Ok(buffer_base_dir.join(uri));
     }
 
     Err(anyhow!(
