@@ -1,7 +1,7 @@
 use crate::geometry::vertices::Vertex;
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Mesh {
     pub name: Option<String>,
     pub vertices: Vec<Vertex>,

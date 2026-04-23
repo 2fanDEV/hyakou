@@ -5,7 +5,8 @@ use std::sync::{
 
 use hyakou_core::{
     Shared, SharedAccess,
-    components::{LightType, camera::data_structures::CameraAnimationRequest, mesh_node::MeshNode},
+    components::{LightType, camera::data_structures::CameraAnimationRequest},
+    geometry::node::NodeGraph,
     shared,
     types::mouse_delta::{MouseAction, MouseDelta, MousePosition, MouseState},
 };
@@ -20,7 +21,6 @@ use crate::{
     renderer::{
         Renderer,
         handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
-        util,
     },
 };
 
@@ -128,9 +128,13 @@ impl FlowController {
                 id,
                 file_name,
                 asset_type,
-                mesh_nodes,
-            } => self.handle_apply_parsed_asset(id, file_name, asset_type, mesh_nodes),
-            RendererCommand::AssetUploadFailed { id, file_name, error } => {
+                node_graph,
+            } => self.handle_apply_parsed_asset(id, file_name, asset_type, node_graph),
+            RendererCommand::AssetUploadFailed {
+                id,
+                file_name,
+                error,
+            } => {
                 error!("Asset upload failed for `{id}` ({file_name}): {error}");
                 self.fire_upload_status_error(id, file_name, error);
             }
@@ -291,16 +295,16 @@ impl FlowController {
     ) {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            use crate::gpu::glTF::GLTFLoader;
+            use crate::{gpu::glTF::GLTFLoader, renderer::util};
             let gltf_loader = GLTFLoader::new(util::get_relative_path());
-            let parsed_mesh_nodes = pollster::block_on(gltf_loader.load_from_bytes(bytes));
-            match parsed_mesh_nodes {
-                Ok(mesh_nodes) => {
+            let parsed_node_graph = pollster::block_on(gltf_loader.load_from_bytes(bytes));
+            match parsed_node_graph {
+                Ok(node_graph) => {
                     self.send_internal(RendererCommand::ApplyParsedAsset {
                         id,
                         file_name,
                         asset_type,
-                        mesh_nodes,
+                        node_graph,
                     });
                 }
                 Err(upload_error) => {
@@ -317,15 +321,15 @@ impl FlowController {
         {
             let tx = self.tx.clone();
             spawn_local(async move {
-                use crate::gpu::glTF::GLTFLoader;
+                use crate::{gpu::glTF::GLTFLoader, renderer::util};
                 let gltf_loader = GLTFLoader::new(util::get_relative_path());
-                let parsed_mesh_nodes = gltf_loader.load_from_bytes(bytes).await;
-                let next_command = match parsed_mesh_nodes {
-                    Ok(mesh_nodes) => RendererCommand::ApplyParsedAsset {
+                let parsed_node_graph = gltf_loader.load_from_bytes(bytes).await;
+                let next_command = match parsed_node_graph {
+                    Ok(node_graph) => RendererCommand::ApplyParsedAsset {
                         id,
                         file_name,
                         asset_type,
-                        mesh_nodes,
+                        node_graph,
                     },
                     Err(upload_error) => RendererCommand::AssetUploadFailed {
                         id,
@@ -346,7 +350,7 @@ impl FlowController {
         id: String,
         file_name: String,
         asset_type: LightType,
-        mesh_nodes: Vec<MeshNode>,
+        node_graph: NodeGraph,
     ) {
         let upload_id = id.clone();
         let upload_file_name = file_name.clone();
@@ -360,7 +364,7 @@ impl FlowController {
 
                 renderer
                     .asset_manager
-                    .upload_mesh_nodes(id, asset_type, mesh_nodes);
+                    .upload_node_graph(id, asset_type, node_graph);
                 true
             })
             .unwrap_or(false);
