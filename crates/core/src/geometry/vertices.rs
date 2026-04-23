@@ -15,15 +15,23 @@ pub struct Vertex {
     pub tex_coords: Vec2,
     pub normals: Vec3,
     pub colors: Vec4,
+    pub pbr_base_color_factor: Vec4,
 }
 
 impl Vertex {
-    pub fn new(position: Vec3, tex_coords: Vec2, normals: Vec3, colors: Vec4) -> Self {
+    pub fn new(
+        position: Vec3,
+        tex_coords: Vec2,
+        normals: Vec3,
+        colors: Vec4,
+        pbr_base_color_factor: Vec4,
+    ) -> Self {
         Self {
             position,
             tex_coords,
             colors,
             normals,
+            pbr_base_color_factor,
             ..Default::default()
         }
     }
@@ -56,7 +64,7 @@ impl Vertex {
 
 impl BufferLayoutProvider for Vertex {
     fn vertex_buffer_layout() -> VertexBufferLayout<'static> {
-        const ATTRIBS: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2, 2 => Float32x3, 3 => Float32x4];
+        const ATTRIBS: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2, 2 => Float32x3, 3 => Float32x4, 4 => Float32x4];
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,

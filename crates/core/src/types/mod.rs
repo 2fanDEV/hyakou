@@ -11,6 +11,7 @@ pub mod ids;
 pub mod mouse_delta;
 pub mod shared;
 pub mod transform;
+pub mod upload_status;
 
 pub type DeltaTime = f32;
 pub type DeltaTime64 = f64;

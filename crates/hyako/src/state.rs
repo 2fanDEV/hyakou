@@ -20,7 +20,6 @@ use winit::{
 
 use hyakou_core::{
     Shared,
-    components::LightType,
     events::Event,
     types::{DeltaTime64, mouse_delta::MouseButton},
 };
@@ -42,12 +41,11 @@ pub struct AppState {
 impl AppState {
     const MIN_TIME_IN_SECONDS: f64 = 0.05;
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Result<Self> {
         let (flow_controller, flow_handle) = FlowController::new_pair();
         Ok(Self {
             window: None,
-            #[cfg(target_arch = "wasm32")]
-            html_canvas_element: None,
             flow_controller,
             flow_handle,
             last_frame_time: Instant::now(),
@@ -59,8 +57,11 @@ impl AppState {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn from_canvas_ref(canvas_ref: HtmlCanvasElement) -> Result<Self> {
-        let (flow_controller, flow_handle) = FlowController::new_pair();
+    pub fn from_canvas_ref(
+        canvas_ref: HtmlCanvasElement,
+        upload_status_callback: Shared<Option<js_sys::Function>>,
+    ) -> Result<Self> {
+        let (flow_controller, flow_handle) = FlowController::new_pair(upload_status_callback);
         Ok(Self {
             window: None,
             html_canvas_element: Some(canvas_ref),
@@ -117,10 +118,11 @@ impl ApplicationHandler<Event> for AppState {
             Event::StopCameraAnimation => {
                 self.send_and_drain(RendererCommand::StopCameraAnimation);
             }
-            Event::AssetUpload(asset_information) => {
+            Event::AssetUpload(asset_information, light_type) => {
                 self.send_and_drain(RendererCommand::AssetUploadRequested {
-                    id: asset_information.name(),
-                    asset_type: LightType::LIGHT,
+                    id: asset_information.id(),
+                    file_name: asset_information.name(),
+                    asset_type: light_type,
                     bytes: asset_information.bytes(),
                 });
             }
