@@ -1,13 +1,18 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow};
-use hyakou_core::geometry::node::NodeGraph;
 
 mod builder;
+mod materials;
 mod resources;
+mod types;
 
 #[cfg(test)]
 pub(super) use builder::{PrimitiveContext, ensure_indices_in_range};
+pub use types::{
+    ImportedAlphaMode, ImportedImage, ImportedMagFilter, ImportedMaterial, ImportedMinFilter,
+    ImportedSampler, ImportedScene, ImportedTexture, ImportedTextureRef, ImportedWrapMode,
+};
 
 #[derive(Debug, Clone)]
 pub struct GLTFLoader;
@@ -23,7 +28,7 @@ impl GLTFLoader {
         Self
     }
 
-    pub async fn load_from_path(&self, path: &Path) -> Result<NodeGraph> {
+    pub async fn load_from_path(&self, path: &Path) -> Result<ImportedScene> {
         let slice = resources::read_asset(path).await?;
         let context = ImportContext {
             asset_label: path.display().to_string(),
@@ -32,7 +37,7 @@ impl GLTFLoader {
         self.load_from_bytes_with_context(slice, context).await
     }
 
-    pub async fn load_from_bytes(&self, slice: Vec<u8>) -> Result<NodeGraph> {
+    pub async fn load_from_bytes(&self, slice: Vec<u8>) -> Result<ImportedScene> {
         self.load_from_bytes_with_label(slice, "in-memory glTF asset")
             .await
     }
@@ -41,7 +46,7 @@ impl GLTFLoader {
         &self,
         slice: Vec<u8>,
         asset_label: impl Into<String>,
-    ) -> Result<NodeGraph> {
+    ) -> Result<ImportedScene> {
         let context = ImportContext {
             asset_label: asset_label.into(),
             buffer_base_dir: None,
@@ -53,7 +58,7 @@ impl GLTFLoader {
         &self,
         slice: Vec<u8>,
         context: ImportContext,
-    ) -> Result<NodeGraph> {
+    ) -> Result<ImportedScene> {
         let gltf = gltf::Gltf::from_slice(&slice).map_err(|error| {
             anyhow!(
                 "Failed to parse glTF asset `{}`: {error}",
@@ -62,7 +67,15 @@ impl GLTFLoader {
         })?;
 
         let buffer_data = resources::load_buffers(&gltf, &context).await?;
-        builder::build_node_graph(&gltf, &buffer_data, &context.asset_label)
+        let images = resources::load_images(&gltf, &buffer_data, &context).await?;
+        let textures = materials::load_textures(&gltf);
+        let samplers = materials::load_samplers(&gltf);
+        let materials = materials::load_materials(&gltf)?;
+        let node_graph = builder::build_node_graph(&gltf, &buffer_data, &context.asset_label)?;
+
+        Ok(ImportedScene::new(
+            node_graph, materials, images, textures, samplers,
+        ))
     }
 }
 

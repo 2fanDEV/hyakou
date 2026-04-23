@@ -6,7 +6,6 @@ use std::sync::{
 use hyakou_core::{
     Shared, SharedAccess,
     components::{LightType, camera::data_structures::CameraAnimationRequest},
-    geometry::node::NodeGraph,
     shared,
     types::mouse_delta::{MouseAction, MouseDelta, MousePosition, MouseState},
 };
@@ -128,8 +127,8 @@ impl FlowController {
                 id,
                 file_name,
                 asset_type,
-                node_graph,
-            } => self.handle_apply_parsed_asset(id, file_name, asset_type, node_graph),
+                imported_scene,
+            } => self.handle_apply_parsed_asset(id, file_name, asset_type, imported_scene),
             RendererCommand::AssetUploadFailed {
                 id,
                 file_name,
@@ -306,7 +305,7 @@ impl FlowController {
                         id,
                         file_name,
                         asset_type,
-                        node_graph,
+                        imported_scene: node_graph,
                     });
                 }
                 Err(upload_error) => {
@@ -333,7 +332,7 @@ impl FlowController {
                         id,
                         file_name,
                         asset_type,
-                        node_graph,
+                        imported_scene: node_graph,
                     },
                     Err(upload_error) => RendererCommand::AssetUploadFailed {
                         id,
@@ -354,7 +353,7 @@ impl FlowController {
         id: String,
         file_name: String,
         asset_type: LightType,
-        node_graph: NodeGraph,
+        imported_scene: crate::gpu::glTF::ImportedScene,
     ) {
         let upload_id = id.clone();
         let upload_file_name = file_name.clone();
@@ -368,7 +367,7 @@ impl FlowController {
 
                 renderer
                     .asset_manager
-                    .upload_node_graph(id, asset_type, node_graph);
+                    .upload_imported_scene(id, asset_type, imported_scene);
                 true
             })
             .unwrap_or(false);

@@ -77,8 +77,10 @@ impl Renderer {
 
         let mut asset_handler = AssetHandler::new(
             ctx.device.clone(),
+            ctx.queue.clone(),
             ctx.model_binding_mode,
             ctx.model_bind_group_layout.clone(),
+            ctx.material_bind_group_layout.clone(),
         );
         let _suzanne_mesh = asset_handler
             .add_from_path(
@@ -375,6 +377,11 @@ impl Renderer {
         render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
         render_pass.set_bind_group(1, light_bind_group, &[]);
         render_pass.set_bind_group(0, camera_bind_group, &[]);
+        render_pass.set_bind_group(
+            Self::material_bind_group_index(model_binding_mode),
+            &render_mesh.material.bind_group,
+            &[],
+        );
         render_pass.set_index_buffer(
             render_mesh.index_buffer.slice(..),
             wgpu::IndexFormat::Uint32,
@@ -405,6 +412,13 @@ impl Renderer {
                 queue.write_buffer(model_uniform_buffer, 0, bytes_of(&model_uniform));
                 render_pass.set_bind_group(2, model_bind_group, &[]);
             }
+        }
+    }
+
+    fn material_bind_group_index(model_binding_mode: ModelMatrixBindingMode) -> u32 {
+        match model_binding_mode {
+            ModelMatrixBindingMode::Immediate => 2,
+            ModelMatrixBindingMode::Uniform => 3,
         }
     }
 }

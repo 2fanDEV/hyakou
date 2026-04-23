@@ -144,18 +144,6 @@ fn build_triangle_meshes(
     primitive_context: &PrimitiveContext,
     buffer_data: &[Vec<u8>],
 ) -> Result<Vec<Mesh>> {
-    let base_color_factor = primitive
-        .material()
-        .pbr_metallic_roughness()
-        .base_color_factor();
-
-    let base_color_factor_vec4 = Vec4::new(
-        base_color_factor[0],
-        base_color_factor[1],
-        base_color_factor[2],
-        base_color_factor[3],
-    );
-
     let reader = primitive.reader(|buffer| {
         let index = buffer.index();
         buffer_data.get(index).map(|data| data.as_slice())
@@ -226,19 +214,12 @@ fn build_triangle_meshes(
     ensure_attribute_count("COLOR_0", colors.len(), vertex_count, primitive_context)?;
 
     let vertices = (0..vertex_count)
-        .map(|i| {
-            Vertex::new(
-                positions[i],
-                tex_coords[i],
-                normals[i],
-                colors[i],
-                base_color_factor_vec4,
-            )
-        })
+        .map(|i| Vertex::new(positions[i], tex_coords[i], normals[i], colors[i]))
         .collect::<Vec<_>>();
 
     Ok(vec![Mesh {
         name: primitive_context.mesh_name.clone(),
+        material_index: primitive.material().index(),
         vertices,
         indices,
     }])

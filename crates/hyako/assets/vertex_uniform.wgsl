@@ -6,6 +6,10 @@ struct Model {
     model_matrix: mat4x4<f32>,
 }
 
+struct Material {
+    base_color_factor: vec4<f32>,
+}
+
 struct Transform {
     translation: vec3<f32>,
     rotation: vec4<f32>,
@@ -25,7 +29,6 @@ struct VertexInput {
     @location(1) tex_coords: vec2<f32>,
     @location(2) normals: vec3<f32>,
     @location(3) colors: vec4<f32>,
-    @location(4) pbr_base_color_factor: vec4<f32>
 };
 
 struct VertexOutput {
@@ -34,13 +37,18 @@ struct VertexOutput {
     @location(2) tex_coords: vec2<f32>,
     @location(3) normals: vec3<f32>,
     @location(4) colors: vec4<f32>,
-    @location(5) pbr_base_color_factor: vec4<f32>,
 };
 
 @group(0) @binding(0)
 var<uniform> camera: Camera;
 @group(2) @binding(0)
 var<uniform> model: Model;
+@group(3) @binding(0)
+var<uniform> material: Material;
+@group(3) @binding(1)
+var base_color_texture: texture_2d<f32>;
+@group(3) @binding(2)
+var base_color_sampler: sampler;
 
 @vertex
 fn vs_main(
@@ -52,7 +60,6 @@ fn vs_main(
     out.position = mesh.position;
     out.clip_position = camera.view_projection_matrix * model.model_matrix * vec4<f32>(mesh.position, 1.0);
     out.colors = mesh.colors;
-    out.pbr_base_color_factor = mesh.pbr_base_color_factor;
     return out;
 }
 
@@ -73,5 +80,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var NdotH = max(dot(H, in.normals), 0.0);
     var specular_intensity = pow(clamp(NdotH, 0.0, 1.0), 2.0);
     var specular = specular_intensity * color * 1.0 / distance;
-    return vec4<f32>(specular, 1.0) + vec4(diffuse, 1.0) * (in.colors * in.pbr_base_color_factor);
+    let sampled_base_color = textureSample(base_color_texture, base_color_sampler, in.tex_coords);
+    let base_color = in.colors * material.base_color_factor * sampled_base_color;
+    return vec4<f32>(specular, 1.0) + vec4(diffuse, 1.0) * base_color;
 }
