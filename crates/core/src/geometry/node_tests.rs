@@ -6,7 +6,7 @@ use crate::{geometry::mesh::Mesh, types::transform::Transform};
 const EPSILON: f32 = 1e-6;
 
 fn test_mesh(name: &str) -> Mesh {
-    Mesh::new(Some(name.to_string()), vec![], vec![])
+    Mesh::new(Some(name.to_string()), None, vec![], vec![])
 }
 
 fn test_transform(x: f32, y: f32, z: f32) -> Transform {

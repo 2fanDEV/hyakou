@@ -1,4 +1,4 @@
-use std::{collections::HashMap, f32::consts::PI, path::Path, sync::Arc};
+use std::{collections::HashMap, f32::consts::PI, sync::Arc};
 
 use crate::{
     gpu::{
@@ -77,38 +77,34 @@ impl Renderer {
 
         let mut asset_handler = AssetHandler::new(
             ctx.device.clone(),
+            ctx.queue.clone(),
             ctx.model_binding_mode,
             ctx.model_bind_group_layout.clone(),
+            ctx.material_bind_group_layout.clone(),
         );
         let _suzanne_mesh = asset_handler
             .add_from_path(
                 "Suzanne".to_string(),
                 LightType::LIGHT,
-                &Path::new(&assets_dir).join("assets/gltf/Suzanne.gltf"),
+                assets_dir.join("assets/gltf/Suzanne.gltf").as_path(),
             )
-            .await;
+            .await?;
         let cube_light_mesh = asset_handler
             .add_from_path(
                 "Cube".to_string(),
                 LightType::NO_LIGHT,
                 assets_dir.join("assets/gltf/Cube.gltf").as_path(),
             )
-            .await;
+            .await?;
         cube_light_mesh
-            .as_ref()
-            .unwrap()
             .transform
-            .try_write_shared(|t| t.translate(Vec3::new(0.0, 1.0, 1.0)))
-            .unwrap();
-        let light = LightSource::new(
-            cube_light_mesh.as_ref().unwrap().transform.clone(),
-            Vec3::new(1.0, 1.0, 1.0),
-        );
+            .try_write_shared(|t| t.translate(Vec3::new(0.0, 1.0, 1.0)))?;
+        let light = LightSource::new(cube_light_mesh.transform.clone(), Vec3::new(1.0, 1.0, 1.0));
         let light_uniform_buffer = UniformBuffer::new(
             UniformBufferId::new("Light Uniform Buffer".to_string()),
             &ctx.device,
             bytes_of(&light.to_gpu().unwrap()),
-            cube_light_mesh.as_ref().unwrap().transform.clone(),
+            cube_light_mesh.transform.clone(),
         );
 
         let light_bind_group = LightSource::bind_group(
@@ -149,8 +145,8 @@ impl Renderer {
         );
 
         let test_trajectory = LinearTrajectory::new_deconstructed_mesh(
-            cube_light_mesh.as_ref().unwrap().as_ref().clone().id,
-            cube_light_mesh.as_ref().unwrap().as_ref().clone().transform,
+            cube_light_mesh.id.clone(),
+            cube_light_mesh.transform.clone(),
             Vec3::new(0.0, 1.0, 0.0),
             f32::to_radians(0.0),
             f32::to_radians(0.0),
@@ -381,6 +377,11 @@ impl Renderer {
         render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
         render_pass.set_bind_group(1, light_bind_group, &[]);
         render_pass.set_bind_group(0, camera_bind_group, &[]);
+        render_pass.set_bind_group(
+            Self::material_bind_group_index(model_binding_mode),
+            &render_mesh.material.bind_group,
+            &[],
+        );
         render_pass.set_index_buffer(
             render_mesh.index_buffer.slice(..),
             wgpu::IndexFormat::Uint32,
@@ -411,6 +412,13 @@ impl Renderer {
                 queue.write_buffer(model_uniform_buffer, 0, bytes_of(&model_uniform));
                 render_pass.set_bind_group(2, model_bind_group, &[]);
             }
+        }
+    }
+
+    fn material_bind_group_index(model_binding_mode: ModelMatrixBindingMode) -> u32 {
+        match model_binding_mode {
+            ModelMatrixBindingMode::Immediate => 2,
+            ModelMatrixBindingMode::Uniform => 3,
         }
     }
 }

@@ -6,7 +6,6 @@ use std::sync::{
 use hyakou_core::{
     Shared, SharedAccess,
     components::{LightType, camera::data_structures::CameraAnimationRequest},
-    geometry::node::NodeGraph,
     shared,
     types::mouse_delta::{MouseAction, MouseDelta, MousePosition, MouseState},
 };
@@ -128,8 +127,8 @@ impl FlowController {
                 id,
                 file_name,
                 asset_type,
-                node_graph,
-            } => self.handle_apply_parsed_asset(id, file_name, asset_type, node_graph),
+                imported_scene,
+            } => self.handle_apply_parsed_asset(id, file_name, asset_type, imported_scene),
             RendererCommand::AssetUploadFailed {
                 id,
                 file_name,
@@ -295,16 +294,18 @@ impl FlowController {
     ) {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            use crate::{gpu::glTF::GLTFLoader, renderer::util};
-            let gltf_loader = GLTFLoader::new(util::get_relative_path());
-            let parsed_node_graph = pollster::block_on(gltf_loader.load_from_bytes(bytes));
+            use crate::gpu::glTF::GLTFLoader;
+            let gltf_loader = GLTFLoader::new();
+            let parsed_node_graph = pollster::block_on(
+                gltf_loader.load_from_bytes_with_label(bytes, file_name.clone()),
+            );
             match parsed_node_graph {
                 Ok(node_graph) => {
                     self.send_internal(RendererCommand::ApplyParsedAsset {
                         id,
                         file_name,
                         asset_type,
-                        node_graph,
+                        imported_scene: node_graph,
                     });
                 }
                 Err(upload_error) => {
@@ -321,15 +322,17 @@ impl FlowController {
         {
             let tx = self.tx.clone();
             spawn_local(async move {
-                use crate::{gpu::glTF::GLTFLoader, renderer::util};
-                let gltf_loader = GLTFLoader::new(util::get_relative_path());
-                let parsed_node_graph = gltf_loader.load_from_bytes(bytes).await;
+                use crate::gpu::glTF::GLTFLoader;
+                let gltf_loader = GLTFLoader::new();
+                let parsed_node_graph = gltf_loader
+                    .load_from_bytes_with_label(bytes, file_name.clone())
+                    .await;
                 let next_command = match parsed_node_graph {
                     Ok(node_graph) => RendererCommand::ApplyParsedAsset {
                         id,
                         file_name,
                         asset_type,
-                        node_graph,
+                        imported_scene: node_graph,
                     },
                     Err(upload_error) => RendererCommand::AssetUploadFailed {
                         id,
@@ -350,7 +353,7 @@ impl FlowController {
         id: String,
         file_name: String,
         asset_type: LightType,
-        node_graph: NodeGraph,
+        imported_scene: crate::gpu::glTF::ImportedScene,
     ) {
         let upload_id = id.clone();
         let upload_file_name = file_name.clone();
@@ -364,7 +367,7 @@ impl FlowController {
 
                 renderer
                     .asset_manager
-                    .upload_node_graph(id, asset_type, node_graph);
+                    .upload_imported_scene(id, asset_type, imported_scene);
                 true
             })
             .unwrap_or(false);

@@ -11,12 +11,12 @@
   "nodes": [
     {
       "mesh": 0,
-      "name": "VertexColors"
+      "name": "TexturedTriangle"
     }
   ],
   "meshes": [
     {
-      "name": "VertexColors",
+      "name": "TexturedTriangle",
       "primitives": [
         {
           "attributes": {
@@ -33,9 +33,37 @@
   ],
   "materials": [
     {
+      "name": "PaintedMaterial",
+      "alphaMode": "BLEND",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [0.25, 0.5, 0.75, 1.0]
+        "baseColorFactor": [0.5, 0.75, 1.0, 0.5],
+        "baseColorTexture": {
+          "index": 0
+        }
       }
+    }
+  ],
+  "samplers": [
+    {
+      "name": "PixelSampler",
+      "magFilter": 9728,
+      "minFilter": 9985,
+      "wrapS": 33071,
+      "wrapT": 33648
+    }
+  ],
+  "textures": [
+    {
+      "name": "PixelTexture",
+      "sampler": 0,
+      "source": 0
+    }
+  ],
+  "images": [
+    {
+      "name": "InlinePixel",
+      "mimeType": "image/png",
+      "uri": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAAD5Ip3+AAAADElEQVQIHWP4//8/AAX+Av6fyi0TAAAAAElFTkSuQmCC"
     }
   ],
   "buffers": [

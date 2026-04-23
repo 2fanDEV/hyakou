@@ -17,7 +17,7 @@ use wgpu::{
 use crate::{
     gpu::{
         buffers::camera_buffer::CameraUniform, buffers::model_matrix::ModelMatrixUniform,
-        render_pipeline::create_render_pipeline, texture::Texture,
+        material::GpuMaterial, render_pipeline::create_render_pipeline, texture::Texture,
     },
     renderer::wrappers::SurfaceProvider,
 };
@@ -33,6 +33,7 @@ pub struct RenderContext {
     pub camera_bind_group_layout: BindGroupLayout,
     pub light_bind_group_layout: BindGroupLayout,
     pub model_bind_group_layout: Option<BindGroupLayout>,
+    pub material_bind_group_layout: BindGroupLayout,
     pub model_binding_mode: ModelMatrixBindingMode,
     pub depth_texture: Texture,
     pub queue: Queue,
@@ -116,7 +117,7 @@ impl RenderContext {
         let light_bind_group_layout = LightSource::bind_group_layout(&device);
         let model_bind_group_layout = (model_binding_mode == ModelMatrixBindingMode::Uniform)
             .then(|| ModelMatrixUniform::bind_group_layout(&device));
-        // let (mesh_bind_group_layout, meshes_bind_group) = Vertex::create_bind_group(&device, &depth_texture.view, &depth_texture.sampler);
+        let material_bind_group_layout = GpuMaterial::bind_group_layout(&device);
 
         let vertex_shader = create_light_shader_module(&device, model_binding_mode);
         let no_light_vertex_shader = create_no_light_shader_module(&device, model_binding_mode);
@@ -126,9 +127,14 @@ impl RenderContext {
                     &camera_bind_group_layout,
                     &light_bind_group_layout,
                     model_bind_group_layout,
+                    &material_bind_group_layout,
                 ]
             } else {
-                vec![&camera_bind_group_layout, &light_bind_group_layout]
+                vec![
+                    &camera_bind_group_layout,
+                    &light_bind_group_layout,
+                    &material_bind_group_layout,
+                ]
             };
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -177,6 +183,7 @@ impl RenderContext {
             light_bind_group_layout,
             camera_bind_group_layout,
             model_bind_group_layout,
+            material_bind_group_layout,
             model_binding_mode,
             queue,
         })

@@ -32,7 +32,7 @@
   "buffers": [
     {
       "byteLength": 1800,
-      "uri": "Cube.bin"
+      "uri": "../Cube.bin"
     }
   ],
   "bufferViews": [

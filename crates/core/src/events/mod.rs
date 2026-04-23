@@ -1,5 +1,5 @@
 use crate::{
-    components::{camera::data_structures::CameraAnimationRequest, LightType},
+    components::{LightType, camera::data_structures::CameraAnimationRequest},
     types::shared::AssetInformation,
 };
 

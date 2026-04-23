@@ -10,30 +10,46 @@
   ],
   "nodes": [
     {
-      "children": [1],
       "mesh": 0,
-      "name": "Parent",
-      "translation": [10.0, 0.0, 0.0]
-    },
-    {
-      "mesh": 0,
-      "name": "Child",
-      "translation": [2.0, 0.0, 0.0]
+      "name": "UnsupportedTexCoordTriangle"
     }
   ],
   "meshes": [
     {
-      "name": "HierarchyTriangle",
+      "name": "UnsupportedTexCoordTriangle",
       "primitives": [
         {
           "attributes": {
             "POSITION": 0,
-            "NORMAL": 1
+            "NORMAL": 1,
+            "COLOR_0": 2
           },
-          "indices": 2,
+          "indices": 3,
+          "material": 0,
           "mode": 4
         }
       ]
+    }
+  ],
+  "materials": [
+    {
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0,
+          "texCoord": 1
+        }
+      }
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/png",
+      "uri": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAAD5Ip3+AAAADElEQVQIHWP4//8/AAX+Av6fyi0TAAAAAElFTkSuQmCC"
     }
   ],
   "buffers": [
@@ -53,6 +69,12 @@
       "buffer": 0,
       "byteLength": 36,
       "byteOffset": 44,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 48,
+      "byteOffset": 80,
       "target": 34962
     },
     {
@@ -81,6 +103,13 @@
     },
     {
       "bufferView": 2,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 3,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 3,
       "byteOffset": 0,
       "componentType": 5123,
       "count": 3,

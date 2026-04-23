@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use crate::gpu::glTF::ImportedScene;
 use hyakou_core::{
     components::{LightType, camera::data_structures::CameraAnimationRequest},
-    geometry::node::NodeGraph,
     types::mouse_delta::MouseButton,
 };
 use winit::{keyboard::KeyCode, window::Window};
@@ -41,7 +41,7 @@ pub enum RendererCommand {
         id: String,
         file_name: String,
         asset_type: LightType,
-        node_graph: NodeGraph,
+        imported_scene: ImportedScene,
     },
     AssetUploadFailed {
         id: String,

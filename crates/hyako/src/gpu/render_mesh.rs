@@ -6,6 +6,7 @@ use wgpu::{
 
 use crate::{
     gpu::buffers::{model_matrix::ModelMatrixUniform, uniform::UniformBuffer},
+    gpu::material::GpuMaterial,
     renderer::util::Concatable,
 };
 
@@ -20,6 +21,7 @@ use hyakou_core::{
         transform::Transform,
     },
 };
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct RenderMesh {
@@ -31,12 +33,14 @@ pub struct RenderMesh {
     pub transform: Shared<Transform>,
     pub model_uniform_buffer: Option<UniformBuffer>,
     pub model_bind_group: Option<BindGroup>,
+    pub material: Rc<GpuMaterial>,
 }
 
 impl RenderMesh {
     pub fn new(
         device: &Device,
         mesh_node: MeshNode,
+        material: Rc<GpuMaterial>,
         light_type: &LightType,
         label: Option<MeshId>,
         model_binding_mode: ModelMatrixBindingMode,
@@ -72,6 +76,7 @@ impl RenderMesh {
             transform,
             model_uniform_buffer,
             model_bind_group,
+            material,
         }
     }
 
