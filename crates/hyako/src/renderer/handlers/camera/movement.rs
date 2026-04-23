@@ -241,6 +241,7 @@ impl CameraMovementHandler {
             }
         }
     }
+
     fn calculate_right_movement(
         &self,
         mode: &CameraMode,

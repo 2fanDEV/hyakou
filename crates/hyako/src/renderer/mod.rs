@@ -252,8 +252,8 @@ impl Renderer {
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(Color {
                             r: 0.3,
-                            g: (0.2),
-                            b: (0.8),
+                            g: 0.2,
+                            b: 0.8,
                             a: 1.0,
                         }),
                         store: wgpu::StoreOp::Store,
@@ -351,7 +351,7 @@ impl Renderer {
         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("Main Command Buffer"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view: &view,
+                view,
                 depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
@@ -363,7 +363,7 @@ impl Renderer {
             timestamp_writes: None,
             occlusion_query_set: None,
             depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                view: &depth_view,
+                view: depth_view,
                 depth_ops: Some(Operations {
                     load: wgpu::LoadOp::Load,
                     store: wgpu::StoreOp::Store,
@@ -386,7 +386,7 @@ impl Renderer {
             render_mesh.index_buffer.slice(..),
             wgpu::IndexFormat::Uint32,
         );
-        render_pass.draw_indexed(0..render_mesh.index_count as u32, 0, 0..1);
+        render_pass.draw_indexed(0..render_mesh.index_count, 0, 0..1);
     }
 
     fn apply_model_matrix(

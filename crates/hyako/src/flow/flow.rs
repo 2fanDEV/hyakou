@@ -77,7 +77,6 @@ impl FlowController {
 
         (controller, FlowHandle::new(tx))
     }
-
     pub fn get_renderer(&self) -> Shared<Option<Renderer>> {
         self.renderer.clone()
     }

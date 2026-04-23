@@ -305,7 +305,6 @@ body {
 .draggable-panel-body {
   @apply overflow-y-auto;
 }
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
