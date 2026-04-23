@@ -37,6 +37,12 @@ pub enum RendererCommand {
         asset_type: LightType,
         bytes: Vec<u8>,
     },
+    AssetBundleUploadRequested {
+        id: String,
+        file_name: String,
+        asset_type: LightType,
+        files: Vec<(String, Vec<u8>)>,
+    },
     ApplyParsedAsset {
         id: String,
         file_name: String,

@@ -4,8 +4,9 @@ use hyakou_core::{
     components::{LightType, camera::data_structures::CameraMode},
     events::Event,
     shared,
-    types::shared::{AssetInformation, Coordinates3},
+    types::shared::{AssetBundleInformation, AssetInformation, Coordinates3},
 };
+use js_sys::{Array, BigInt, Reflect, Uint8Array};
 use strum::VariantArray;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
@@ -106,6 +107,26 @@ impl Hyako {
     }
 
     #[wasm_bindgen]
+    pub fn upload_asset_bundle(
+        &self,
+        id: String,
+        entry_file_name: String,
+        files: Array,
+        light_type: Option<LightType>,
+    ) -> Result<(), JsValue> {
+        let light_type = light_type.unwrap_or(LightType::LIGHT);
+        let files = files
+            .iter()
+            .map(asset_information_from_js_value)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        self.send_event(Event::AssetBundleUpload(
+            AssetBundleInformation::new(id, entry_file_name, files),
+            light_type,
+        ))
+    }
+
+    #[wasm_bindgen]
     pub fn get_camera(&self) -> Result<CameraDO, JsValue> {
         self.renderer
             .try_read_shared(|renderer| match renderer {
@@ -173,4 +194,42 @@ impl Hyako {
             Err(msg) => Err(JsValue::from_str(&msg.to_string())),
         }
     }
+}
+
+fn asset_information_from_js_value(value: JsValue) -> Result<AssetInformation, JsValue> {
+    let id = js_string_property(&value, "id")?;
+    let name = js_string_property(&value, "name")?;
+    let size = js_bigint_property(&value, "size")?;
+    let modified = js_number_property(&value, "modified")? as i32;
+    let bytes = Uint8Array::new(&js_property(&value, "bytes")?).to_vec();
+
+    Ok(AssetInformation::new(id, bytes, name, size, modified))
+}
+
+fn js_property(value: &JsValue, property: &str) -> Result<JsValue, JsValue> {
+    Reflect::get(value, &JsValue::from_str(property))
+        .map_err(|_| JsValue::from_str(&format!("Missing `{property}` on bundle file")))
+}
+
+fn js_string_property(value: &JsValue, property: &str) -> Result<String, JsValue> {
+    js_property(value, property)?
+        .as_string()
+        .ok_or_else(|| JsValue::from_str(&format!("`{property}` must be a string")))
+}
+
+fn js_number_property(value: &JsValue, property: &str) -> Result<f64, JsValue> {
+    js_property(value, property)?
+        .as_f64()
+        .ok_or_else(|| JsValue::from_str(&format!("`{property}` must be a number")))
+}
+
+fn js_bigint_property(value: &JsValue, property: &str) -> Result<u64, JsValue> {
+    let bigint = BigInt::from(js_property(value, property)?);
+    let string_value = bigint.to_string(10)?.as_string().ok_or_else(|| {
+        JsValue::from_str(&format!("`{property}` must be a bigint-compatible value"))
+    })?;
+
+    string_value
+        .parse()
+        .map_err(|_| JsValue::from_str(&format!("`{property}` must be a bigint-compatible value")))
 }

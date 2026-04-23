@@ -126,6 +126,18 @@ impl ApplicationHandler<Event> for AppState {
                     bytes: asset_information.bytes(),
                 });
             }
+            Event::AssetBundleUpload(bundle_information, light_type) => {
+                self.send_and_drain(RendererCommand::AssetBundleUploadRequested {
+                    id: bundle_information.id(),
+                    file_name: bundle_information.entry_file_name(),
+                    asset_type: light_type,
+                    files: bundle_information
+                        .files()
+                        .into_iter()
+                        .map(|file| (file.name(), file.bytes()))
+                        .collect(),
+                });
+            }
             Event::Resize(width, height) => {
                 let dt = self.get_and_update_last_frame_time();
                 self.send_and_drain(RendererCommand::Resize { dt, width, height });

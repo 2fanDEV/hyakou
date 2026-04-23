@@ -122,6 +122,12 @@ impl FlowController {
                 asset_type,
                 bytes,
             } => self.handle_asset_upload_requested(id, file_name, asset_type, bytes),
+            RendererCommand::AssetBundleUploadRequested {
+                id,
+                file_name,
+                asset_type,
+                files,
+            } => self.handle_asset_bundle_upload_requested(id, file_name, asset_type, files),
             RendererCommand::ApplyParsedAsset {
                 id,
                 file_name,
@@ -326,6 +332,66 @@ impl FlowController {
                 let parsed_node_graph = gltf_loader
                     .load_from_bytes_with_label(bytes, file_name.clone())
                     .await;
+                let next_command = match parsed_node_graph {
+                    Ok(node_graph) => RendererCommand::ApplyParsedAsset {
+                        id,
+                        file_name,
+                        asset_type,
+                        imported_scene: node_graph,
+                    },
+                    Err(upload_error) => RendererCommand::AssetUploadFailed {
+                        id,
+                        file_name,
+                        error: upload_error.to_string(),
+                    },
+                };
+
+                if tx.send(next_command).is_err() {
+                    warn!("Failed to send parsed asset command: flow channel closed");
+                }
+            });
+        }
+    }
+
+    fn handle_asset_bundle_upload_requested(
+        &mut self,
+        id: String,
+        file_name: String,
+        asset_type: LightType,
+        files: Vec<(String, Vec<u8>)>,
+    ) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            use crate::gpu::glTF::GLTFLoader;
+            let gltf_loader = GLTFLoader::new();
+            let parsed_node_graph =
+                pollster::block_on(gltf_loader.load_from_file_bundle(&file_name, files));
+            match parsed_node_graph {
+                Ok(node_graph) => {
+                    self.send_internal(RendererCommand::ApplyParsedAsset {
+                        id,
+                        file_name,
+                        asset_type,
+                        imported_scene: node_graph,
+                    });
+                }
+                Err(upload_error) => {
+                    self.send_internal(RendererCommand::AssetUploadFailed {
+                        id,
+                        file_name,
+                        error: upload_error.to_string(),
+                    });
+                }
+            }
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            let tx = self.tx.clone();
+            spawn_local(async move {
+                use crate::gpu::glTF::GLTFLoader;
+                let gltf_loader = GLTFLoader::new();
+                let parsed_node_graph = gltf_loader.load_from_file_bundle(&file_name, files).await;
                 let next_command = match parsed_node_graph {
                     Ok(node_graph) => RendererCommand::ApplyParsedAsset {
                         id,

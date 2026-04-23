@@ -24,6 +24,15 @@ fn load_from_path(name: &str) -> Result<ImportedScene> {
     pollster::block_on(loader().load_from_path(&fixture_path(name)))
 }
 
+fn load_from_bundle(entry_name: &str, file_names: &[&str]) -> Result<ImportedScene> {
+    let files = file_names
+        .iter()
+        .map(|name| (name.to_string(), std::fs::read(fixture_path(name)).unwrap()))
+        .collect();
+
+    pollster::block_on(loader().load_from_file_bundle(entry_name, files))
+}
+
 fn assert_loader_error_contains(result: Result<ImportedScene>, expected: &str) {
     match result {
         Ok(_) => panic!("Expected glTF loading to fail"),
@@ -254,6 +263,52 @@ fn test_load_from_path_reads_external_material_image() {
         ImportedAlphaMode::Mask
     );
     assert_eq!(imported_scene.materials[0].alpha_cutoff, Some(0.25));
+}
+
+#[test]
+fn test_load_from_bundle_resolves_external_sidecars() {
+    let imported_scene = load_from_bundle(
+        "material_texture_external.gltf",
+        &[
+            "material_texture_external.gltf",
+            "vertex_colors.bin",
+            "single_pixel.png",
+        ],
+    )
+    .unwrap();
+
+    assert_eq!(imported_scene.images.len(), 1);
+    assert_eq!(imported_scene.images[0].width, 1);
+    assert_eq!(imported_scene.images[0].height, 1);
+    assert_eq!(
+        imported_scene.materials[0].alpha_mode,
+        ImportedAlphaMode::Mask
+    );
+}
+
+#[test]
+fn test_load_from_bundle_rejects_missing_external_buffer() {
+    assert_loader_error_contains(
+        load_from_bundle(
+            "material_texture_external.gltf",
+            &["material_texture_external.gltf"],
+        ),
+        "Missing uploaded sidecar resource `vertex_colors.bin`",
+    );
+}
+
+#[test]
+fn test_load_from_path_uses_fallback_for_invalid_material_image() {
+    let imported_scene = load_from_path("material_texture_invalid_image.gltf").unwrap();
+
+    assert_eq!(imported_scene.images.len(), 1);
+    assert_eq!(
+        imported_scene.images[0].name.as_deref(),
+        Some("InvalidImage")
+    );
+    assert_eq!(imported_scene.images[0].width, 1);
+    assert_eq!(imported_scene.images[0].height, 1);
+    assert_eq!(imported_scene.images[0].pixels_rgba8, [255, 255, 255, 255]);
 }
 
 #[test]

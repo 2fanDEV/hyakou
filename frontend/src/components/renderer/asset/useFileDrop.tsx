@@ -1,6 +1,7 @@
 import type { Hyako, UploadStatusEvent } from "@wasm/hyako_wasm_bindings";
 import { AssetInformation } from "@wasm/hyako_wasm_bindings";
 import { useCallback, useState } from "react";
+import { createUploadUnits } from "#/lib/assetUpload";
 import type { FileDirectoryState, UploadStatus } from "#/lib/fileDirectory";
 import {
 	createFileNode,
@@ -46,25 +47,46 @@ export default function useFileDrop() {
 	}, []);
 
 	const uploadFiles = useCallback(async (hyako: Hyako, fileList: FileList) => {
-		const uploads = Array.from(fileList).map(async (file) => {
-			const id = crypto.randomUUID();
-			setState((prev) => ({
-				...prev,
-				nodes: [...prev.nodes, createFileNode(id, file.name)],
-			}));
+		const uploads = await createUploadUnits(fileList);
 
-			const bytes = new Uint8Array(await file.arrayBuffer());
-			hyako.upload_file(
-				new AssetInformation(
-					id,
-					bytes,
-					file.name,
-					BigInt(file.size),
-					file.lastModified,
-				),
-			);
-		});
-		await Promise.all(uploads);
+		await Promise.all(
+			uploads.map(async (upload) => {
+				setState((prev) => ({
+					...prev,
+					nodes: [...prev.nodes, createFileNode(upload.id, upload.fileName)],
+				}));
+
+				if (upload.kind === "bundle") {
+					const bundleFiles = await Promise.all(
+						upload.files.map(async (file) => {
+							const bytes = new Uint8Array(await file.arrayBuffer());
+							return new AssetInformation(
+								upload.id,
+								bytes,
+								file.name,
+								BigInt(file.size),
+								file.lastModified,
+							);
+						}),
+					);
+
+					hyako.upload_asset_bundle(upload.id, upload.fileName, bundleFiles);
+					return;
+				}
+
+				const [file] = upload.files;
+				const bytes = new Uint8Array(await file.arrayBuffer());
+				hyako.upload_file(
+					new AssetInformation(
+						upload.id,
+						bytes,
+						file.name,
+						BigInt(file.size),
+						file.lastModified,
+					),
+				);
+			}),
+		);
 	}, []);
 
 	const createDirectory = useCallback((name: string) => {
