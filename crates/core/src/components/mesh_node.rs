@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::{
-    geometry::{mesh::Mesh, vertices::Vertex},
+    geometry::{mesh::Mesh, node::NodeMetadata, vertices::Vertex},
     traits::BufferLayoutProvider,
     types::transform::Transform,
 };
@@ -9,6 +9,7 @@ use crate::{
 pub struct MeshNode {
     mesh: Mesh,
     pub transform: Transform,
+    pub node_metadata: NodeMetadata,
 }
 
 impl Deref for MeshNode {
@@ -20,9 +21,12 @@ impl Deref for MeshNode {
 }
 
 impl MeshNode {
-    pub fn new(mesh: Mesh, transform: Transform) -> MeshNode {
-        let mesh_node = MeshNode { mesh, transform };
-        mesh_node
+    pub fn new(mesh: Mesh, transform: Transform, node_metadata: NodeMetadata) -> MeshNode {
+        MeshNode {
+            mesh,
+            transform,
+            node_metadata,
+        }
     }
 }
 

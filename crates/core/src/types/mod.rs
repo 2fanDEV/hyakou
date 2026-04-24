@@ -8,6 +8,7 @@ use crate::{Shared, types::transform::Transform};
 pub mod base;
 pub mod camera;
 pub mod ids;
+pub mod import_diagnostic;
 pub mod mouse_delta;
 pub mod shared;
 pub mod transform;

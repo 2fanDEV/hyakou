@@ -6,6 +6,7 @@ use std::{
 use anyhow::{Result, anyhow};
 
 mod builder;
+mod diagnostics;
 mod materials;
 mod resources;
 mod types;
@@ -95,10 +96,16 @@ impl GLTFLoader {
         let textures = materials::load_textures(&gltf);
         let samplers = materials::load_samplers(&gltf);
         let materials = materials::load_materials(&gltf)?;
-        let node_graph = builder::build_node_graph(&gltf, &buffer_data, &context.asset_label)?;
+        let (node_graph, diagnostics) =
+            builder::build_node_graph(&gltf, &buffer_data, &context.asset_label)?;
 
         Ok(ImportedScene::new(
-            node_graph, materials, images, textures, samplers,
+            node_graph,
+            diagnostics,
+            materials,
+            images,
+            textures,
+            samplers,
         ))
     }
 }

@@ -1,6 +1,6 @@
 use glam::{Quat, Vec3};
 
-use super::{Node, NodeGraph, NodeId};
+use super::{Node, NodeGraph, NodeId, NodeMetadata};
 use crate::{geometry::mesh::Mesh, types::transform::Transform};
 
 const EPSILON: f32 = 1e-6;
@@ -47,6 +47,7 @@ fn flatten_single_root_with_one_mesh_returns_one_mesh_node() {
     let graph = NodeGraph {
         root_ids: vec![NodeId(0)],
         nodes: vec![Node {
+            metadata: NodeMetadata::default(),
             local_transform: test_transform(1.0, 2.0, 3.0),
             meshes: vec![test_mesh("root")],
             children_ids: vec![],
@@ -80,6 +81,7 @@ fn flatten_single_node_with_multiple_meshes_returns_multiple_mesh_nodes() {
     let graph = NodeGraph {
         root_ids: vec![NodeId(0)],
         nodes: vec![Node {
+            metadata: NodeMetadata::default(),
             local_transform: test_transform(4.0, 5.0, 6.0),
             meshes: vec![test_mesh("mesh_a"), test_mesh("mesh_b")],
             children_ids: vec![],
@@ -110,12 +112,14 @@ fn flatten_accumulates_parent_and_child_transforms() {
         root_ids: vec![NodeId(0)],
         nodes: vec![
             Node {
+                metadata: NodeMetadata::default(),
                 local_transform: test_transform(10.0, 0.0, 0.0),
                 meshes: vec![test_mesh("parent")],
                 children_ids: vec![NodeId(1)],
                 parent_id: None,
             },
             Node {
+                metadata: NodeMetadata::default(),
                 local_transform: test_transform(2.0, 0.0, 0.0),
                 meshes: vec![test_mesh("child")],
                 children_ids: vec![],
@@ -147,12 +151,14 @@ fn flatten_two_independent_roots_returns_mesh_nodes_for_both_roots() {
         root_ids: vec![NodeId(0), NodeId(1)],
         nodes: vec![
             Node {
+                metadata: NodeMetadata::default(),
                 local_transform: test_transform(1.0, 0.0, 0.0),
                 meshes: vec![test_mesh("root_a")],
                 children_ids: vec![],
                 parent_id: None,
             },
             Node {
+                metadata: NodeMetadata::default(),
                 local_transform: test_transform(5.0, 0.0, 0.0),
                 meshes: vec![test_mesh("root_b")],
                 children_ids: vec![],
@@ -184,18 +190,21 @@ fn flatten_accumulates_parent_child_and_grandchild_transforms() {
         root_ids: vec![NodeId(0)],
         nodes: vec![
             Node {
+                metadata: NodeMetadata::default(),
                 local_transform: test_transform(10.0, 0.0, 0.0),
                 meshes: vec![test_mesh("parent")],
                 children_ids: vec![NodeId(1)],
                 parent_id: None,
             },
             Node {
+                metadata: NodeMetadata::default(),
                 local_transform: test_transform(2.0, 0.0, 0.0),
                 meshes: vec![test_mesh("child")],
                 children_ids: vec![NodeId(2)],
                 parent_id: Some(NodeId(0)),
             },
             Node {
+                metadata: NodeMetadata::default(),
                 local_transform: test_transform(3.0, 0.0, 0.0),
                 meshes: vec![test_mesh("grandchild")],
                 children_ids: vec![],

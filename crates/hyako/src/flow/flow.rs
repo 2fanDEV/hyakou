@@ -7,7 +7,10 @@ use hyakou_core::{
     Shared, SharedAccess,
     components::{LightType, camera::data_structures::CameraAnimationRequest},
     shared,
-    types::mouse_delta::{MouseAction, MouseDelta, MousePosition, MouseState},
+    types::{
+        import_diagnostic::ImportDiagnostic,
+        mouse_delta::{MouseAction, MouseDelta, MousePosition, MouseState},
+    },
 };
 use log::{debug, error, warn};
 use winit::window::{CursorGrabMode, Window};
@@ -422,6 +425,7 @@ impl FlowController {
     ) {
         let upload_id = id.clone();
         let upload_file_name = file_name.clone();
+        let diagnostics = imported_scene.diagnostics.clone();
         let success = self
             .renderer
             .try_write_shared(|renderer_slot| {
@@ -439,7 +443,7 @@ impl FlowController {
 
         if success {
             debug!("Successfully loaded asset: {file_name}");
-            self.fire_upload_status_success(upload_id, upload_file_name);
+            self.fire_upload_status_success(upload_id, upload_file_name, diagnostics);
         }
     }
 
@@ -489,13 +493,18 @@ impl FlowController {
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn fire_upload_status_success(&self, upload_id: String, file_name: String) {
+    fn fire_upload_status_success(
+        &self,
+        upload_id: String,
+        file_name: String,
+        diagnostics: Vec<ImportDiagnostic>,
+    ) {
         use hyakou_core::types::upload_status::UploadStatusEvent;
         use wasm_bindgen::JsValue;
 
         let _ = self.upload_status_callback.try_read_shared(|callback| {
             if let Some(callback) = callback {
-                let event = UploadStatusEvent::success(upload_id, file_name);
+                let event = UploadStatusEvent::success(upload_id, file_name, diagnostics);
                 if let Err(err) = callback.call1(&JsValue::NULL, &event.into()) {
                     warn!("Failed to invoke upload status callback: {err:?}");
                 }
@@ -504,7 +513,13 @@ impl FlowController {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn fire_upload_status_success(&self, _upload_id: String, _file_name: String) {}
+    fn fire_upload_status_success(
+        &self,
+        _upload_id: String,
+        _file_name: String,
+        _diagnostics: Vec<ImportDiagnostic>,
+    ) {
+    }
 
     #[cfg(target_arch = "wasm32")]
     fn fire_upload_status_error(&self, upload_id: String, file_name: String, error: String) {
