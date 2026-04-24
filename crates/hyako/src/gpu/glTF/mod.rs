@@ -92,12 +92,14 @@ impl GLTFLoader {
         })?;
 
         let buffer_data = resources::load_buffers(&gltf, &context).await?;
-        let images = resources::load_images(&gltf, &buffer_data, &context).await?;
+        let (images, image_diagnostics) =
+            resources::load_images(&gltf, &buffer_data, &context).await?;
         let textures = materials::load_textures(&gltf);
         let samplers = materials::load_samplers(&gltf);
         let materials = materials::load_materials(&gltf)?;
-        let (node_graph, diagnostics) =
+        let (node_graph, mut diagnostics) =
             builder::build_node_graph(&gltf, &buffer_data, &context.asset_label)?;
+        diagnostics.extend(image_diagnostics);
 
         Ok(ImportedScene::new(
             node_graph,
