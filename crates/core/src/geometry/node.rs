@@ -52,7 +52,11 @@ impl NodeGraph {
         let world_transform = Transform::new(translation, rotation, scale);
 
         for mesh in &node.meshes {
-            out.push(MeshNode::new(mesh.clone(), world_transform));
+            out.push(MeshNode::new(
+                mesh.clone(),
+                world_transform,
+                node.metadata.clone(),
+            ));
         }
 
         for child_node_id in &node.children_ids {
@@ -62,10 +66,23 @@ impl NodeGraph {
 }
 
 pub struct Node {
+    pub metadata: NodeMetadata,
     pub local_transform: Transform,
     pub meshes: Vec<Mesh>,
     pub children_ids: Vec<NodeId>,
     pub parent_id: Option<NodeId>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct NodeMetadata {
+    pub name: Option<String>,
+    pub source_index: Option<usize>,
+}
+
+impl NodeMetadata {
+    pub fn new(name: Option<String>, source_index: Option<usize>) -> Self {
+        Self { name, source_index }
+    }
 }
 
 #[cfg(test)]

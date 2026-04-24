@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Renderer backend tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup mise
+        uses: ./.github/actions/setup
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check workspace
+        run: mise exec -- cargo check --workspace
+
+      - name: Run backend CI task
+        run: mise run backend:ci
+
+  frontend:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup mise and pnpm
+        uses: ./.github/actions/setup
+
+      - name: Install frontend dependencies
+        run: mise run frontend:setup
+        working-directory: frontend
+
+      - name: Run frontend CI task
+        run: mise run frontend:ci

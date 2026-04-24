@@ -1,5 +1,7 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 
+use crate::types::import_diagnostic::ImportDiagnostic;
+
 #[wasm_bindgen(getter_with_clone)]
 pub struct UploadStatusEvent {
     #[wasm_bindgen(js_name = uploadId)]
@@ -8,15 +10,24 @@ pub struct UploadStatusEvent {
     pub file_name: String,
     pub status: String,
     pub message: Option<String>,
+    pub diagnostics: Vec<String>,
 }
 
 impl UploadStatusEvent {
-    pub fn success(upload_id: String, file_name: String) -> Self {
+    pub fn success(
+        upload_id: String,
+        file_name: String,
+        diagnostics: Vec<ImportDiagnostic>,
+    ) -> Self {
         Self {
             upload_id,
             file_name,
             status: "success".to_string(),
             message: None,
+            diagnostics: diagnostics
+                .into_iter()
+                .map(|diagnostic| diagnostic.message)
+                .collect(),
         }
     }
 
@@ -26,6 +37,7 @@ impl UploadStatusEvent {
             file_name,
             status: "error".to_string(),
             message: Some(message),
+            diagnostics: Vec::new(),
         }
     }
 }

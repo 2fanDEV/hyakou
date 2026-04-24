@@ -4,11 +4,13 @@ use gltf::mesh::Mode;
 use hyakou_core::{
     geometry::{
         mesh::Mesh,
-        node::{Node, NodeGraph, NodeId},
+        node::{Node, NodeGraph, NodeId, NodeMetadata},
         vertices::Vertex,
     },
-    types::transform::Transform,
+    types::{import_diagnostic::ImportDiagnostic, transform::Transform},
 };
+
+use super::diagnostics::{collect_document_diagnostics, collect_node_diagnostics};
 
 #[derive(Debug, Clone)]
 pub(crate) struct PrimitiveContext {
@@ -24,7 +26,8 @@ pub(super) fn build_node_graph(
     gltf: &gltf::Gltf,
     buffer_data: &[Vec<u8>],
     asset_label: &str,
-) -> Result<NodeGraph> {
+) -> Result<(NodeGraph, Vec<ImportDiagnostic>)> {
+    let mut diagnostics = collect_document_diagnostics(gltf, asset_label);
     let root_nodes = collect_root_nodes(gltf);
     let mut nodes = Vec::new();
     let mut root_ids = Vec::new();
@@ -34,6 +37,7 @@ pub(super) fn build_node_graph(
             root_node,
             None,
             &mut nodes,
+            &mut diagnostics,
             buffer_data,
             asset_label,
         )?);
@@ -45,7 +49,7 @@ pub(super) fn build_node_graph(
         ));
     }
 
-    Ok(NodeGraph::new(nodes, root_ids))
+    Ok((NodeGraph::new(nodes, root_ids), diagnostics))
 }
 
 fn collect_root_nodes<'a>(gltf: &'a gltf::Gltf) -> Vec<gltf::Node<'a>> {
@@ -60,14 +64,17 @@ fn build_node_recursive(
     gltf_node: gltf::Node<'_>,
     parent_id: Option<NodeId>,
     nodes: &mut Vec<Node>,
+    diagnostics: &mut Vec<ImportDiagnostic>,
     buffer_data: &[Vec<u8>],
     asset_label: &str,
 ) -> Result<NodeId> {
+    collect_node_diagnostics(&gltf_node, diagnostics, asset_label);
     let local_transform = build_local_transform(&gltf_node);
     let meshes = build_meshes_for_node(&gltf_node, buffer_data, asset_label)?;
     let node_id = NodeId(nodes.len());
 
     nodes.push(Node {
+        metadata: NodeMetadata::new(gltf_node.name().map(str::to_owned), Some(gltf_node.index())),
         local_transform,
         meshes,
         children_ids: vec![],
@@ -77,7 +84,14 @@ fn build_node_recursive(
     let child_ids = gltf_node
         .children()
         .map(|child_node| {
-            build_node_recursive(child_node, Some(node_id), nodes, buffer_data, asset_label)
+            build_node_recursive(
+                child_node,
+                Some(node_id),
+                nodes,
+                diagnostics,
+                buffer_data,
+                asset_label,
+            )
         })
         .collect::<Result<Vec<_>>>()?;
 

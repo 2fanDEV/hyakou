@@ -1,8 +1,9 @@
 use glam::Vec4;
-use hyakou_core::geometry::node::NodeGraph;
+use hyakou_core::{geometry::node::NodeGraph, types::import_diagnostic::ImportDiagnostic};
 
 pub struct ImportedScene {
     pub node_graph: NodeGraph,
+    pub diagnostics: Vec<ImportDiagnostic>,
     pub materials: Vec<ImportedMaterial>,
     pub images: Vec<ImportedImage>,
     pub textures: Vec<ImportedTexture>,
@@ -12,6 +13,7 @@ pub struct ImportedScene {
 impl ImportedScene {
     pub fn new(
         node_graph: NodeGraph,
+        diagnostics: Vec<ImportDiagnostic>,
         materials: Vec<ImportedMaterial>,
         images: Vec<ImportedImage>,
         textures: Vec<ImportedTexture>,
@@ -19,6 +21,7 @@ impl ImportedScene {
     ) -> Self {
         Self {
             node_graph,
+            diagnostics,
             materials,
             images,
             textures,
