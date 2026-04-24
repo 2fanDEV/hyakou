@@ -9,14 +9,12 @@
   "scripts": {
     "wasm:build:dev": "wasm-pack build ../crates/wasm_bindings --target web --out-dir pkg",
     "wasm:build:prod": "wasm-pack build ../crates/wasm_bindings --target web --release --out-dir pkg",
-    "predev": "pnpm run wasm:build:dev",
     "dev": "vite dev --port 3000",
-    "prebuild": "pnpm run wasm:build:prod",
     "build": "vite build",
     "preview": "vite preview",
-    "pretest": "pnpm run wasm:build:dev",
     "test": "vitest run --passWithNoTests",
-    "format": "biome format",
+    "format:check": "biome format",
+    "format": "biome format --fix",
     "lint": "biome lint",
     "check": "biome check"
   },

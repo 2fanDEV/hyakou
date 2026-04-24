@@ -11,21 +11,21 @@ import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
 
 const config = defineConfig({
-  resolve: {
-    alias: {
-      "@wasm": fileURLToPath(
-        new URL("../crates/wasm_bindings/pkg", import.meta.url),
-      ),
-    },
-  },
-  plugins: [
-    devtools(),
-    nitro({ rollupConfig: { external: [/^@sentry\//] } }),
-    tsconfigPaths({ projects: ["./tsconfig.json"] }),
-    tailwindcss(),
-    tanstackStart(),
-    viteReact(),
-  ],
+	resolve: {
+		alias: {
+			"@wasm": fileURLToPath(
+				new URL("../crates/wasm_bindings/pkg", import.meta.url),
+			),
+		},
+	},
+	plugins: [
+		devtools(),
+		nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+		tsconfigPaths({ projects: ["./tsconfig.json"] }),
+		tailwindcss(),
+		tanstackStart(),
+		viteReact(),
+	],
 });
 
 export default config;

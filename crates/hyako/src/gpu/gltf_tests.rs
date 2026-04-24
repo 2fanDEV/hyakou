@@ -1,4 +1,8 @@
-use std::path::PathBuf;
+use std::{
+    fs,
+    path::PathBuf,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use glam::{Vec2, Vec3, Vec4};
 
@@ -31,6 +35,79 @@ fn load_from_bundle(entry_name: &str, file_names: &[&str]) -> Result<ImportedSce
         .collect();
 
     pollster::block_on(loader().load_from_file_bundle(entry_name, files))
+}
+
+fn load_glb_from_path(bytes: Vec<u8>) -> Result<ImportedScene> {
+    let suffix = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!("hyako_vertex_colors_{suffix}.glb"));
+    fs::write(&path, bytes).unwrap();
+
+    let result = pollster::block_on(loader().load_from_path(&path));
+    fs::remove_file(path).unwrap();
+    result
+}
+
+fn vertex_colors_glb_bytes() -> Vec<u8> {
+    let json = br#"{
+  "asset": { "version": "2.0" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0] }],
+  "nodes": [{ "mesh": 0, "name": "VertexColorsGlb" }],
+  "meshes": [{
+    "name": "VertexColorsGlb",
+    "primitives": [{
+      "attributes": { "POSITION": 0, "NORMAL": 1, "COLOR_0": 2 },
+      "indices": 3,
+      "material": 0,
+      "mode": 4
+    }]
+  }],
+  "materials": [{
+    "pbrMetallicRoughness": {
+      "baseColorFactor": [0.25, 0.5, 0.75, 1.0]
+    }
+  }],
+  "buffers": [{ "byteLength": 128 }],
+  "bufferViews": [
+    { "buffer": 0, "byteLength": 36, "byteOffset": 8, "target": 34962 },
+    { "buffer": 0, "byteLength": 36, "byteOffset": 44, "target": 34962 },
+    { "buffer": 0, "byteLength": 48, "byteOffset": 80, "target": 34962 },
+    { "buffer": 0, "byteLength": 6, "byteOffset": 0, "target": 34963 }
+  ],
+  "accessors": [
+    { "bufferView": 0, "byteOffset": 0, "componentType": 5126, "count": 3, "max": [1.0, 1.0, 0.0], "min": [0.0, 0.0, 0.0], "type": "VEC3" },
+    { "bufferView": 1, "byteOffset": 0, "componentType": 5126, "count": 3, "type": "VEC3" },
+    { "bufferView": 2, "byteOffset": 0, "componentType": 5126, "count": 3, "type": "VEC4" },
+    { "bufferView": 3, "byteOffset": 0, "componentType": 5123, "count": 3, "max": [2], "min": [0], "type": "SCALAR" }
+  ]
+}"#;
+    let bin = include_bytes!("../../assets/gltf/test_fixtures/vertex_colors.bin");
+
+    let mut json_chunk = json.to_vec();
+    while json_chunk.len() % 4 != 0 {
+        json_chunk.push(b' ');
+    }
+
+    let mut bin_chunk = bin.to_vec();
+    while bin_chunk.len() % 4 != 0 {
+        bin_chunk.push(0);
+    }
+
+    let total_len = 12 + 8 + json_chunk.len() + 8 + bin_chunk.len();
+    let mut glb = Vec::with_capacity(total_len);
+    glb.extend_from_slice(b"glTF");
+    glb.extend_from_slice(&2_u32.to_le_bytes());
+    glb.extend_from_slice(&(total_len as u32).to_le_bytes());
+    glb.extend_from_slice(&(json_chunk.len() as u32).to_le_bytes());
+    glb.extend_from_slice(b"JSON");
+    glb.extend_from_slice(&json_chunk);
+    glb.extend_from_slice(&(bin_chunk.len() as u32).to_le_bytes());
+    glb.extend_from_slice(b"BIN\0");
+    glb.extend_from_slice(&bin_chunk);
+    glb
 }
 
 fn assert_loader_error_contains(result: Result<ImportedScene>, expected: &str) {
@@ -215,6 +292,84 @@ fn test_load_from_path_reads_vertex_colors_defaults_tex_coords_and_base_color() 
 }
 
 #[test]
+fn test_load_from_path_reads_data_uri_buffer() {
+    let imported_scene = load_from_path("vertex_colors_data_uri.gltf").unwrap();
+
+    let mesh_nodes = imported_scene.node_graph.flatten();
+    let vertices = &mesh_nodes[0].vertices;
+
+    assert_eq!(mesh_nodes.len(), 1);
+    assert_eq!(vertices.len(), 3);
+    assert_eq!(mesh_nodes[0].material_index, Some(0));
+    assert_vec4_eq(
+        vertices[0].colors,
+        Vec4::new(1.0, 0.0, 0.0, 1.0),
+        "first data URI vertex color",
+    );
+    assert_vec4_eq(
+        vertices[1].colors,
+        Vec4::new(0.0, 1.0, 0.0, 0.5),
+        "second data URI vertex color",
+    );
+    assert_vec4_eq(
+        vertices[2].colors,
+        Vec4::new(0.0, 0.0, 1.0, 0.25),
+        "third data URI vertex color",
+    );
+}
+
+#[test]
+fn test_load_from_bytes_reads_data_uri_buffer() {
+    let imported_scene = load_from_bytes(
+        include_bytes!("../../assets/gltf/test_fixtures/vertex_colors_data_uri.gltf").to_vec(),
+    )
+    .unwrap();
+
+    let mesh_nodes = imported_scene.node_graph.flatten();
+    let vertices = &mesh_nodes[0].vertices;
+
+    assert_eq!(mesh_nodes.len(), 1);
+    assert_eq!(vertices.len(), 3);
+    assert_vec4_eq(
+        vertices[0].colors,
+        Vec4::new(1.0, 0.0, 0.0, 1.0),
+        "first byte-loaded data URI vertex color",
+    );
+}
+
+#[test]
+fn test_load_from_path_reads_glb_embedded_buffer() {
+    let imported_scene = load_glb_from_path(vertex_colors_glb_bytes()).unwrap();
+
+    let mesh_nodes = imported_scene.node_graph.flatten();
+    let vertices = &mesh_nodes[0].vertices;
+
+    assert_eq!(mesh_nodes.len(), 1);
+    assert_eq!(vertices.len(), 3);
+    assert_vec4_eq(
+        vertices[1].colors,
+        Vec4::new(0.0, 1.0, 0.0, 0.5),
+        "second path-loaded glb vertex color",
+    );
+}
+
+#[test]
+fn test_load_from_bytes_reads_glb_embedded_buffer() {
+    let imported_scene = load_from_bytes(vertex_colors_glb_bytes()).unwrap();
+
+    let mesh_nodes = imported_scene.node_graph.flatten();
+    let vertices = &mesh_nodes[0].vertices;
+
+    assert_eq!(mesh_nodes.len(), 1);
+    assert_eq!(vertices.len(), 3);
+    assert_vec4_eq(
+        vertices[2].colors,
+        Vec4::new(0.0, 0.0, 1.0, 0.25),
+        "third byte-loaded glb vertex color",
+    );
+}
+
+#[test]
 fn test_load_from_path_reads_inline_material_texture_image_and_sampler() {
     let imported_scene = load_from_path("material_texture_data_uri.gltf").unwrap();
 
@@ -298,6 +453,33 @@ fn test_load_from_bundle_rejects_missing_external_buffer() {
 }
 
 #[test]
+fn test_load_from_bundle_uses_fallback_for_missing_external_image() {
+    let imported_scene = load_from_bundle(
+        "material_texture_external.gltf",
+        &["material_texture_external.gltf", "vertex_colors.bin"],
+    )
+    .unwrap();
+
+    assert_eq!(imported_scene.images.len(), 1);
+    assert_eq!(
+        imported_scene.images[0].name.as_deref(),
+        Some("ExternalPixel")
+    );
+    assert_eq!(imported_scene.images[0].width, 1);
+    assert_eq!(imported_scene.images[0].height, 1);
+    assert_eq!(imported_scene.images[0].pixels_rgba8, [255, 255, 255, 255]);
+    assert!(
+        imported_scene
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic
+                .message
+                .contains("Missing uploaded sidecar resource `single_pixel.png`")),
+        "expected missing image sidecar diagnostic"
+    );
+}
+
+#[test]
 fn test_load_from_path_uses_fallback_for_invalid_material_image() {
     let imported_scene = load_from_path("material_texture_invalid_image.gltf").unwrap();
 
@@ -309,6 +491,15 @@ fn test_load_from_path_uses_fallback_for_invalid_material_image() {
     assert_eq!(imported_scene.images[0].width, 1);
     assert_eq!(imported_scene.images[0].height, 1);
     assert_eq!(imported_scene.images[0].pixels_rgba8, [255, 255, 255, 255]);
+    assert!(
+        imported_scene
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic
+                .message
+                .contains("Failed to decode image 0 in asset")),
+        "expected invalid image diagnostic"
+    );
 }
 
 #[test]
