@@ -5,7 +5,6 @@ use std::{
 
 use anyhow::{Context, Result, anyhow};
 use image::{DynamicImage, ImageFormat};
-use log::warn;
 
 use super::ImportContext;
 use super::types::ImportedImage;
@@ -82,76 +81,53 @@ pub(super) async fn load_images(
     context: &ImportContext,
 ) -> Result<Vec<ImportedImage>> {
     let image_async_handles = gltf.images().map(async |image| {
-        let image_index = image.index();
-        let image_name = image.name().map(str::to_owned);
-        let image_result = async {
-            let bytes = match image.source() {
-                gltf::image::Source::View { view, .. } => {
-                    let buffer = buffer_data.get(view.buffer().index()).ok_or_else(|| {
+        let bytes = match image.source() {
+            gltf::image::Source::View { view, .. } => {
+                let buffer = buffer_data.get(view.buffer().index()).ok_or_else(|| {
+                    anyhow!(
+                        "Missing parent buffer {} for image {} in asset `{}`",
+                        view.buffer().index(),
+                        image.index(),
+                        context.asset_label
+                    )
+                })?;
+                let start = view.offset();
+                let end = start + view.length();
+                buffer
+                    .get(start..end)
+                    .ok_or_else(|| {
                         anyhow!(
-                            "Missing parent buffer {} for image {} in asset `{}`",
-                            view.buffer().index(),
+                            "Image {} in asset `{}` references bytes outside of buffer {}",
+                            image.index(),
+                            context.asset_label,
+                            view.buffer().index()
+                        )
+                    })?
+                    .to_vec()
+            }
+            gltf::image::Source::Uri { uri, .. } if uri.starts_with("data:") => {
+                gltf::buffer::Data::from_source(gltf::buffer::Source::Uri(uri), None)
+                    .map(|data| data.0)
+                    .map_err(|error| {
+                        anyhow!(
+                            "Failed to decode data URI image {} in asset `{}`: {error}",
                             image.index(),
                             context.asset_label
                         )
-                    })?;
-                    let start = view.offset();
-                    let end = start + view.length();
-                    buffer
-                        .get(start..end)
-                        .ok_or_else(|| {
-                            anyhow!(
-                                "Image {} in asset `{}` references bytes outside of buffer {}",
-                                image.index(),
-                                context.asset_label,
-                                view.buffer().index()
-                            )
-                        })?
-                        .to_vec()
-                }
-                gltf::image::Source::Uri { uri, .. } if uri.starts_with("data:") => {
-                    gltf::buffer::Data::from_source(gltf::buffer::Source::Uri(uri), None)
-                        .map(|data| data.0)
-                        .map_err(|error| {
-                            anyhow!(
-                                "Failed to decode data URI image {} in asset `{}`: {error}",
-                                image.index(),
-                                context.asset_label
-                            )
-                        })?
-                }
-                gltf::image::Source::Uri { uri, .. } => {
-                    load_uri_image(uri, image.index(), context).await?
-                }
-            };
+                    })?
+            }
+            gltf::image::Source::Uri { uri, .. } => {
+                load_uri_image(uri, image.index(), context).await?
+            }
+        };
 
-            import_image(image, &bytes, context)
-        }
-        .await;
-
-        match image_result {
-            Ok(imported_image) => imported_image,
-            Err(error) => fallback_image_after_warning(image_index, image_name, context, error),
-        }
+        import_image(image, &bytes, context)
     });
 
-    Ok(futures::future::join_all(image_async_handles).await)
+    futures::future::try_join_all(image_async_handles).await
 }
 
-fn fallback_image_after_warning(
-    image_index: usize,
-    image_name: Option<String>,
-    context: &ImportContext,
-    error: anyhow::Error,
-) -> ImportedImage {
-    warn!(
-        "Falling back to a default texture for image {image_index} in asset `{}` after load/decode failure: {error:?}",
-        context.asset_label
-    );
-
-    fallback_image(image_index, image_name)
-}
-
+#[allow(dead_code)]
 fn fallback_image(image_index: usize, image_name: Option<String>) -> ImportedImage {
     ImportedImage {
         index: image_index,

@@ -298,17 +298,11 @@ fn test_load_from_bundle_rejects_missing_external_buffer() {
 }
 
 #[test]
-fn test_load_from_path_uses_fallback_for_invalid_material_image() {
-    let imported_scene = load_from_path("material_texture_invalid_image.gltf").unwrap();
-
-    assert_eq!(imported_scene.images.len(), 1);
-    assert_eq!(
-        imported_scene.images[0].name.as_deref(),
-        Some("InvalidImage")
+fn test_load_from_path_rejects_invalid_material_image() {
+    assert_loader_error_contains(
+        load_from_path("material_texture_invalid_image.gltf"),
+        "Failed to decode image 0 in asset",
     );
-    assert_eq!(imported_scene.images[0].width, 1);
-    assert_eq!(imported_scene.images[0].height, 1);
-    assert_eq!(imported_scene.images[0].pixels_rgba8, [255, 255, 255, 255]);
 }
 
 #[test]
