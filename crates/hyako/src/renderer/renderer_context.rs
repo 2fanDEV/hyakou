@@ -188,7 +188,6 @@ impl RenderContext {
         })
     }
 
-    // requires winit window, no test until figured out how to do headless
     pub fn resize(&mut self, size: Size) -> Result<()> {
         self.size = size;
 

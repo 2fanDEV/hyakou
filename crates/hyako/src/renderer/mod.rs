@@ -35,9 +35,9 @@ use hyakou_core::{
 };
 use log::{error, warn};
 use wgpu::{
-    BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations, Queue,
+    BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Device, Operations, Queue,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RenderPipeline, TextureView, TextureViewDescriptor,
+    RenderPipeline, SurfaceConfiguration, TextureView, TextureViewDescriptor,
 };
 use winit::window::Window;
 
@@ -430,11 +430,23 @@ impl Renderer {
         }
     }
 
-    fn material_bind_group_index(model_binding_mode: ModelMatrixBindingMode) -> u32 {
+    pub fn material_bind_group_index(model_binding_mode: ModelMatrixBindingMode) -> u32 {
         match model_binding_mode {
             ModelMatrixBindingMode::Immediate => 2,
             ModelMatrixBindingMode::Uniform => 3,
         }
+    }
+
+    pub fn get_device(&self) -> Arc<Device> {
+        self.ctx.device.clone()
+    }
+
+    pub fn get_queue(&self) -> &Queue {
+        &self.ctx.queue
+    }
+
+    pub fn get_surface_configuration(&self) -> &SurfaceConfiguration {
+        self.ctx.surface_configuration.as_ref().unwrap()
     }
 }
 

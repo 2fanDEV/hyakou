@@ -20,7 +20,7 @@ use wasm_bindgen_futures::spawn_local;
 
 use crate::{
     flow::RendererCommand,
-    gui::EguiRenderer,
+    gui::{CameraPanel, EguiRenderer},
     renderer::{
         Renderer,
         handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
@@ -177,6 +177,30 @@ impl FlowController {
             Err(renderer_error) => {
                 error!("Failed to initialize renderer: {renderer_error:?}");
             }
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let egui_renderer = self
+                .renderer
+                .try_read_shared(|renderer| {
+                    if let Some(renderer) = renderer {
+                        use egui_wgpu::RendererOptions;
+                        Some(EguiRenderer::new(
+                            renderer.get_device().clone(),
+                            self.window.as_ref().unwrap().clone(),
+                            renderer.get_surface_configuration().format,
+                            RendererOptions::default(),
+                        ))
+                    } else {
+                        error!("Renderer is not initialized yet!");
+                        None
+                    }
+                })
+                .unwrap();
+            self.egui_renderer
+                .try_write_shared(|slot| *slot = egui_renderer)
+                .unwrap();
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -458,6 +482,15 @@ impl FlowController {
             };
 
             renderer.update(dt);
+
+            self.egui_renderer
+                .try_write_shared(|egui_renderer| {
+                    if let Some(egui_renderer) = egui_renderer.as_mut() {
+                        egui_renderer.render(renderer.get_queue(), &mut CameraPanel::new(2.0));
+                    }
+                })
+                .unwrap();
+
             if let Err(render_error) = renderer.render() {
                 error!("Renderer draw call failed: {render_error:?}");
             }
