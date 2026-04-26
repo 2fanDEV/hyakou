@@ -19,8 +19,8 @@ use winit::window::{CursorGrabMode, Window};
 use wasm_bindgen_futures::spawn_local;
 
 use crate::{
-    flow::RendererCommand,
-    gui::{CameraPanel, EguiRenderer},
+    flow::{FrameComposer, RendererCommand},
+    gui::EguiRenderer,
     renderer::{
         Renderer,
         handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
@@ -32,6 +32,7 @@ pub struct FlowController {
     rx: Receiver<RendererCommand>,
     renderer: Shared<Option<Renderer>>,
     egui_renderer: Shared<Option<EguiRenderer>>,
+    frame_composer: FrameComposer,
     keyboard_handler: KeyboardHandler,
     mouse_handler: MouseHandler,
     mouse_delta: MouseDelta,
@@ -56,6 +57,7 @@ impl FlowController {
             rx,
             renderer: shared(None),
             egui_renderer: shared(None),
+            frame_composer: FrameComposer::new(),
             keyboard_handler: KeyboardHandler::new(),
             mouse_handler: MouseHandler::new(),
             mouse_delta: MouseDelta::default(),
@@ -75,6 +77,7 @@ impl FlowController {
             rx,
             renderer: shared(None),
             egui_renderer: shared(None),
+            frame_composer: FrameComposer::new(),
             keyboard_handler: KeyboardHandler::new(),
             mouse_handler: MouseHandler::new(),
             mouse_delta: MouseDelta::default(),
@@ -86,6 +89,16 @@ impl FlowController {
     }
     pub fn get_renderer(&self) -> Shared<Option<Renderer>> {
         self.renderer.clone()
+    }
+
+    pub fn handle_egui_window_event(&mut self, event: &winit::event::WindowEvent) -> bool {
+        self.egui_renderer
+            .try_write_shared(|egui_renderer| {
+                egui_renderer
+                    .as_mut()
+                    .is_some_and(|egui_renderer| egui_renderer.handle_window_event(event))
+            })
+            .unwrap_or(false)
     }
 
     pub fn drain_commands(&mut self) {
@@ -481,18 +494,25 @@ impl FlowController {
                 return;
             };
 
-            renderer.update(dt);
+            let render_result = self.egui_renderer.try_write_shared(|egui_renderer| {
+                self.frame_composer
+                    .render_frame(renderer, egui_renderer.as_mut(), dt)
+            });
 
-            self.egui_renderer
-                .try_write_shared(|egui_renderer| {
-                    if let Some(egui_renderer) = egui_renderer.as_mut() {
-                        egui_renderer.render(renderer.get_queue(), &mut CameraPanel::new(2.0));
+            match render_result {
+                Ok(Ok(())) => {}
+                Ok(Err(render_error)) => {
+                    error!("Renderer frame composition failed: {render_error:?}");
+                }
+                Err(lock_error) => {
+                    warn!(
+                        "Rendering frame without egui because renderer slot is busy: {lock_error:?}"
+                    );
+                    if let Err(render_error) = self.frame_composer.render_frame(renderer, None, dt)
+                    {
+                        error!("Renderer frame composition failed: {render_error:?}");
                     }
-                })
-                .unwrap();
-
-            if let Err(render_error) = renderer.render() {
-                error!("Renderer draw call failed: {render_error:?}");
+                }
             }
         });
     }

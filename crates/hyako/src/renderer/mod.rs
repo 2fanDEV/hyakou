@@ -8,6 +8,7 @@ use crate::{
         render_mesh::RenderMesh,
     },
     renderer::{
+        frame::{FrameTarget, SurfaceFrame},
         handlers::{asset_handler::AssetHandler, camera::CameraHandler},
         renderer_context::RenderContext,
         wrappers::WinitSurfaceProvider,
@@ -42,6 +43,7 @@ use wgpu::{
 use winit::window::Window;
 
 pub mod actions;
+pub mod frame;
 pub mod handlers;
 pub mod renderer_context;
 pub mod util;
@@ -214,42 +216,51 @@ impl Renderer {
         );
     }
 
-    pub fn render(&mut self) -> Result<()> {
+    pub fn begin_frame(&mut self) -> Result<Option<SurfaceFrame>> {
         self.window.request_redraw();
         if self.ctx.surface_configuration.is_none() || self.ctx.size.is_zero() {
-            return Ok(());
+            return Ok(None);
         }
 
         let (output, should_reconfigure_surface) =
             match self.ctx.surface.as_ref().unwrap().get_current_texture() {
                 wgpu::CurrentSurfaceTexture::Success(output) => (output, false),
                 wgpu::CurrentSurfaceTexture::Suboptimal(output) => (output, true),
-                surface_status => return self.handle_surface_acquisition_status(surface_status),
+                surface_status => {
+                    self.handle_surface_acquisition_status(surface_status)?;
+                    return Ok(None);
+                }
             };
 
         let view = output
             .texture
             .create_view(&TextureViewDescriptor::default());
-        let mut encoder = self
+        let encoder = self
             .ctx
             .device
             .create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("Rendering Encoder"),
             });
+        let depth_view = self.ctx.depth_texture.view.clone();
+        let size_in_pixels = [self.ctx.size.width, self.ctx.size.height];
 
-        let mut clear_encoder = self
-            .ctx
-            .device
-            .create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("Rendering Encoder"),
-            });
-        let depth_texture = self.ctx.depth_texture.clone();
+        Ok(Some(SurfaceFrame::new(
+            output,
+            encoder,
+            self.ctx.queue.clone(),
+            view,
+            depth_view,
+            size_in_pixels,
+            should_reconfigure_surface,
+        )))
+    }
 
+    pub fn render_scene(&mut self, target: &mut FrameTarget<'_>) {
         {
-            clear_encoder.begin_render_pass(&RenderPassDescriptor {
+            target.encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Main Command Buffer"),
                 color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &view,
+                    view: target.color_view,
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
@@ -266,7 +277,7 @@ impl Renderer {
                 timestamp_writes: None,
                 occlusion_query_set: None,
                 depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                    view: &depth_texture.view,
+                    view: target.depth_view,
                     depth_ops: Some(Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: wgpu::StoreOp::Store,
@@ -280,15 +291,15 @@ impl Renderer {
             .get_all_visible_assets_with_modifier(&LightType::LIGHT)
             .for_each(|elem| {
                 Self::record_scene_pass_command_encoder(
-                    &mut encoder,
+                    target.encoder,
                     elem,
                     &self.ctx.light_render_pipeline,
-                    &self.ctx.queue,
+                    target.queue,
                     self.ctx.model_binding_mode,
                     &self.camera_bind_group,
                     &self.light_bind_group,
-                    &view,
-                    &depth_texture.view,
+                    target.color_view,
+                    target.depth_view,
                 );
             });
 
@@ -296,28 +307,36 @@ impl Renderer {
             .get_all_visible_assets_with_modifier(&LightType::NO_LIGHT)
             .for_each(|elem| {
                 Self::record_scene_pass_command_encoder(
-                    &mut encoder,
+                    target.encoder,
                     elem,
                     &self.ctx.no_light_render_pipeline,
-                    &self.ctx.queue,
+                    target.queue,
                     self.ctx.model_binding_mode,
                     &self.camera_bind_group,
                     &self.light_bind_group,
-                    &view,
-                    &depth_texture.view,
+                    target.color_view,
+                    target.depth_view,
                 );
             });
+    }
 
-        self.ctx
-            .queue
-            .submit(std::iter::once(clear_encoder.finish()));
-        self.ctx.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
-        if should_reconfigure_surface {
+    pub fn finish_frame(&mut self, frame: SurfaceFrame) -> Result<()> {
+        if frame.finish() {
             self.ctx.resize(self.ctx.size)?;
         }
         self.frame_idx = (self.frame_idx + 1) % 1;
         Ok(())
+    }
+
+    pub fn render(&mut self) -> Result<()> {
+        let Some(mut frame) = self.begin_frame()? else {
+            return Ok(());
+        };
+        {
+            let mut target = frame.target();
+            self.render_scene(&mut target);
+        }
+        self.finish_frame(frame)
     }
 
     fn handle_surface_acquisition_status(
