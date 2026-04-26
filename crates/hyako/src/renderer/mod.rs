@@ -224,6 +224,7 @@ impl Renderer {
             Ok(output) => output,
             Err(surface_error) => return self.handle_surface_error(surface_error),
         };
+
         let view = output
             .texture
             .create_view(&TextureViewDescriptor::default());

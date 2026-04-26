@@ -20,6 +20,7 @@ use wasm_bindgen_futures::spawn_local;
 
 use crate::{
     flow::RendererCommand,
+    gui::EguiRenderer,
     renderer::{
         Renderer,
         handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
@@ -30,6 +31,7 @@ pub struct FlowController {
     tx: Sender<RendererCommand>,
     rx: Receiver<RendererCommand>,
     renderer: Shared<Option<Renderer>>,
+    egui_renderer: Shared<Option<EguiRenderer>>,
     keyboard_handler: KeyboardHandler,
     mouse_handler: MouseHandler,
     mouse_delta: MouseDelta,
