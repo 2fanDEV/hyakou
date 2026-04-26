@@ -1,8 +1,7 @@
-use anyhow::Result;
-
 use crate::{
     gui::{EguiRenderer, panels::camera_panel::CameraPanel},
-    renderer::Renderer,
+    renderer::SceneRenderer,
+    renderer::frame::FrameTarget,
 };
 
 pub struct FrameComposer {
@@ -16,34 +15,16 @@ impl FrameComposer {
         }
     }
 
-    pub fn render_frame(
+    pub fn compose_frame(
         &mut self,
-        renderer: &mut Renderer,
+        target: &mut FrameTarget<'_>,
+        renderer: &mut SceneRenderer,
         mut egui_renderer: Option<&mut EguiRenderer>,
-        dt: f64,
-    ) -> Result<()> {
-        renderer.update(dt);
-
-        let Some(mut frame) = renderer.begin_frame()? else {
-            return Ok(());
-        };
-
-        {
-            let mut target = frame.target();
-            renderer.render_scene(&mut target);
-
-            if let Some(egui_renderer) = egui_renderer.as_mut() {
-                egui_renderer.render(&mut target, &mut self.camera_panel);
-            }
-        }
-
-        let finish_result = renderer.finish_frame(frame);
-
+    ) {
+        renderer.render_scene(target);
         if let Some(egui_renderer) = egui_renderer.as_mut() {
-            egui_renderer.free_textures_after_submit();
+            egui_renderer.render(target, &mut self.camera_panel);
         }
-
-        finish_result
     }
 }
 

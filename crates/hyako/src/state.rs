@@ -26,7 +26,7 @@ use hyakou_core::{
 
 use crate::{
     flow::{FlowController, FlowHandle, RendererCommand},
-    renderer::Renderer,
+    renderer::SceneRenderer,
 };
 
 pub struct AppState {
@@ -52,7 +52,7 @@ impl AppState {
         })
     }
 
-    pub fn get_renderer(&self) -> Shared<Option<Renderer>> {
+    pub fn get_renderer(&self) -> Shared<Option<SceneRenderer>> {
         self.flow_controller.get_renderer()
     }
 

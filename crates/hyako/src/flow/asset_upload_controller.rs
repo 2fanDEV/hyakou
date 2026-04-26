@@ -1,34 +1,36 @@
-use std::sync::mpsc::Sender;
-
 use hyakou_core::{
     Shared, SharedAccess, components::LightType, types::import_diagnostic::ImportDiagnostic,
 };
 use log::{debug, error, warn};
 
-use crate::{flow::RendererCommand, gpu::glTF::ImportedScene, renderer::Renderer};
+use crate::{
+    flow::{FlowCommandSender, RendererCommand},
+    gpu::glTF::ImportedScene,
+    renderer::SceneRenderer,
+};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::spawn_local;
 
 pub struct AssetUploadController {
-    tx: Sender<RendererCommand>,
+    commands: FlowCommandSender,
     #[cfg(target_arch = "wasm32")]
     upload_status_callback: Shared<Option<js_sys::Function>>,
 }
 
 impl AssetUploadController {
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn new(tx: Sender<RendererCommand>) -> Self {
-        Self { tx }
+    pub fn new(commands: FlowCommandSender) -> Self {
+        Self { commands }
     }
 
     #[cfg(target_arch = "wasm32")]
     pub fn new(
-        tx: Sender<RendererCommand>,
+        commands: FlowCommandSender,
         upload_status_callback: Shared<Option<js_sys::Function>>,
     ) -> Self {
         Self {
-            tx,
+            commands,
             upload_status_callback,
         }
     }
@@ -68,7 +70,7 @@ impl AssetUploadController {
 
         #[cfg(target_arch = "wasm32")]
         {
-            let tx = self.tx.clone();
+            let commands = self.commands.clone();
             spawn_local(async move {
                 use crate::gpu::glTF::GLTFLoader;
                 let gltf_loader = GLTFLoader::new();
@@ -89,7 +91,7 @@ impl AssetUploadController {
                     },
                 };
 
-                if tx.send(next_command).is_err() {
+                if !commands.send(next_command) {
                     warn!("Failed to send parsed asset command: flow channel closed");
                 }
             });
@@ -130,7 +132,7 @@ impl AssetUploadController {
 
         #[cfg(target_arch = "wasm32")]
         {
-            let tx = self.tx.clone();
+            let commands = self.commands.clone();
             spawn_local(async move {
                 use crate::gpu::glTF::GLTFLoader;
                 let gltf_loader = GLTFLoader::new();
@@ -149,7 +151,7 @@ impl AssetUploadController {
                     },
                 };
 
-                if tx.send(next_command).is_err() {
+                if !commands.send(next_command) {
                     warn!("Failed to send parsed asset command: flow channel closed");
                 }
             });
@@ -158,7 +160,7 @@ impl AssetUploadController {
 
     pub fn handle_apply_parsed_asset(
         &self,
-        renderer_slot: &Shared<Option<Renderer>>,
+        renderer_slot: &Shared<Option<SceneRenderer>>,
         id: String,
         file_name: String,
         asset_type: LightType,
@@ -193,7 +195,7 @@ impl AssetUploadController {
     }
 
     fn send_command(&self, command: RendererCommand) {
-        if self.tx.send(command).is_err() {
+        if !self.commands.send(command) {
             warn!("Failed to enqueue flow command: receiver dropped");
         }
     }

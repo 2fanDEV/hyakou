@@ -8,20 +8,25 @@ use winit::{
     window::{CursorGrabMode, Window},
 };
 
-use crate::renderer::{
-    Renderer,
-    handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
+use crate::{
+    flow::FlowCommandSender,
+    renderer::{
+        SceneRenderer,
+        handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
+    },
 };
 
 pub struct InputController {
+    _commands: FlowCommandSender,
     keyboard_handler: KeyboardHandler,
     mouse_handler: MouseHandler,
     mouse_delta: MouseDelta,
 }
 
 impl InputController {
-    pub fn new() -> Self {
+    pub fn new(commands: FlowCommandSender) -> Self {
         Self {
+            _commands: commands,
             keyboard_handler: KeyboardHandler::new(),
             mouse_handler: MouseHandler::new(),
             mouse_delta: MouseDelta::default(),
@@ -38,7 +43,7 @@ impl InputController {
 
     pub fn handle_keyboard_input(
         &mut self,
-        renderer_slot: &Shared<Option<Renderer>>,
+        renderer_slot: &Shared<Option<SceneRenderer>>,
         key: KeyCode,
         pressed: bool,
     ) {
@@ -56,7 +61,7 @@ impl InputController {
 
     pub fn handle_mouse_motion(
         &mut self,
-        renderer_slot: &Shared<Option<Renderer>>,
+        renderer_slot: &Shared<Option<SceneRenderer>>,
         dx: f64,
         dy: f64,
         dt: f32,
@@ -77,7 +82,7 @@ impl InputController {
 
     pub fn handle_mouse_button(
         &mut self,
-        renderer_slot: &Shared<Option<Renderer>>,
+        renderer_slot: &Shared<Option<SceneRenderer>>,
         window: Option<&Window>,
         button: MouseButton,
         pressed: bool,
@@ -113,7 +118,7 @@ impl InputController {
         });
     }
 
-    fn handle_input_event(renderer: &mut Renderer, event: InputEvent) {
+    fn handle_input_event(renderer: &mut SceneRenderer, event: InputEvent) {
         match event {
             InputEvent::ActionStarted(action) => {
                 renderer.camera_handler.handle_action(&action, true);
@@ -122,11 +127,5 @@ impl InputController {
                 renderer.camera_handler.handle_action(&action, false);
             }
         }
-    }
-}
-
-impl Default for InputController {
-    fn default() -> Self {
-        Self::new()
     }
 }

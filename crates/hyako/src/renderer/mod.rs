@@ -8,13 +8,13 @@ use crate::{
         render_mesh::RenderMesh,
     },
     renderer::{
-        frame::{FrameTarget, SurfaceFrame},
+        frame::FrameTarget,
         handlers::{asset_handler::AssetHandler, camera::CameraHandler},
         renderer_context::RenderContext,
         wrappers::WinitSurfaceProvider,
     },
 };
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use bytemuck::bytes_of;
 use glam::Vec3;
 use hyakou_core::{
@@ -36,9 +36,9 @@ use hyakou_core::{
 };
 use log::{error, warn};
 use wgpu::{
-    BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Device, Operations, Queue,
-    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RenderPipeline, SurfaceConfiguration, TextureView, TextureViewDescriptor,
+    BindGroup, Color, CommandEncoder, Device, Operations, Queue, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline, SurfaceConfiguration,
+    TextureView,
 };
 use winit::window::Window;
 
@@ -46,13 +46,12 @@ pub mod actions;
 pub mod frame;
 pub mod handlers;
 pub mod renderer_context;
+pub mod surface_frame_controller;
 pub mod util;
 pub mod wrappers;
 
-pub struct Renderer {
+pub struct SceneRenderer {
     ctx: RenderContext,
-    window: Arc<Window>,
-    frame_idx: u8,
     pub camera: Camera,
     camera_uniform: CameraUniform,
     camera_uniform_buffer: UniformBuffer,
@@ -65,7 +64,7 @@ pub struct Renderer {
     pub asset_manager: AssetHandler,
 }
 
-impl Renderer {
+impl SceneRenderer {
     pub async fn new(window: Arc<Window>) -> Result<Self> {
         const CAMERA_SPEED_UNITS_PER_SECOND: f32 = 20.0;
         const CAMERA_SENSITIVITY: f32 = 0.001;
@@ -168,7 +167,6 @@ impl Renderer {
         Ok(Self {
             ctx,
             asset_manager: asset_handler,
-            frame_idx: 0,
             camera_uniform,
             camera,
             camera_uniform_buffer,
@@ -178,18 +176,7 @@ impl Renderer {
             light_bind_group,
             animators,
             camera_handler: CameraHandler::new(CameraMode::ORBIT),
-            window,
         })
-    }
-
-    pub fn resize(&mut self, width: f64, height: f64) -> Result<()> {
-        let size = Self::size_from_dimensions(width, height);
-
-        if !size.is_zero() {
-            self.camera.set_aspect_from_size(size);
-        }
-
-        self.ctx.resize(size)
     }
 
     pub fn update(&mut self, delta_time: DeltaTime64) {
@@ -214,45 +201,6 @@ impl Renderer {
             0,
             bytes_of(&self.camera_uniform),
         );
-    }
-
-    pub fn begin_frame(&mut self) -> Result<Option<SurfaceFrame>> {
-        self.window.request_redraw();
-        if self.ctx.surface_configuration.is_none() || self.ctx.size.is_zero() {
-            return Ok(None);
-        }
-
-        let (output, should_reconfigure_surface) =
-            match self.ctx.surface.as_ref().unwrap().get_current_texture() {
-                wgpu::CurrentSurfaceTexture::Success(output) => (output, false),
-                wgpu::CurrentSurfaceTexture::Suboptimal(output) => (output, true),
-                surface_status => {
-                    self.handle_surface_acquisition_status(surface_status)?;
-                    return Ok(None);
-                }
-            };
-
-        let view = output
-            .texture
-            .create_view(&TextureViewDescriptor::default());
-        let encoder = self
-            .ctx
-            .device
-            .create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("Rendering Encoder"),
-            });
-        let depth_view = self.ctx.depth_texture.view.clone();
-        let size_in_pixels = [self.ctx.size.width, self.ctx.size.height];
-
-        Ok(Some(SurfaceFrame::new(
-            output,
-            encoder,
-            self.ctx.queue.clone(),
-            view,
-            depth_view,
-            size_in_pixels,
-            should_reconfigure_surface,
-        )))
     }
 
     pub fn render_scene(&mut self, target: &mut FrameTarget<'_>) {
@@ -318,57 +266,6 @@ impl Renderer {
                     target.depth_view,
                 );
             });
-    }
-
-    pub fn finish_frame(&mut self, frame: SurfaceFrame) -> Result<()> {
-        if frame.finish() {
-            self.ctx.resize(self.ctx.size)?;
-        }
-        self.frame_idx = (self.frame_idx + 1) % 1;
-        Ok(())
-    }
-
-    pub fn render(&mut self) -> Result<()> {
-        let Some(mut frame) = self.begin_frame()? else {
-            return Ok(());
-        };
-        {
-            let mut target = frame.target();
-            self.render_scene(&mut target);
-        }
-        self.finish_frame(frame)
-    }
-
-    fn handle_surface_acquisition_status(
-        &mut self,
-        surface_status: wgpu::CurrentSurfaceTexture,
-    ) -> Result<()> {
-        match surface_status {
-            wgpu::CurrentSurfaceTexture::Timeout => {
-                warn!("Timed out while acquiring the next surface texture; skipping frame");
-                Ok(())
-            }
-            wgpu::CurrentSurfaceTexture::Occluded => {
-                warn!("Surface is occluded while acquiring the next texture; skipping frame");
-                Ok(())
-            }
-            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
-                warn!("Recovering renderer surface after acquisition status: {surface_status:?}");
-                self.ctx.resize(self.ctx.size)
-            }
-            wgpu::CurrentSurfaceTexture::Validation => Err(anyhow!(
-                "Validation error while acquiring the next surface texture"
-            )),
-            wgpu::CurrentSurfaceTexture::Success(_)
-            | wgpu::CurrentSurfaceTexture::Suboptimal(_) => Ok(()),
-        }
-    }
-
-    fn size_from_dimensions(width: f64, height: f64) -> Size {
-        Size {
-            width: width.max(0.0).round() as u32,
-            height: height.max(0.0).round() as u32,
-        }
     }
 
     fn record_scene_pass_command_encoder(
@@ -467,24 +364,14 @@ impl Renderer {
     pub fn get_surface_configuration(&self) -> &SurfaceConfiguration {
         self.ctx.surface_configuration.as_ref().unwrap()
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use hyakou_core::types::Size;
+    pub(crate) fn render_context_mut(&mut self) -> &mut RenderContext {
+        &mut self.ctx
+    }
 
-    use crate::renderer::Renderer;
-
-    #[test]
-    fn test_size_from_dimensions_rounds_and_clamps_negative_values() {
-        let size = Renderer::size_from_dimensions(640.6, -5.2);
-
-        assert_eq!(
-            size,
-            Size {
-                width: 641,
-                height: 0,
-            }
-        );
+    pub(crate) fn set_camera_aspect_from_size(&mut self, size: Size) {
+        if !size.is_zero() {
+            self.camera.set_aspect_from_size(size);
+        }
     }
 }

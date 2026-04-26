@@ -9,24 +9,32 @@ use winit::window::Window;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::spawn_local;
 
-use crate::{flow::FrameComposer, gui::EguiRenderer, renderer::Renderer};
+use crate::{
+    flow::{FlowCommandSender, FrameComposer},
+    gui::EguiRenderer,
+    renderer::{SceneRenderer, surface_frame_controller::SurfaceFrameController},
+};
 
-pub struct RendererLifecycleController {
-    renderer: Shared<Option<Renderer>>,
+pub struct RenderController {
+    _commands: FlowCommandSender,
+    surface_frame_controller: SurfaceFrameController,
+    renderer: Shared<Option<SceneRenderer>>,
     egui_renderer: Shared<Option<EguiRenderer>>,
     window: Option<Arc<Window>>,
 }
 
-impl RendererLifecycleController {
-    pub fn new() -> Self {
+impl RenderController {
+    pub fn new(commands: FlowCommandSender) -> Self {
         Self {
+            _commands: commands,
+            surface_frame_controller: SurfaceFrameController::new(),
             renderer: shared(None),
             egui_renderer: shared(None),
             window: None,
         }
     }
 
-    pub fn renderer(&self) -> Shared<Option<Renderer>> {
+    pub fn renderer(&self) -> Shared<Option<SceneRenderer>> {
         self.renderer.clone()
     }
 
@@ -55,7 +63,7 @@ impl RendererLifecycleController {
         }
 
         #[cfg(not(target_arch = "wasm32"))]
-        match pollster::block_on(Renderer::new(window)) {
+        match pollster::block_on(SceneRenderer::new(window)) {
             Ok(renderer) => {
                 let _ = self
                     .renderer
@@ -73,7 +81,7 @@ impl RendererLifecycleController {
         {
             let renderer_slot = self.renderer.clone();
             spawn_local(async move {
-                match Renderer::new(window.clone()).await {
+                match SceneRenderer::new(window.clone()).await {
                     Ok(renderer) => {
                         let Some(()) = renderer_slot
                             .try_write_shared(|slot| *slot = Some(renderer))
@@ -95,12 +103,17 @@ impl RendererLifecycleController {
     }
 
     pub fn handle_resize(&mut self, width: f64, height: f64) {
+        let surface_frame_controller = &mut self.surface_frame_controller;
         if let Err(lock_error) = self.renderer.try_write_shared(|renderer| {
             let Some(renderer) = renderer.as_mut() else {
                 return;
             };
 
-            if let Err(resize_error) = renderer.resize(width, height) {
+            let size = SurfaceFrameController::size_from_dimensions(width, height);
+            renderer.set_camera_aspect_from_size(size);
+            if let Err(resize_error) =
+                surface_frame_controller.resize(renderer.render_context_mut(), size)
+            {
                 error!("Failed to resize renderer: {resize_error:?}");
             }
         }) {
@@ -109,13 +122,24 @@ impl RendererLifecycleController {
     }
 
     pub fn render_frame(&mut self, frame_composer: &mut FrameComposer, dt: f64) {
+        let Some(window) = self.window.clone() else {
+            return;
+        };
+        let surface_frame_controller = &mut self.surface_frame_controller;
         let _ = self.renderer.try_write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
                 return;
             };
 
             let render_result = self.egui_renderer.try_write_shared(|egui_renderer| {
-                frame_composer.render_frame(renderer, egui_renderer.as_mut(), dt)
+                Self::render_locked_frame(
+                    surface_frame_controller,
+                    &window,
+                    frame_composer,
+                    renderer,
+                    egui_renderer.as_mut(),
+                    dt,
+                )
             });
 
             match render_result {
@@ -127,12 +151,54 @@ impl RendererLifecycleController {
                     warn!(
                         "Rendering frame without egui because renderer slot is busy: {lock_error:?}"
                     );
-                    if let Err(render_error) = frame_composer.render_frame(renderer, None, dt) {
+                    if let Err(render_error) = Self::render_locked_frame(
+                        surface_frame_controller,
+                        &window,
+                        frame_composer,
+                        renderer,
+                        None,
+                        dt,
+                    ) {
                         error!("Renderer frame composition failed: {render_error:?}");
                     }
                 }
             }
         });
+    }
+
+    fn render_locked_frame(
+        surface_frame_controller: &mut SurfaceFrameController,
+        window: &Window,
+        frame_composer: &mut FrameComposer,
+        renderer: &mut SceneRenderer,
+        mut egui_renderer: Option<&mut EguiRenderer>,
+        dt: f64,
+    ) -> anyhow::Result<()> {
+        renderer.update(dt);
+
+        let Some(mut frame) =
+            surface_frame_controller.begin_frame(window, renderer.render_context_mut())?
+        else {
+            return Ok(());
+        };
+
+        {
+            let mut target = frame.target();
+            frame_composer.compose_frame(
+                &mut target,
+                renderer,
+                egui_renderer.as_mut().map(|renderer| &mut **renderer),
+            );
+        }
+
+        let finish_result =
+            surface_frame_controller.finish_frame(renderer.render_context_mut(), frame);
+
+        if let Some(egui_renderer) = egui_renderer.as_mut() {
+            egui_renderer.free_textures_after_submit();
+        }
+
+        finish_result
     }
 
     pub fn animate_camera(&mut self, request: CameraAnimationRequest) {
@@ -182,11 +248,5 @@ impl RendererLifecycleController {
         self.egui_renderer
             .try_write_shared(|slot| *slot = egui_renderer)
             .unwrap();
-    }
-}
-
-impl Default for RendererLifecycleController {
-    fn default() -> Self {
-        Self::new()
     }
 }
