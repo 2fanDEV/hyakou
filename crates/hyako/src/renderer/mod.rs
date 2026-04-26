@@ -37,7 +37,7 @@ use log::{error, warn};
 use wgpu::{
     BindGroup, Color, CommandEncoder, CommandEncoderDescriptor, Operations, Queue,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RenderPipeline, SurfaceError, TextureView, TextureViewDescriptor,
+    RenderPipeline, TextureView, TextureViewDescriptor,
 };
 use winit::window::Window;
 
@@ -220,10 +220,12 @@ impl Renderer {
             return Ok(());
         }
 
-        let output = match self.ctx.surface.as_ref().unwrap().get_current_texture() {
-            Ok(output) => output,
-            Err(surface_error) => return self.handle_surface_error(surface_error),
-        };
+        let (output, should_reconfigure_surface) =
+            match self.ctx.surface.as_ref().unwrap().get_current_texture() {
+                wgpu::CurrentSurfaceTexture::Success(output) => (output, false),
+                wgpu::CurrentSurfaceTexture::Suboptimal(output) => (output, true),
+                surface_status => return self.handle_surface_acquisition_status(surface_status),
+            };
 
         let view = output
             .texture
@@ -311,23 +313,35 @@ impl Renderer {
             .submit(std::iter::once(clear_encoder.finish()));
         self.ctx.queue.submit(std::iter::once(encoder.finish()));
         output.present();
+        if should_reconfigure_surface {
+            self.ctx.resize(self.ctx.size)?;
+        }
         self.frame_idx = (self.frame_idx + 1) % 1;
         Ok(())
     }
 
-    fn handle_surface_error(&mut self, surface_error: SurfaceError) -> Result<()> {
-        match surface_error {
-            SurfaceError::Timeout => {
+    fn handle_surface_acquisition_status(
+        &mut self,
+        surface_status: wgpu::CurrentSurfaceTexture,
+    ) -> Result<()> {
+        match surface_status {
+            wgpu::CurrentSurfaceTexture::Timeout => {
                 warn!("Timed out while acquiring the next surface texture; skipping frame");
                 Ok(())
             }
-            SurfaceError::Outdated | SurfaceError::Lost | SurfaceError::Other => {
-                warn!("Recovering renderer surface after resize-related error: {surface_error}");
+            wgpu::CurrentSurfaceTexture::Occluded => {
+                warn!("Surface is occluded while acquiring the next texture; skipping frame");
+                Ok(())
+            }
+            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
+                warn!("Recovering renderer surface after acquisition status: {surface_status:?}");
                 self.ctx.resize(self.ctx.size)
             }
-            SurfaceError::OutOfMemory => Err(anyhow!(
-                "Renderer ran out of memory while acquiring the next surface texture"
+            wgpu::CurrentSurfaceTexture::Validation => Err(anyhow!(
+                "Validation error while acquiring the next surface texture"
             )),
+            wgpu::CurrentSurfaceTexture::Success(_)
+            | wgpu::CurrentSurfaceTexture::Suboptimal(_) => Ok(()),
         }
     }
 
