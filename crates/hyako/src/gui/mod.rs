@@ -3,15 +3,13 @@ use std::sync::Arc;
 use egui::{Context, TextureId, ViewportId};
 use egui_wgpu::{RendererOptions, ScreenDescriptor};
 use egui_winit::State;
-use wgpu::{
-    Device, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor, StoreOp,
-    TextureFormat,
-};
+use wgpu::{Device, RenderPassColorAttachment, RenderPassDescriptor, TextureFormat};
 use winit::window::Window;
 
 use crate::{gui::panels::EguiPanel, renderer::frame::FrameTarget};
 
 pub mod panels;
+mod render_pass;
 
 pub struct EguiRenderer {
     state: State,
@@ -86,15 +84,12 @@ impl EguiRenderer {
                 view: target.color_view,
                 depth_slice: None,
                 resolve_target: None,
-                ops: Operations {
-                    load: LoadOp::Load,
-                    store: StoreOp::Store,
-                },
+                ops: render_pass::color_attachment_operations(),
             })];
             let render_pass_descriptor = RenderPassDescriptor {
                 label: Some("Egui Render Pass"),
                 color_attachments: &color_attachments,
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: render_pass::depth_stencil_attachment(),
                 timestamp_writes: None,
                 occlusion_query_set: None,
                 multiview_mask: None,
