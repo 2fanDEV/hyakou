@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use egui::{Context, TextureId, Ui, ViewportId};
+use egui::{Context, FontData, FontDefinitions, FontFamily, TextureId, Ui, ViewportId};
 use egui_wgpu::{RendererOptions, ScreenDescriptor};
 use egui_winit::State;
 use wgpu::{Device, RenderPassColorAttachment, RenderPassDescriptor, TextureFormat};
@@ -11,6 +11,11 @@ use crate::renderer::frame::FrameTarget;
 pub mod panels;
 pub mod primitives;
 mod render_pass;
+pub mod widgets;
+
+pub const BOLD_FONT_FAMILY: &str = "hyako_bold";
+const BOLD_FONT_NAME: &str = "NotoSans-Bold";
+const BOLD_FONT_BYTES: &[u8] = include_bytes!("../../assets/fonts/NotoSans-Bold.ttf");
 
 pub struct EguiRenderer {
     state: State,
@@ -29,6 +34,7 @@ impl EguiRenderer {
         opt: RendererOptions,
     ) -> Self {
         let context = Context::default();
+        configure_fonts(&context);
         Self {
             state: State::new(
                 context.clone(),
@@ -108,4 +114,17 @@ impl EguiRenderer {
             self.renderer.free_texture(&id);
         }
     }
+}
+
+fn configure_fonts(context: &Context) {
+    let mut fonts = FontDefinitions::default();
+    fonts.font_data.insert(
+        BOLD_FONT_NAME.to_owned(),
+        Arc::new(FontData::from_static(BOLD_FONT_BYTES)),
+    );
+    fonts.families.insert(
+        FontFamily::Name(BOLD_FONT_FAMILY.into()),
+        vec![BOLD_FONT_NAME.to_owned()],
+    );
+    context.set_fonts(fonts);
 }
