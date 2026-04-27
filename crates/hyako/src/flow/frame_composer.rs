@@ -23,7 +23,9 @@ impl FrameComposer {
     ) {
         renderer.render_scene(target);
         if let Some(egui_renderer) = egui_renderer.as_mut() {
-            egui_renderer.render(target, &mut self.camera_panel);
+            egui_renderer.render(target, |ui| {
+                self.camera_panel.show(ui.ctx());
+            });
         }
     }
 }

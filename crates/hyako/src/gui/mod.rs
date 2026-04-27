@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
-use egui::{Context, TextureId, ViewportId};
+use egui::{Context, TextureId, Ui, ViewportId};
 use egui_wgpu::{RendererOptions, ScreenDescriptor};
 use egui_winit::State;
 use wgpu::{Device, RenderPassColorAttachment, RenderPassDescriptor, TextureFormat};
 use winit::window::Window;
 
-use crate::{gui::panels::EguiPanel, renderer::frame::FrameTarget};
+use crate::renderer::frame::FrameTarget;
 
 pub mod panels;
+pub mod primitives;
 mod render_pass;
 
 pub struct EguiRenderer {
@@ -49,33 +50,31 @@ impl EguiRenderer {
         self.state.on_window_event(&self.window, event).consumed
     }
 
-    pub fn render(&mut self, target: &mut FrameTarget<'_>, ui: &mut dyn EguiPanel) {
-        if !ui.should_be_rendered() {
-            return;
-        }
-
+    pub fn render(&mut self, target: &mut FrameTarget<'_>, mut render_ui: impl FnMut(&mut Ui)) {
         let egui_input = self.state.take_egui_input(&self.window);
-        let primitives = ui.generate(&self.context, egui_input);
+        let output = self.context.run_ui(egui_input, |ui| render_ui(ui));
         self.state
-            .handle_platform_output(&self.window, primitives.platform_output);
+            .handle_platform_output(&self.window, output.platform_output);
+        let pixels_per_point = output.pixels_per_point;
+        let clipped_primitives = self.context.tessellate(output.shapes, pixels_per_point);
 
         let screen_descriptor = ScreenDescriptor {
             size_in_pixels: target.size_in_pixels,
-            pixels_per_point: primitives.pixels_per_point,
+            pixels_per_point,
         };
 
-        for (id, image_delta) in &primitives.textures_delta.set {
+        for (id, image_delta) in &output.textures_delta.set {
             self.renderer
                 .update_texture(&self.device, target.queue, *id, image_delta);
         }
         self.textures_to_free
-            .extend(primitives.textures_delta.free.iter().cloned());
+            .extend(output.textures_delta.free.iter().cloned());
 
         self.renderer.update_buffers(
             &self.device,
             target.queue,
             target.encoder,
-            &primitives.clipped_primitives,
+            &clipped_primitives,
             &screen_descriptor,
         );
 
@@ -99,11 +98,8 @@ impl EguiRenderer {
                 .begin_render_pass(&render_pass_descriptor)
                 .forget_lifetime();
 
-            self.renderer.render(
-                &mut render_pass,
-                &primitives.clipped_primitives,
-                &screen_descriptor,
-            );
+            self.renderer
+                .render(&mut render_pass, &clipped_primitives, &screen_descriptor);
         }
     }
 

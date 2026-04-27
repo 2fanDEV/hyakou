@@ -1,7 +1,5 @@
-use egui::{Context, RawInput};
+use egui::Context;
 use log::debug;
-
-use crate::gui::panels::{EguiPanel, GeneratedPanelOutput};
 
 pub struct CameraPanel {
     open: bool,
@@ -28,32 +26,28 @@ impl CameraPanel {
     }
 }
 
-impl EguiPanel for CameraPanel {
-    fn generate(&mut self, context: &Context, raw_input: RawInput) -> GeneratedPanelOutput {
-        let output = context.run_ui(raw_input, |ui| {
-            egui::Window::new("Camera")
-                .open(&mut self.open)
-                .show(ui.ctx(), |ui| {
-                    ui.label("Camera");
-                    ui.add(egui::Slider::new(&mut self.speed, 0.0..=100.0).text("Speed"));
-                    if ui.button("Translate").clicked() {
-                        debug!("Translation begun!")
-                    }
-                });
-        });
-        GeneratedPanelOutput {
-            clipped_primitives: context.tessellate(output.shapes, output.pixels_per_point),
-            pixels_per_point: output.pixels_per_point,
-            textures_delta: output.textures_delta,
-            platform_output: output.platform_output,
+impl CameraPanel {
+    pub fn show(&mut self, context: &Context) {
+        if !self.is_rendered {
+            return;
         }
+
+        egui::Window::new("Camera")
+            .open(&mut self.open)
+            .show(context, |ui| {
+                ui.label("Camera");
+                ui.add(egui::Slider::new(&mut self.speed, 0.0..=100.0).text("Speed"));
+                if ui.button("Translate").clicked() {
+                    debug!("Translation begun!")
+                }
+            });
     }
 
-    fn should_be_rendered(&self) -> bool {
+    pub fn should_be_rendered(&self) -> bool {
         self.is_rendered
     }
 
-    fn rendered(&mut self, render: bool) {
+    pub fn rendered(&mut self, render: bool) {
         self.is_rendered = render;
     }
 }
