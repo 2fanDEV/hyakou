@@ -1,8 +1,8 @@
-use glam::Vec3;
+use glam::{Vec2, Vec3};
 
 use crate::{
     components::camera::camera::Camera,
-    geometry::ray::{ray_from_screen, screen_to_ndc},
+    geometry::ray::{ndc_to_world, ray_from_screen, screen_to_ndc},
     types::{
         Size,
         camera::{Pitch, Yaw},
@@ -76,6 +76,24 @@ fn screen_to_ndc_rejects_zero_size() {
     );
 
     assert!(ndc.is_none());
+}
+
+#[test]
+fn ndc_to_world_unprojects_center_to_near_plane() {
+    let camera = create_test_camera();
+    let world = ndc_to_world(&camera, Vec2::ZERO, 0.0).unwrap();
+
+    assert!((world.x - 0.0).abs() < 0.0001);
+    assert!((world.y - 0.0).abs() < 0.0001);
+    assert!((world.z - 9.9).abs() < 0.0001);
+}
+
+#[test]
+fn ndc_to_world_rejects_depth_outside_clip_range() {
+    let camera = create_test_camera();
+
+    assert!(ndc_to_world(&camera, Vec2::ZERO, -0.1).is_none());
+    assert!(ndc_to_world(&camera, Vec2::ZERO, 1.1).is_none());
 }
 
 #[test]
