@@ -26,7 +26,7 @@ use hyakou_core::{
 
 use crate::{
     flow::{FlowController, FlowHandle, RendererCommand},
-    renderer::Renderer,
+    renderer::SceneRenderer,
 };
 
 pub struct AppState {
@@ -52,7 +52,7 @@ impl AppState {
         })
     }
 
-    pub fn get_renderer(&self) -> Shared<Option<Renderer>> {
+    pub fn get_renderer(&self) -> Shared<Option<SceneRenderer>> {
         self.flow_controller.get_renderer()
     }
 
@@ -151,24 +151,38 @@ impl ApplicationHandler<Event> for AppState {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        let egui_consumed = self.flow_controller.handle_egui_window_event(&event);
+
         match event {
             WindowEvent::RedrawRequested => {
                 let delta = self.get_and_update_last_frame_time();
                 self.send_and_drain(RendererCommand::Redraw { dt: delta });
             }
             WindowEvent::CursorEntered { .. } => {
+                if egui_consumed {
+                    return;
+                }
                 self.send_and_drain(RendererCommand::CursorInWindow { is_inside: true });
             }
             WindowEvent::CursorMoved { position, .. } => {
+                if egui_consumed {
+                    return;
+                }
                 self.send_and_drain(RendererCommand::CursorMoved {
                     x: position.x,
                     y: position.y,
                 });
             }
             WindowEvent::CursorLeft { .. } => {
+                if egui_consumed {
+                    return;
+                }
                 self.send_and_drain(RendererCommand::CursorInWindow { is_inside: false });
             }
             WindowEvent::KeyboardInput { event, .. } => {
+                if egui_consumed {
+                    return;
+                }
                 let PhysicalKey::Code(key) = event.physical_key else {
                     return;
                 };

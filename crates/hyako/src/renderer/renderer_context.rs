@@ -58,11 +58,10 @@ impl RenderContext {
         // #[cfg(target_os = "linux")]
         // let backends = Backends::PRIMARY;
 
-        let instance = wgpu::Instance::new(&InstanceDescriptor {
-            backends,
-            flags: InstanceFlags::debugging(),
-            ..Default::default()
-        });
+        let mut instance_descriptor = InstanceDescriptor::new_without_display_handle();
+        instance_descriptor.backends = backends;
+        instance_descriptor.flags = InstanceFlags::debugging();
+        let instance = wgpu::Instance::new(instance_descriptor);
 
         let surface = match provider.as_ref() {
             Some(prov) => prov.create_surface(&instance),
@@ -124,16 +123,16 @@ impl RenderContext {
         let bind_group_layouts =
             if let Some(model_bind_group_layout) = model_bind_group_layout.as_ref() {
                 vec![
-                    &camera_bind_group_layout,
-                    &light_bind_group_layout,
-                    model_bind_group_layout,
-                    &material_bind_group_layout,
+                    Some(&camera_bind_group_layout),
+                    Some(&light_bind_group_layout),
+                    Some(model_bind_group_layout),
+                    Some(&material_bind_group_layout),
                 ]
             } else {
                 vec![
-                    &camera_bind_group_layout,
-                    &light_bind_group_layout,
-                    &material_bind_group_layout,
+                    Some(&camera_bind_group_layout),
+                    Some(&light_bind_group_layout),
+                    Some(&material_bind_group_layout),
                 ]
             };
         let render_pipeline_layout =
@@ -189,7 +188,6 @@ impl RenderContext {
         })
     }
 
-    // requires winit window, no test until figured out how to do headless
     pub fn resize(&mut self, size: Size) -> Result<()> {
         self.size = size;
 
