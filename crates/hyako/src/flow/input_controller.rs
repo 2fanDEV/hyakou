@@ -2,7 +2,10 @@ use anyhow::Result;
 use hyakou_core::{
     Shared, SharedAccess,
     geometry::ray::{Ray, ray_from_screen},
-    types::mouse_delta::{MouseAction, MouseButton, MouseDelta, MousePosition, MouseState},
+    types::{
+        mouse_delta::{MouseAction, MouseButton, MouseDelta, MousePosition, MouseState},
+        selection::SelectionScope,
+    },
 };
 use log::{debug, error};
 use strum::IntoDiscriminant;
@@ -131,7 +134,10 @@ impl InputController {
                     PointerInteraction::None => {}
                     PointerInteraction::PendingClick { .. } => {
                         let ray = self.create_ray(renderer_slot)?;
-                        self._commands.send(RendererCommand::RayCast { ray });
+                        self._commands.send(RendererCommand::RayCast {
+                            ray,
+                            scope: self.selection_scope(),
+                        });
                     }
                     PointerInteraction::Dragging => {
                         self.enqueue_events(renderer_slot, button, pressed);
@@ -169,6 +175,14 @@ impl InputController {
             Err(e) => return Err(e),
         };
         Ok(ray)
+    }
+
+    fn selection_scope(&self) -> SelectionScope {
+        if self.keyboard_handler.is_shift_pressed() {
+            SelectionScope::Node
+        } else {
+            SelectionScope::Object
+        }
     }
 
     fn enqueue_events(

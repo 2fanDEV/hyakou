@@ -18,7 +18,7 @@ use crate::gpu::{
 
 use hyakou_core::{
     components::{LightType, mesh_node::MeshNode},
-    types::{ModelMatrixBindingMode, ids::MeshId},
+    types::{ModelMatrixBindingMode, ids::MeshId, selection::SelectionScope},
 };
 
 #[derive(Debug)]
@@ -31,6 +31,8 @@ pub struct AssetHandler {
     gltf_loader: GLTFLoader,
     memory_loaded_assets: HashMap<String, Rc<RenderMesh>>,
     visible_assets: HashSet<String>,
+    asset_groups: HashMap<String, Vec<MeshId>>,
+    mesh_asset_groups: HashMap<MeshId, String>,
 }
 
 impl AssetHandler {
@@ -45,6 +47,8 @@ impl AssetHandler {
             memory_loaded_assets: HashMap::new(),
             gltf_loader: GLTFLoader::new(),
             visible_assets: HashSet::new(),
+            asset_groups: HashMap::new(),
+            mesh_asset_groups: HashMap::new(),
             device,
             queue,
             model_binding_mode,
@@ -129,9 +133,11 @@ impl AssetHandler {
     ) -> Option<Rc<RenderMesh>> {
         let base_id = id;
         let mut render_mesh: Option<Rc<RenderMesh>> = None;
+        let mut group_mesh_ids = Vec::new();
 
         for (idx, node) in mesh_nodes.into_iter().enumerate() {
             let mesh_id = format!("{base_id}_{idx}");
+            let mesh_id = MeshId(mesh_id);
             let material = node
                 .material_index
                 .and_then(|material_index| materials.get(material_index).cloned())
@@ -141,14 +147,21 @@ impl AssetHandler {
                 node,
                 material,
                 &light_type,
-                Some(MeshId(mesh_id.clone())),
+                Some(mesh_id.clone()),
                 self.model_binding_mode,
                 self.model_bind_group_layout.as_ref(),
             ));
             self.memory_loaded_assets
-                .insert(mesh_id.clone(), next_mesh.clone());
-            self.visible_assets.insert(mesh_id);
+                .insert(mesh_id.0.clone(), next_mesh.clone());
+            self.visible_assets.insert(mesh_id.0.clone());
+            self.mesh_asset_groups
+                .insert(mesh_id.clone(), base_id.clone());
+            group_mesh_ids.push(mesh_id);
             render_mesh = Some(next_mesh);
+        }
+
+        if !group_mesh_ids.is_empty() {
+            self.asset_groups.insert(base_id, group_mesh_ids);
         }
 
         render_mesh
@@ -262,6 +275,18 @@ impl AssetHandler {
         }
 
         self.memory_loaded_assets.get(&id.0)
+    }
+
+    pub fn selection_ids_for(&self, hit_mesh_id: &MeshId, scope: SelectionScope) -> Vec<MeshId> {
+        match scope {
+            SelectionScope::Node => vec![hit_mesh_id.clone()],
+            SelectionScope::Object => self
+                .mesh_asset_groups
+                .get(hit_mesh_id)
+                .and_then(|group_id| self.asset_groups.get(group_id))
+                .cloned()
+                .unwrap_or_else(|| vec![hit_mesh_id.clone()]),
+        }
     }
 
     pub fn toggle_visibility(&mut self, id: String) {

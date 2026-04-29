@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use hyakou_core::{
-    Shared, SharedAccess, components::camera::data_structures::CameraAnimationRequest,
-    geometry::ray::Ray, shared, types::ids::MeshId,
+    Shared, SharedAccess,
+    components::camera::data_structures::CameraAnimationRequest,
+    geometry::ray::Ray,
+    shared,
+    types::{ids::MeshId, selection::SelectionScope},
 };
 use log::{error, warn};
 use winit::window::Window;
@@ -241,13 +244,13 @@ impl RenderController {
         }
     }
 
-    pub fn select_mesh(&self, mesh_id: MeshId) {
+    pub fn select_mesh(&self, mesh_id: MeshId, scope: SelectionScope) {
         if let Err(lock_error) = self.renderer.try_write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
                 return;
             };
 
-            renderer.select_mesh(mesh_id);
+            renderer.select_mesh(mesh_id, scope);
         }) {
             warn!("Failed to acquire renderer lock during mesh selection: {lock_error:?}");
         }

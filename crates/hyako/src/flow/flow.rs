@@ -161,10 +161,10 @@ impl FlowController {
                 self.render_controller
                     .render_frame(&mut self.frame_composer, dt);
             }
-            RendererCommand::RayCast { ray } => {
+            RendererCommand::RayCast { ray, scope } => {
                 if let Some(mesh_id) = self.render_controller.ray_cast(ray) {
                     debug!("Ray hit mesh: {}", mesh_id.0);
-                    self.render_controller.select_mesh(mesh_id);
+                    self.render_controller.select_mesh(mesh_id, scope);
                 } else {
                     debug!("Ray missed all visible meshes");
                     self.render_controller.clear_selection();
