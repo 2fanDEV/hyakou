@@ -256,6 +256,14 @@ impl AssetHandler {
             .filter_map(|id| self.memory_loaded_assets.get(id))
     }
 
+    pub fn get_visible_asset(&self, id: &MeshId) -> Option<&Rc<RenderMesh>> {
+        if !self.visible_assets.contains(&id.0) {
+            return None;
+        }
+
+        self.memory_loaded_assets.get(&id.0)
+    }
+
     pub fn toggle_visibility(&mut self, id: String) {
         let asset_id = self.visible_assets.iter().find(|elem| elem.eq(&&id));
         if asset_id.is_some() {

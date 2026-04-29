@@ -44,7 +44,6 @@ impl LinearTrajectory {
     pub fn new_deconstructed_mesh(
         id: MeshId,
         transform: Shared<Transform>,
-        start_position: Vec3,
         yaw_radians: f32,
         pitch_radians: f32,
         distance: f32,
@@ -55,6 +54,7 @@ impl LinearTrajectory {
         if distance == 0.0 || speed == 0.0 {
             return Err(anyhow!("Distance and speed must be non-zero!"));
         }
+        let start_position = transform.read_shared(|transform| transform.position);
         Ok(Self {
             id,
             transform,
@@ -141,11 +141,9 @@ mod tests {
     #[test]
     fn test_linear_trajectory_forward_movement() {
         let transform = shared::<Transform>(Transform::default());
-        let start_pos = Vec3::new(0.0, 0.0, 0.0);
         let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
             MeshId("Test".to_string()),
             transform.clone(),
-            start_pos,
             0.0,   // yaw: move along X axis
             0.0,   // pitch: no vertical component
             10.0,  // distance: 10 units
@@ -169,11 +167,9 @@ mod tests {
     #[test]
     fn test_linear_trajectory_bounce_at_boundaries() {
         let transform = shared::<Transform>(Transform::default());
-        let start_pos = Vec3::new(0.0, 0.0, 0.0);
         let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
             MeshId("Test1".to_string()),
             transform.clone(),
-            start_pos,
             f32::to_radians(90.0), // yaw: move along Y axis
             f32::to_radians(0.0),  // pitch
             4.0,                   // distance: 4 units
@@ -204,12 +200,11 @@ mod tests {
 
     #[test]
     fn test_linear_trajectory_reset() {
-        let transform = shared(Transform::default());
         let start_pos = Vec3::new(5.0, 10.0, -3.0);
+        let transform = shared(Transform::new(start_pos, glam::Quat::IDENTITY, Vec3::ONE));
         let mut trajectory = LinearTrajectory::new_deconstructed_mesh(
             MeshId("Test".to_string()),
             transform.clone(),
-            start_pos,
             45.0,
             0.0,
             8.0,
