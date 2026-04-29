@@ -157,12 +157,7 @@ impl InputController {
         Ok(())
     }
 
-    fn create_ray(
-        &self,
-        renderer_slot: &std::sync::Arc<
-            parking_lot::lock_api::RwLock<parking_lot::RawRwLock, Option<SceneRenderer>>,
-        >,
-    ) -> Result<Ray> {
+    fn create_ray(&self, renderer_slot: &Shared<Option<SceneRenderer>>) -> Result<Ray> {
         let ray = match renderer_slot.read_shared(|slot| {
             let scene_renderer = slot.as_ref().unwrap();
             let x = self.mouse_delta.position.x() as f32;
@@ -178,9 +173,7 @@ impl InputController {
 
     fn enqueue_events(
         &mut self,
-        renderer_slot: &std::sync::Arc<
-            parking_lot::lock_api::RwLock<parking_lot::RawRwLock, Option<SceneRenderer>>,
-        >,
+        renderer_slot: &Shared<Option<SceneRenderer>>,
         button: MouseButton,
         pressed: bool,
     ) {

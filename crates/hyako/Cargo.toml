@@ -27,7 +27,8 @@ futures = "0.3.32"
 hyakou_core = { path = "../core" }
 egui = "0.34.1"
 egui-wgpu = "0.34.1"
-egui-winit = "0.34.1"
+egui-winit = { version = "0.34.1", default-features = false }
+
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4.54"

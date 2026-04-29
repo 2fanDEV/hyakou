@@ -241,6 +241,30 @@ impl RenderController {
         }
     }
 
+    pub fn select_mesh(&self, mesh_id: MeshId) {
+        if let Err(lock_error) = self.renderer.try_write_shared(|renderer_slot| {
+            let Some(renderer) = renderer_slot.as_mut() else {
+                return;
+            };
+
+            renderer.select_mesh(mesh_id);
+        }) {
+            warn!("Failed to acquire renderer lock during mesh selection: {lock_error:?}");
+        }
+    }
+
+    pub fn clear_selection(&self) {
+        if let Err(lock_error) = self.renderer.try_write_shared(|renderer_slot| {
+            let Some(renderer) = renderer_slot.as_mut() else {
+                return;
+            };
+
+            renderer.clear_selection();
+        }) {
+            warn!("Failed to acquire renderer lock while clearing selection: {lock_error:?}");
+        }
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     fn create_egui_renderer(&mut self) {
         let egui_renderer = self
