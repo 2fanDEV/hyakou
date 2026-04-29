@@ -33,6 +33,7 @@ use hyakou_core::{
         DeltaTime64, ModelMatrixBindingMode, Size, TransformBuffer,
         camera::{Pitch, Yaw},
         ids::{MeshId, UniformBufferId},
+        selection::SelectionScope,
         transform::Transform,
     },
 };
@@ -63,7 +64,7 @@ pub struct SceneRenderer {
     outline_uniform: OutlineUniform,
     outline_uniform_buffer: UniformBuffer,
     outline_bind_group: BindGroup,
-    selected_mesh_id: Option<MeshId>,
+    selected_mesh_ids: Vec<MeshId>,
     animators: HashMap<MeshId, Animator>,
     pub camera_handler: CameraHandler,
     pub asset_manager: AssetHandler,
@@ -194,7 +195,7 @@ impl SceneRenderer {
             outline_uniform,
             outline_uniform_buffer,
             outline_bind_group,
-            selected_mesh_id: None,
+            selected_mesh_ids: Vec::new(),
             animators,
             camera_handler: CameraHandler::new(CameraMode::ORBIT),
         })
@@ -224,12 +225,12 @@ impl SceneRenderer {
         );
     }
 
-    pub fn select_mesh(&mut self, mesh_id: MeshId) {
-        self.selected_mesh_id = Some(mesh_id);
+    pub fn select_mesh(&mut self, mesh_id: MeshId, scope: SelectionScope) {
+        self.selected_mesh_ids = self.asset_manager.selection_ids_for(&mesh_id, scope);
     }
 
     pub fn clear_selection(&mut self) {
-        self.selected_mesh_id = None;
+        self.selected_mesh_ids.clear();
     }
 
     pub fn set_outline_color(&mut self, color: Vec4) {
@@ -303,21 +304,54 @@ impl SceneRenderer {
     }
 
     fn render_selected_outline(&mut self, target: &mut FrameTarget<'_>) {
-        let Some(selected_mesh_id) = self.selected_mesh_id.as_ref() else {
+        if self.selected_mesh_ids.is_empty() {
             return;
-        };
-        let Some(render_mesh) = self.asset_manager.get_visible_asset(selected_mesh_id) else {
-            return;
-        };
+        }
 
-        Self::record_outline_pass_command_encoder(
-            target,
-            render_mesh,
-            &self.ctx.outline_render_pipeline,
-            self.ctx.model_binding_mode,
-            &self.camera_bind_group,
+        let mut render_pass = target.encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Outline Command Buffer"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: target.color_view,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            multiview_mask: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                view: target.depth_view,
+                depth_ops: Some(Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+        });
+
+        render_pass.set_pipeline(&self.ctx.outline_render_pipeline);
+        render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+        render_pass.set_bind_group(
+            Self::outline_bind_group_index(self.ctx.model_binding_mode),
             &self.outline_bind_group,
+            &[],
         );
+
+        for selected_mesh_id in &self.selected_mesh_ids {
+            let Some(render_mesh) = self.asset_manager.get_visible_asset(selected_mesh_id) else {
+                continue;
+            };
+
+            Self::record_outline_draw_commands(
+                &mut render_pass,
+                render_mesh,
+                target.queue,
+                self.ctx.model_binding_mode,
+            );
+        }
     }
 
     fn record_scene_pass_command_encoder(
@@ -375,53 +409,14 @@ impl SceneRenderer {
         render_pass.draw_indexed(0..render_mesh.index_count, 0, 0..1);
     }
 
-    fn record_outline_pass_command_encoder(
-        target: &mut FrameTarget<'_>,
+    fn record_outline_draw_commands(
+        render_pass: &mut wgpu::RenderPass<'_>,
         render_mesh: &RenderMesh,
-        render_pipeline: &RenderPipeline,
+        queue: &Queue,
         model_binding_mode: ModelMatrixBindingMode,
-        camera_bind_group: &BindGroup,
-        outline_bind_group: &BindGroup,
     ) {
-        let mut render_pass = target.encoder.begin_render_pass(&RenderPassDescriptor {
-            label: Some("Outline Command Buffer"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: target.color_view,
-                depth_slice: None,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
-                    store: wgpu::StoreOp::Store,
-                },
-            })],
-            multiview_mask: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-            depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                view: target.depth_view,
-                depth_ops: Some(Operations {
-                    load: wgpu::LoadOp::Load,
-                    store: wgpu::StoreOp::Store,
-                }),
-                stencil_ops: None,
-            }),
-        });
-
-        render_pass.set_pipeline(render_pipeline);
-        Self::apply_model_matrix(
-            &mut render_pass,
-            render_mesh,
-            target.queue,
-            model_binding_mode,
-            1,
-        );
+        Self::apply_model_matrix(render_pass, render_mesh, queue, model_binding_mode, 1);
         render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
-        render_pass.set_bind_group(0, camera_bind_group, &[]);
-        render_pass.set_bind_group(
-            Self::outline_bind_group_index(model_binding_mode),
-            outline_bind_group,
-            &[],
-        );
         render_pass.set_index_buffer(
             render_mesh.index_buffer.slice(..),
             wgpu::IndexFormat::Uint32,

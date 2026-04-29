@@ -4,7 +4,7 @@ use crate::gpu::glTF::ImportedScene;
 use hyakou_core::{
     components::{LightType, camera::data_structures::CameraAnimationRequest},
     geometry::ray::Ray,
-    types::mouse_delta::MouseButton,
+    types::{mouse_delta::MouseButton, selection::SelectionScope},
 };
 use winit::{keyboard::KeyCode, window::Window};
 
@@ -65,5 +65,6 @@ pub enum RendererCommand {
     },
     RayCast {
         ray: Ray,
+        scope: SelectionScope,
     },
 }
