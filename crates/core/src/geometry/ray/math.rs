@@ -1,6 +1,6 @@
 use crate::{
-    components::mesh_node::MeshNode,
-    geometry::{ray::Ray, vertices::Vertex},
+    geometry::{mesh::Mesh, ray::Ray, vertices::Vertex},
+    types::transform::Transform,
 };
 
 const EPSILON: f32 = 0.000001;
@@ -41,13 +41,14 @@ pub fn intersect_triangle(ray: &Ray, v0: &Vertex, v1: &Vertex, v2: &Vertex) -> O
 pub struct TriangleHit {
     pub distance: f32,
     pub triangle_index: usize,
+    pub position: glam::Vec3,
 }
 
-pub fn intersect_mesh(ray: &Ray, node: &MeshNode) -> Option<TriangleHit> {
+pub fn intersect_mesh(ray: &Ray, mesh: &Mesh) -> Option<TriangleHit> {
     let mut closest = None;
-    let vertices = &node.vertices;
+    let vertices = &mesh.vertices;
 
-    for (triangle_index, triangle) in node.indices.chunks_exact(3).enumerate() {
+    for (triangle_index, triangle) in mesh.indices.chunks_exact(3).enumerate() {
         let (Some(v0), Some(v1), Some(v2)) = (
             vertices.get(triangle[0] as usize),
             vertices.get(triangle[1] as usize),
@@ -67,10 +68,40 @@ pub fn intersect_mesh(ray: &Ray, node: &MeshNode) -> Option<TriangleHit> {
             closest = Some(TriangleHit {
                 distance,
                 triangle_index,
+                position: ray.origin() + ray.direction() * distance,
             });
         }
     }
     closest
+}
+
+pub fn intersect_transformed_mesh(
+    ray: &Ray,
+    mesh: &Mesh,
+    transform: &Transform,
+) -> Option<TriangleHit> {
+    let model = transform.get_matrix();
+    let inverse_model = model.inverse();
+    let local_origin = inverse_model.transform_point3(ray.origin());
+    let local_direction = inverse_model.transform_vector3(ray.direction()).normalize();
+
+    if !local_origin.is_finite() || !local_direction.is_finite() {
+        return None;
+    }
+
+    let local_ray = Ray::new(local_origin, local_direction);
+    let local_hit = intersect_mesh(&local_ray, mesh)?;
+    let world_position = model.transform_point3(local_hit.position);
+
+    if !world_position.is_finite() {
+        return None;
+    }
+
+    Some(TriangleHit {
+        distance: world_position.distance(ray.origin()),
+        triangle_index: local_hit.triangle_index,
+        position: world_position,
+    })
 }
 
 #[cfg(test)]

@@ -25,7 +25,7 @@ const CLICK_DRAG_THRESHOLD: f32 = 25.0;
 enum PointerInteraction {
     None,
     PendingClick { start: MousePosition },
-    Dragging { start: MousePosition },
+    Dragging,
 }
 
 pub struct InputController {
@@ -95,9 +95,7 @@ impl InputController {
                     Self::calculate_mouse_position_distance(start, &self.mouse_delta.position);
                 debug!("{:?}", distance);
                 if distance > CLICK_DRAG_THRESHOLD {
-                    self.pointer_interaction = PointerInteraction::Dragging {
-                        start: start.clone(),
-                    };
+                    self.pointer_interaction = PointerInteraction::Dragging;
                     self.enqueue_events(renderer_slot, MouseButton::Left, true);
                 }
             }
@@ -131,11 +129,11 @@ impl InputController {
             } else {
                 match &self.pointer_interaction {
                     PointerInteraction::None => {}
-                    PointerInteraction::PendingClick { start } => {
+                    PointerInteraction::PendingClick { .. } => {
                         let ray = self.create_ray(renderer_slot)?;
                         self._commands.send(RendererCommand::RayCast { ray });
                     }
-                    PointerInteraction::Dragging { start } => {
+                    PointerInteraction::Dragging => {
                         self.enqueue_events(renderer_slot, button, pressed);
                     }
                 };

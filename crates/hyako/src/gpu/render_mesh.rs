@@ -13,6 +13,7 @@ use crate::{
 use hyakou_core::{
     Shared, SharedAccess,
     components::{LightType, mesh_node::MeshNode},
+    geometry::mesh::Mesh,
     shared,
     traits::BindGroupProvider,
     types::{
@@ -21,7 +22,7 @@ use hyakou_core::{
         transform::Transform,
     },
 };
-use std::rc::Rc;
+use std::{ops::Deref, rc::Rc};
 
 #[derive(Debug, Clone)]
 pub struct RenderMesh {
@@ -34,6 +35,7 @@ pub struct RenderMesh {
     pub model_uniform_buffer: Option<UniformBuffer>,
     pub model_bind_group: Option<BindGroup>,
     pub material: Rc<GpuMaterial>,
+    pub mesh: Mesh,
 }
 
 impl RenderMesh {
@@ -47,6 +49,7 @@ impl RenderMesh {
         model_bind_group_layout: Option<&BindGroupLayout>,
     ) -> Self {
         let id = label.unwrap_or(MeshId(Uuid::new_v4().to_string()));
+        let mesh = mesh_node.deref().clone();
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex Buffer: ".to_string().concat(&id)),
             contents: bytemuck::cast_slice(&mesh_node.vertices),
@@ -77,6 +80,7 @@ impl RenderMesh {
             model_uniform_buffer,
             model_bind_group,
             material,
+            mesh,
         }
     }
 

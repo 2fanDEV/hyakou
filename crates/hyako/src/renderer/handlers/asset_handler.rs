@@ -251,6 +251,11 @@ impl AssetHandler {
         self.visible_assets.iter()
     }
 
+    pub fn get_all_visible_assets(&self) -> impl Iterator<Item = &Rc<RenderMesh>> {
+        self.get_visible_asset_ids()
+            .filter_map(|id| self.memory_loaded_assets.get(id))
+    }
+
     pub fn toggle_visibility(&mut self, id: String) {
         let asset_id = self.visible_assets.iter().find(|elem| elem.eq(&&id));
         if asset_id.is_some() {
