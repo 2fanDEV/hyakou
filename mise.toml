@@ -19,3 +19,10 @@ dir = "frontend"
 run = "pnpm install"
 dir = "frontend"
 
+[tasks."frontend:serve"]
+run = "pnpm run dev"
+dir = "frontend"
+
+[tasks."backend:serve"]
+run = "cargo run"
+dir = "crates"
