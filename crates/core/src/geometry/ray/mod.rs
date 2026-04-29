@@ -3,9 +3,16 @@ use glam::{Vec2, Vec3, Vec4, Vec4Swizzles};
 
 use crate::{components::camera::camera::Camera, types::Size};
 
+pub mod math;
+
+#[derive(Debug)]
 pub struct Ray(Vec3, Vec3);
 
 impl Ray {
+    pub fn new(origin: Vec3, direction: Vec3) -> Self {
+        Self(origin, direction)
+    }
+
     pub fn origin(&self) -> Vec3 {
         self.0
     }
@@ -15,7 +22,7 @@ impl Ray {
     }
 }
 
-pub fn screen_to_ndc(x: f32, y: f32, size: Size) -> Option<Vec2> {
+pub fn screen_to_ndc(x: f32, y: f32, size: &Size) -> Option<Vec2> {
     if size.width == 0 || size.height == 0 {
         return None;
     }
@@ -41,7 +48,7 @@ pub fn ndc_to_world(camera: &Camera, ndc: Vec2, depth: f32) -> Option<Vec3> {
     world.is_finite().then_some(world)
 }
 
-pub fn ray_from_screen(camera: &Camera, x: f32, y: f32, size: Size) -> Result<Ray> {
+pub fn ray_from_screen(camera: &Camera, x: f32, y: f32, size: &Size) -> Result<Ray> {
     let ndc = match screen_to_ndc(x, y, size) {
         Some(ndc) => ndc,
         None => {

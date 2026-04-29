@@ -61,7 +61,6 @@ impl MouseBindingMap {
 
     pub fn resolve_active_actions(&self, pressed_buttons: &HashSet<MouseButton>) -> Vec<Action> {
         let mut active_actions = Vec::new();
-
         for (binding, action) in &self.bindings {
             if binding
                 .buttons
@@ -71,7 +70,6 @@ impl MouseBindingMap {
                 active_actions.push(*action);
             }
         }
-
         active_actions
     }
 }
@@ -84,9 +82,7 @@ mod tests {
     fn test_left_mouse_returns_drag_action() {
         let binding_map = MouseBindingMap::initialize();
         let mouse_binding = MouseBinding::new(smallvec![MouseButton::Left]);
-
         let action = binding_map.get_binding(&mouse_binding);
-
         assert_eq!(action, Some(&Action::Camera(CameraActions::Drag)));
     }
 
@@ -95,9 +91,7 @@ mod tests {
         let binding_map = MouseBindingMap::initialize();
         let mut pressed_buttons = HashSet::new();
         pressed_buttons.insert(MouseButton::Left);
-
         let actions = binding_map.resolve_active_actions(&pressed_buttons);
-
         assert!(actions.contains(&Action::Camera(CameraActions::Drag)));
     }
 
@@ -105,9 +99,7 @@ mod tests {
     fn test_resolve_active_actions_with_no_buttons_pressed() {
         let binding_map = MouseBindingMap::initialize();
         let pressed_buttons = HashSet::new();
-
         let actions = binding_map.resolve_active_actions(&pressed_buttons);
-
         assert!(actions.is_empty());
     }
 
@@ -115,9 +107,7 @@ mod tests {
     fn test_non_existent_binding_returns_none() {
         let binding_map = MouseBindingMap::initialize();
         let mouse_binding = MouseBinding::new(smallvec![MouseButton::Right]);
-
         let action = binding_map.get_binding(&mouse_binding);
-
         assert_eq!(action, None);
     }
 
@@ -125,9 +115,7 @@ mod tests {
     fn test_add_binding_creates_new_binding() {
         let mut binding_map = MouseBindingMap::initialize();
         let mouse_binding = MouseBinding::new(smallvec![MouseButton::Right]);
-
         binding_map.add_binding(mouse_binding.clone(), Action::Camera(CameraActions::Drag));
-
         let action = binding_map.get_binding(&mouse_binding);
         assert_eq!(action, Some(&Action::Camera(CameraActions::Drag)));
     }
@@ -136,9 +124,7 @@ mod tests {
     fn test_remove_binding_removes_existing_binding() {
         let mut binding_map = MouseBindingMap::initialize();
         let mouse_binding = MouseBinding::new(smallvec![MouseButton::Left]);
-
         let removed_action = binding_map.remove_binding(&mouse_binding);
-
         assert_eq!(removed_action, Some(Action::Camera(CameraActions::Drag)));
         assert_eq!(binding_map.get_binding(&mouse_binding), None);
     }
@@ -147,9 +133,7 @@ mod tests {
     fn test_remove_non_existent_binding_returns_none() {
         let mut binding_map = MouseBindingMap::initialize();
         let mouse_binding = MouseBinding::new(smallvec![MouseButton::Middle]);
-
         let removed_action = binding_map.remove_binding(&mouse_binding);
-
         assert_eq!(removed_action, None);
     }
 
@@ -157,12 +141,10 @@ mod tests {
     fn test_multi_button_binding() {
         let mut binding_map = MouseBindingMap::initialize();
         let multi_binding = MouseBinding::new(smallvec![MouseButton::Left, MouseButton::Right]);
-
         binding_map.add_binding(
             multi_binding.clone(),
             Action::Camera(CameraActions::SpeedModifier),
         );
-
         let action = binding_map.get_binding(&multi_binding);
         assert_eq!(action, Some(&Action::Camera(CameraActions::SpeedModifier)));
     }
@@ -172,13 +154,10 @@ mod tests {
         let mut binding_map = MouseBindingMap::initialize();
         let multi_binding = MouseBinding::new(smallvec![MouseButton::Left, MouseButton::Right]);
         binding_map.add_binding(multi_binding, Action::Camera(CameraActions::SpeedModifier));
-
         let mut pressed_buttons = HashSet::new();
         pressed_buttons.insert(MouseButton::Left);
-
         let actions = binding_map.resolve_active_actions(&pressed_buttons);
         assert!(!actions.contains(&Action::Camera(CameraActions::SpeedModifier)));
-
         pressed_buttons.insert(MouseButton::Right);
         let actions = binding_map.resolve_active_actions(&pressed_buttons);
         assert!(actions.contains(&Action::Camera(CameraActions::SpeedModifier)));

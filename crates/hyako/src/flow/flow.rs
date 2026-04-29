@@ -111,7 +111,7 @@ impl FlowController {
             }
             RendererCommand::MouseButton { button, pressed } => {
                 let renderer = self.render_controller.renderer();
-                self.input_controller.handle_mouse_button(
+                let _ = self.input_controller.handle_mouse_button(
                     &renderer,
                     self.render_controller.window(),
                     button,
@@ -160,6 +160,9 @@ impl FlowController {
                 self.render_controller.handle_resize(width, height);
                 self.render_controller
                     .render_frame(&mut self.frame_composer, dt);
+            }
+            RendererCommand::RayCast { ray } => {
+                debug!("{:?} in flow landed", ray);
             }
         }
     }
