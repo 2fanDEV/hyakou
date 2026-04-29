@@ -51,7 +51,7 @@ pub mod util;
 pub mod wrappers;
 
 pub struct SceneRenderer {
-    ctx: RenderContext,
+    pub ctx: RenderContext,
     pub camera: Camera,
     camera_uniform: CameraUniform,
     camera_uniform_buffer: UniformBuffer,
