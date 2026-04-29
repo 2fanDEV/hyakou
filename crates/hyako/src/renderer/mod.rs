@@ -25,6 +25,7 @@ use hyakou_core::{
         camera::{camera::Camera, data_structures::CameraMode},
         light::LightSource,
     },
+    geometry::ray::{Ray, math::intersect_transformed_mesh},
     shared,
     traits::BindGroupProvider,
     types::{
@@ -51,7 +52,7 @@ pub mod util;
 pub mod wrappers;
 
 pub struct SceneRenderer {
-    ctx: RenderContext,
+    pub ctx: RenderContext,
     pub camera: Camera,
     camera_uniform: CameraUniform,
     camera_uniform_buffer: UniformBuffer,
@@ -373,5 +374,32 @@ impl SceneRenderer {
         if !size.is_zero() {
             self.camera.set_aspect_from_size(size);
         }
+    }
+
+    pub fn ray_cast(&self, ray: &Ray) -> Option<MeshId> {
+        let mut closest_hit: Option<(MeshId, f32)> = None;
+
+        for render_mesh in self.asset_manager.get_all_visible_assets() {
+            let hit = render_mesh
+                .transform
+                .try_read_shared(|transform| {
+                    intersect_transformed_mesh(ray, &render_mesh.mesh, transform)
+                })
+                .ok()
+                .flatten();
+
+            let Some(hit) = hit else {
+                continue;
+            };
+
+            if closest_hit
+                .as_ref()
+                .is_none_or(|(_, distance)| hit.distance < *distance)
+            {
+                closest_hit = Some((render_mesh.id.clone(), hit.distance));
+            }
+        }
+
+        closest_hit.map(|(mesh_id, _)| mesh_id)
     }
 }

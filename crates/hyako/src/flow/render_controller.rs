@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use hyakou_core::{
-    Shared, SharedAccess, components::camera::data_structures::CameraAnimationRequest, shared,
+    Shared, SharedAccess, components::camera::data_structures::CameraAnimationRequest,
+    geometry::ray::Ray, shared, types::ids::MeshId,
 };
 use log::{error, warn};
 use winit::window::Window;
@@ -224,6 +225,20 @@ impl RenderController {
                 .state
                 .stop_camera_animation(&renderer.camera.id);
         });
+    }
+
+    pub fn ray_cast(&self, ray: Ray) -> Option<MeshId> {
+        match self.renderer.try_read_shared(|renderer_slot| {
+            renderer_slot
+                .as_ref()
+                .and_then(|renderer| renderer.ray_cast(&ray))
+        }) {
+            Ok(mesh_id) => mesh_id,
+            Err(lock_error) => {
+                warn!("Failed to acquire renderer lock during ray cast: {lock_error:?}");
+                None
+            }
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]

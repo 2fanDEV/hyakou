@@ -36,7 +36,7 @@ fn test_size() -> Size {
 }
 
 fn ray_direction(camera: &Camera, x: f32, y: f32, size: Size) -> Vec3 {
-    ray_from_screen(camera, x, y, size).unwrap().direction()
+    ray_from_screen(camera, x, y, &size).unwrap().direction()
 }
 
 fn assert_vec3_near(actual: Vec3, expected: Vec3) {
@@ -55,7 +55,7 @@ fn screen_to_ndc_maps_screen_points() {
     ];
 
     for (name, x, y, expected) in cases {
-        let ndc = screen_to_ndc(x, y, test_size()).unwrap();
+        let ndc = screen_to_ndc(x, y, &test_size()).unwrap();
 
         assert!(
             (ndc - expected).length() < EPSILON,
@@ -69,7 +69,7 @@ fn screen_to_ndc_rejects_zero_size() {
     let ndc = screen_to_ndc(
         0.0,
         0.0,
-        Size {
+        &Size {
             width: 0,
             height: 0,
         },
@@ -97,7 +97,7 @@ fn ndc_to_world_rejects_depth_outside_clip_range() {
 #[test]
 fn ray_center_point_click_test() {
     let camera = create_test_camera(test_size());
-    let ray = ray_from_screen(&camera, 960.0, 540.0, test_size());
+    let ray = ray_from_screen(&camera, 960.0, 540.0, &test_size());
 
     assert!(ray.is_ok());
     let ray = ray.unwrap();
@@ -122,7 +122,7 @@ fn ray_center_click_follows_transformed_camera_direction() {
         1.0,
         0.5,
     );
-    let ray = ray_from_screen(&camera, 960.0, 540.0, size).unwrap();
+    let ray = ray_from_screen(&camera, 960.0, 540.0, &size).unwrap();
 
     assert_eq!(ray.origin(), camera.eye);
     assert_vec3_near(ray.direction(), Vec3::new(-1.0, 0.0, 0.0));

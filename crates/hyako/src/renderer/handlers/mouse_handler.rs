@@ -45,9 +45,7 @@ impl MouseHandler {
             .mouse_bindings
             .resolve_active_actions(&self.pressed_buttons);
         let new_actions_set: HashSet<Action> = new_actions_vec.into_iter().collect();
-
         let mut events = SmallVec::new();
-
         for action in &self.current_actions {
             if !new_actions_set.contains(action) {
                 events.push(InputEvent::ActionEnded(*action));
