@@ -27,13 +27,13 @@ use hyakou_core::{
         light::LightSource,
     },
     geometry::ray::{Ray, math::intersect_transformed_mesh},
+    selection::structure::{SelectionScope, SelectionTarget},
     shared,
     traits::BindGroupProvider,
     types::{
         DeltaTime64, ModelMatrixBindingMode, Size, TransformBuffer,
         camera::{Pitch, Yaw},
         ids::{MeshId, UniformBufferId},
-        selection::SelectionScope,
         transform::Transform,
     },
 };
@@ -225,11 +225,22 @@ impl SceneRenderer {
         );
     }
 
-    pub fn select_mesh(&mut self, mesh_id: MeshId, scope: SelectionScope) {
-        self.selected_mesh_ids = self.asset_manager.selection_ids_for(&mesh_id, scope);
+    pub fn resolve_selection_target(
+        &self,
+        ray: &Ray,
+        scope: SelectionScope,
+    ) -> Option<SelectionTarget> {
+        let hit_mesh_id = self.ray_cast(ray)?;
+        let outline_mesh_ids = self.asset_manager.selection_ids_for(&hit_mesh_id, &scope);
+
+        Some(SelectionTarget::new(hit_mesh_id, outline_mesh_ids, scope))
     }
 
-    pub fn clear_selection(&mut self) {
+    pub fn set_outlined_meshes(&mut self, mesh_ids: Vec<MeshId>) {
+        self.selected_mesh_ids = mesh_ids;
+    }
+
+    pub fn clear_outlined_meshes(&mut self) {
         self.selected_mesh_ids.clear();
     }
 

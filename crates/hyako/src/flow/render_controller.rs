@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
+use anyhow::{Result, anyhow};
 use hyakou_core::{
     Shared, SharedAccess,
-    components::camera::data_structures::CameraAnimationRequest,
+    components::camera::{camera::Camera, data_structures::CameraAnimationRequest},
     geometry::ray::Ray,
+    selection::structure::{SelectionScope, SelectionTarget},
     shared,
-    types::{ids::MeshId, selection::SelectionScope},
+    types::{Size, ids::MeshId},
 };
 use log::{error, warn};
 use winit::window::Window;
@@ -14,7 +16,7 @@ use winit::window::Window;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::{
-    flow::{FlowCommandSender, FrameComposer},
+    flow::{FlowCommandSender, FrameComposer, selection_controller::SelectionSurface},
     gui::EguiRenderer,
     renderer::{SceneRenderer, surface_frame_controller::SurfaceFrameController},
 };
@@ -244,30 +246,6 @@ impl RenderController {
         }
     }
 
-    pub fn select_mesh(&self, mesh_id: MeshId, scope: SelectionScope) {
-        if let Err(lock_error) = self.renderer.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-
-            renderer.select_mesh(mesh_id, scope);
-        }) {
-            warn!("Failed to acquire renderer lock during mesh selection: {lock_error:?}");
-        }
-    }
-
-    pub fn clear_selection(&self) {
-        if let Err(lock_error) = self.renderer.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-
-            renderer.clear_selection();
-        }) {
-            warn!("Failed to acquire renderer lock while clearing selection: {lock_error:?}");
-        }
-    }
-
     #[cfg(not(target_arch = "wasm32"))]
     fn create_egui_renderer(&mut self) {
         let egui_renderer = self
@@ -290,5 +268,63 @@ impl RenderController {
         self.egui_renderer
             .try_write_shared(|slot| *slot = egui_renderer)
             .unwrap();
+    }
+}
+
+impl SelectionSurface for RenderController {
+    fn active_camera(&self) -> Result<Camera> {
+        self.renderer.try_read_shared(|renderer_slot| {
+            renderer_slot
+                .as_ref()
+                .map(|renderer| renderer.camera.clone())
+                .ok_or_else(|| anyhow!("Renderer missing or not initialized"))
+        })?
+    }
+
+    fn viewport_size(&self) -> Result<Size> {
+        self.renderer.try_read_shared(|renderer_slot| {
+            renderer_slot
+                .as_ref()
+                .map(|renderer| renderer.ctx.size)
+                .ok_or_else(|| anyhow!("Renderer missing or not initialized"))
+        })?
+    }
+
+    fn resolve_selection_target(&self, ray: Ray, scope: SelectionScope) -> Option<SelectionTarget> {
+        match self.renderer.try_read_shared(|renderer_slot| {
+            renderer_slot
+                .as_ref()
+                .and_then(|renderer| renderer.resolve_selection_target(&ray, scope))
+        }) {
+            Ok(target) => target,
+            Err(lock_error) => {
+                warn!("Failed to acquire renderer lock during selection resolve: {lock_error:?}");
+                None
+            }
+        }
+    }
+
+    fn set_outlined_meshes(&self, mesh_ids: Vec<MeshId>) {
+        if let Err(lock_error) = self.renderer.try_write_shared(|renderer_slot| {
+            let Some(renderer) = renderer_slot.as_mut() else {
+                return;
+            };
+
+            renderer.set_outlined_meshes(mesh_ids);
+        }) {
+            warn!("Failed to acquire renderer lock during outline update: {lock_error:?}");
+        }
+    }
+
+    fn clear_outlined_meshes(&self) {
+        if let Err(lock_error) = self.renderer.try_write_shared(|renderer_slot| {
+            let Some(renderer) = renderer_slot.as_mut() else {
+                return;
+            };
+
+            renderer.clear_outlined_meshes();
+        }) {
+            warn!("Failed to acquire renderer lock during outline clear: {lock_error:?}");
+        }
     }
 }

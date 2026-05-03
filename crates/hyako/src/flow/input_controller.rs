@@ -1,11 +1,8 @@
 use anyhow::Result;
 use hyakou_core::{
     Shared, SharedAccess,
-    geometry::ray::{Ray, ray_from_screen},
-    types::{
-        mouse_delta::{MouseAction, MouseButton, MouseDelta, MousePosition, MouseState},
-        selection::SelectionScope,
-    },
+    selection::structure::SelectionScope,
+    types::mouse_delta::{MouseAction, MouseButton, MouseDelta, MousePosition, MouseState},
 };
 use log::{debug, error};
 use strum::IntoDiscriminant;
@@ -16,7 +13,7 @@ use winit::{
 };
 
 use crate::{
-    flow::{FlowCommandSender, RendererCommand},
+    flow::{FlowCommand, FlowCommandSender},
     renderer::{
         SceneRenderer,
         handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
@@ -133,9 +130,9 @@ impl InputController {
                 match &self.pointer_interaction {
                     PointerInteraction::None => {}
                     PointerInteraction::PendingClick { .. } => {
-                        let ray = self.create_ray(renderer_slot)?;
-                        self._commands.send(RendererCommand::RayCast {
-                            ray,
+                        self._commands.send(FlowCommand::SelectAtScreenPoint {
+                            x: self.mouse_delta.position.x() as f32,
+                            y: self.mouse_delta.position.y() as f32,
                             scope: self.selection_scope(),
                         });
                     }
@@ -161,20 +158,6 @@ impl InputController {
         }
 
         Ok(())
-    }
-
-    fn create_ray(&self, renderer_slot: &Shared<Option<SceneRenderer>>) -> Result<Ray> {
-        let ray = match renderer_slot.read_shared(|slot| {
-            let scene_renderer = slot.as_ref().unwrap();
-            let x = self.mouse_delta.position.x() as f32;
-            let y = self.mouse_delta.position.y() as f32;
-            let size = scene_renderer.ctx.size;
-            ray_from_screen(&scene_renderer.camera, x, y, &size)
-        }) {
-            Ok(rnd) => rnd,
-            Err(e) => return Err(e),
-        };
-        Ok(ray)
     }
 
     fn selection_scope(&self) -> SelectionScope {

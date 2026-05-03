@@ -25,7 +25,7 @@ use hyakou_core::{
 };
 
 use crate::{
-    flow::{FlowController, FlowHandle, RendererCommand},
+    flow::{FlowCommand, FlowController, FlowHandle},
     renderer::SceneRenderer,
 };
 
@@ -83,7 +83,7 @@ impl AppState {
         delta.as_secs_f64().min(Self::MIN_TIME_IN_SECONDS)
     }
 
-    fn send_and_drain(&mut self, command: RendererCommand) {
+    fn send_and_drain(&mut self, command: FlowCommand) {
         self.flow_handle.send(command);
         self.flow_controller.drain_commands();
     }
@@ -104,7 +104,7 @@ impl ApplicationHandler<Event> for AppState {
             .map(Arc::new)
             .unwrap();
 
-        self.send_and_drain(RendererCommand::WindowCreated(window.clone()));
+        self.send_and_drain(FlowCommand::WindowCreated(window.clone()));
 
         self.window = Some(window.clone());
         window.request_redraw();
@@ -113,13 +113,13 @@ impl ApplicationHandler<Event> for AppState {
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: Event) {
         match event {
             Event::AnimateCamera(request) => {
-                self.send_and_drain(RendererCommand::AnimateCamera(request));
+                self.send_and_drain(FlowCommand::AnimateCamera(request));
             }
             Event::StopCameraAnimation => {
-                self.send_and_drain(RendererCommand::StopCameraAnimation);
+                self.send_and_drain(FlowCommand::StopCameraAnimation);
             }
             Event::AssetUpload(asset_information, light_type) => {
-                self.send_and_drain(RendererCommand::AssetUploadRequested {
+                self.send_and_drain(FlowCommand::AssetUploadRequested {
                     id: asset_information.id(),
                     file_name: asset_information.name(),
                     asset_type: light_type,
@@ -127,7 +127,7 @@ impl ApplicationHandler<Event> for AppState {
                 });
             }
             Event::AssetBundleUpload(bundle_information, light_type) => {
-                self.send_and_drain(RendererCommand::AssetBundleUploadRequested {
+                self.send_and_drain(FlowCommand::AssetBundleUploadRequested {
                     id: bundle_information.id(),
                     file_name: bundle_information.entry_file_name(),
                     asset_type: light_type,
@@ -140,7 +140,7 @@ impl ApplicationHandler<Event> for AppState {
             }
             Event::Resize(width, height) => {
                 let dt = self.get_and_update_last_frame_time();
-                self.send_and_drain(RendererCommand::Resize { dt, width, height });
+                self.send_and_drain(FlowCommand::Resize { dt, width, height });
             }
         }
     }
@@ -156,19 +156,19 @@ impl ApplicationHandler<Event> for AppState {
         match event {
             WindowEvent::RedrawRequested => {
                 let delta = self.get_and_update_last_frame_time();
-                self.send_and_drain(RendererCommand::Redraw { dt: delta });
+                self.send_and_drain(FlowCommand::Redraw { dt: delta });
             }
             WindowEvent::CursorEntered { .. } => {
                 if egui_consumed {
                     return;
                 }
-                self.send_and_drain(RendererCommand::CursorInWindow { is_inside: true });
+                self.send_and_drain(FlowCommand::CursorInWindow { is_inside: true });
             }
             WindowEvent::CursorMoved { position, .. } => {
                 if egui_consumed {
                     return;
                 }
-                self.send_and_drain(RendererCommand::CursorMoved {
+                self.send_and_drain(FlowCommand::CursorMoved {
                     x: position.x,
                     y: position.y,
                 });
@@ -177,7 +177,7 @@ impl ApplicationHandler<Event> for AppState {
                 if egui_consumed {
                     return;
                 }
-                self.send_and_drain(RendererCommand::CursorInWindow { is_inside: false });
+                self.send_and_drain(FlowCommand::CursorInWindow { is_inside: false });
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 if egui_consumed {
@@ -186,7 +186,7 @@ impl ApplicationHandler<Event> for AppState {
                 let PhysicalKey::Code(key) = event.physical_key else {
                     return;
                 };
-                self.send_and_drain(RendererCommand::KeyboardInput {
+                self.send_and_drain(FlowCommand::KeyboardInput {
                     key,
                     pressed: event.state == ElementState::Pressed,
                 });
@@ -204,7 +204,7 @@ impl ApplicationHandler<Event> for AppState {
         match event {
             DeviceEvent::MouseMotion { delta } => {
                 let dt = self.get_last_frame_time(Instant::now()) as f32;
-                self.send_and_drain(RendererCommand::MouseMotion {
+                self.send_and_drain(FlowCommand::MouseMotion {
                     dx: delta.0,
                     dy: delta.1,
                     dt,
@@ -218,7 +218,7 @@ impl ApplicationHandler<Event> for AppState {
                     _ => return,
                 };
 
-                self.send_and_drain(RendererCommand::MouseButton {
+                self.send_and_drain(FlowCommand::MouseButton {
                     button: mouse_button,
                     pressed: state == ElementState::Pressed,
                 });
