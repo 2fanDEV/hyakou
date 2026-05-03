@@ -84,6 +84,7 @@ impl CameraMovementHandler {
                 CameraActions::SlowModifier => self.is_slow_modifier_pressed = is_pressed,
                 CameraActions::Drag => self.is_mouse_dragging = is_pressed,
             },
+            _ => {}
         }
     }
 

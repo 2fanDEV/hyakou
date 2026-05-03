@@ -1,0 +1,16 @@
+services:
+  spacetimedb:
+    image: clockworklabs/spacetime:latest
+    container_name: hyakou-spacetimedb
+    command:
+      - start
+      - --listen-addr
+      - 0.0.0.0:3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - spacetimedb-data:/home/spacetime/.local/share/spacetime/data
+    restart: unless-stopped
+
+volumes:
+  spacetimedb-data:
