@@ -1,9 +1,12 @@
-pub mod commands;
-pub mod component;
-pub mod entity;
-pub mod event;
-pub mod query;
-pub mod resource;
-pub mod schedule;
+mod commands;
+mod component;
+mod entity;
+mod event;
+mod query;
+mod resource;
+mod schedule;
 mod tests;
-pub mod world;
+mod types;
+mod world;
+
+pub use component::Component;
