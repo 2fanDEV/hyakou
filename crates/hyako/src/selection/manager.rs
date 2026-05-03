@@ -13,6 +13,14 @@ impl SelectionManager {
         }
     }
 
+    pub fn current_selection(&self) -> &[SelectionTarget] {
+        &self.selected
+    }
+
+    pub fn outline_selection(&self) -> &[MeshId] {
+        &self.outline_selected
+    }
+
     pub fn select(&mut self, target: SelectionTarget) {
         self.selected.clear();
         self.outline_selected.clear();
@@ -28,10 +36,6 @@ impl SelectionManager {
         self.selected
             .retain(|selected| selected.mesh_id() != target.mesh_id());
         self.rebuild_outline_selection();
-    }
-
-    pub fn outline_selection(&self) -> &[MeshId] {
-        &self.outline_selected
     }
 
     pub fn clear(&mut self) {

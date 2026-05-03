@@ -79,6 +79,10 @@ impl SelectionController {
         self.selection_manager.clear();
     }
 
+    pub fn current_selection(&self) -> &[SelectionTarget] {
+        self.selection_manager.current_selection()
+    }
+
     pub fn outlined_mesh_ids(&self) -> &[MeshId] {
         self.selection_manager.outline_selection()
     }

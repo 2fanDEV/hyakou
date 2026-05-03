@@ -64,6 +64,7 @@ impl FlowController {
 
         (controller, FlowHandle::new(commands))
     }
+
     pub fn get_renderer(&self) -> Shared<Option<SceneRenderer>> {
         self.render_controller.renderer()
     }
@@ -85,6 +86,14 @@ impl FlowController {
         warn!(
             "FlowController reached max commands per tick; remaining commands will be handled next frame"
         );
+    }
+
+    pub fn current_selection(&self) -> &[SelectionTarget] {
+        self.selection_controller.current_selection()
+    }
+
+    pub fn outline_selection(&self) -> &[MeshId] {
+        self.selection_controller.outlined_mesh_ids()
     }
 
     fn handle_command(&mut self, command: FlowCommand) {
