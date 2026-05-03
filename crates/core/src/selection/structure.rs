@@ -6,7 +6,7 @@ pub enum SelectionScope {
     Object,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SelectionTarget {
     mesh_id: MeshId,
     outline_mesh_ids: Vec<MeshId>,
