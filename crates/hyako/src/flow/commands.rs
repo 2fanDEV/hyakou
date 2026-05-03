@@ -6,6 +6,7 @@ use hyakou_core::{
     selection::structure::SelectionScope,
     types::mouse_delta::MouseButton,
 };
+
 use winit::{keyboard::KeyCode, window::Window};
 
 pub enum FlowCommand {

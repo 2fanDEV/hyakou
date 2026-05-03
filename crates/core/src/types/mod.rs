@@ -10,6 +10,7 @@ pub mod camera;
 pub mod ids;
 pub mod import_diagnostic;
 pub mod mouse_delta;
+pub mod selection;
 pub mod shared;
 pub mod transform;
 pub mod upload_status;
