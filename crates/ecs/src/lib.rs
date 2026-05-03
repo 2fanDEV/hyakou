@@ -10,3 +10,4 @@ mod types;
 mod world;
 
 pub use component::Component;
+pub use event::Event;

@@ -1,5 +1,5 @@
 pub trait Component: 'static {}
 
 #[cfg(test)]
-#[path = "../tests/component.rs"]
-mod tests;
+#[path = "tests/component_trait_test.rs"]
+mod component_trait_test;
