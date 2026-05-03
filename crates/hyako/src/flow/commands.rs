@@ -3,12 +3,13 @@ use std::sync::Arc;
 use crate::gpu::glTF::ImportedScene;
 use hyakou_core::{
     components::{LightType, camera::data_structures::CameraAnimationRequest},
-    geometry::ray::Ray,
-    types::{mouse_delta::MouseButton, selection::SelectionScope},
+    selection::structure::SelectionScope,
+    types::mouse_delta::MouseButton,
 };
+
 use winit::{keyboard::KeyCode, window::Window};
 
-pub enum RendererCommand {
+pub enum FlowCommand {
     WindowCreated(Arc<Window>),
     AnimateCamera(CameraAnimationRequest),
     StopCameraAnimation,
@@ -63,8 +64,9 @@ pub enum RendererCommand {
         height: f64,
         width: f64,
     },
-    RayCast {
-        ray: Ray,
+    SelectAtScreenPoint {
+        x: f32,
+        y: f32,
         scope: SelectionScope,
     },
 }

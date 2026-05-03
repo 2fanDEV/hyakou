@@ -18,7 +18,8 @@ use crate::gpu::{
 
 use hyakou_core::{
     components::{LightType, mesh_node::MeshNode},
-    types::{ModelMatrixBindingMode, ids::MeshId, selection::SelectionScope},
+    selection::structure::SelectionScope,
+    types::{ModelMatrixBindingMode, ids::MeshId},
 };
 
 #[derive(Debug)]
@@ -277,7 +278,7 @@ impl AssetHandler {
         self.memory_loaded_assets.get(&id.0)
     }
 
-    pub fn selection_ids_for(&self, hit_mesh_id: &MeshId, scope: SelectionScope) -> Vec<MeshId> {
+    pub fn selection_ids_for(&self, hit_mesh_id: &MeshId, scope: &SelectionScope) -> Vec<MeshId> {
         match scope {
             SelectionScope::Node => vec![hit_mesh_id.clone()],
             SelectionScope::Object => self

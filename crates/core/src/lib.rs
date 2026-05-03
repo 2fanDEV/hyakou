@@ -12,6 +12,8 @@ use anyhow::anyhow;
 use parking_lot::RwLock;
 
 pub mod animations;
+pub mod selection;
+
 pub mod components;
 pub mod events;
 pub mod geometry;

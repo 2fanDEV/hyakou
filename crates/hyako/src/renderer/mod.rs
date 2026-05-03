@@ -1,6 +1,7 @@
 use std::{collections::HashMap, f32::consts::PI, sync::Arc};
 
 use crate::{
+    flow::SceneFrameInput,
     gpu::{
         buffers::{
             camera_buffer::CameraUniform, model_matrix::ModelMatrixUniform, uniform::UniformBuffer,
@@ -27,13 +28,13 @@ use hyakou_core::{
         light::LightSource,
     },
     geometry::ray::{Ray, math::intersect_transformed_mesh},
+    selection::structure::{SelectionScope, SelectionTarget},
     shared,
     traits::BindGroupProvider,
     types::{
         DeltaTime64, ModelMatrixBindingMode, Size, TransformBuffer,
         camera::{Pitch, Yaw},
         ids::{MeshId, UniformBufferId},
-        selection::SelectionScope,
         transform::Transform,
     },
 };
@@ -64,7 +65,6 @@ pub struct SceneRenderer {
     outline_uniform: OutlineUniform,
     outline_uniform_buffer: UniformBuffer,
     outline_bind_group: BindGroup,
-    selected_mesh_ids: Vec<MeshId>,
     animators: HashMap<MeshId, Animator>,
     pub camera_handler: CameraHandler,
     pub asset_manager: AssetHandler,
@@ -195,7 +195,6 @@ impl SceneRenderer {
             outline_uniform,
             outline_uniform_buffer,
             outline_bind_group,
-            selected_mesh_ids: Vec::new(),
             animators,
             camera_handler: CameraHandler::new(CameraMode::ORBIT),
         })
@@ -225,12 +224,15 @@ impl SceneRenderer {
         );
     }
 
-    pub fn select_mesh(&mut self, mesh_id: MeshId, scope: SelectionScope) {
-        self.selected_mesh_ids = self.asset_manager.selection_ids_for(&mesh_id, scope);
-    }
+    pub fn resolve_selection_target(
+        &self,
+        ray: &Ray,
+        scope: SelectionScope,
+    ) -> Option<SelectionTarget> {
+        let hit_mesh_id = self.ray_cast(ray)?;
+        let outline_mesh_ids = self.asset_manager.selection_ids_for(&hit_mesh_id, &scope);
 
-    pub fn clear_selection(&mut self) {
-        self.selected_mesh_ids.clear();
+        Some(SelectionTarget::new(hit_mesh_id, outline_mesh_ids, scope))
     }
 
     pub fn set_outline_color(&mut self, color: Vec4) {
@@ -242,7 +244,7 @@ impl SceneRenderer {
         );
     }
 
-    pub fn render_scene(&mut self, target: &mut FrameTarget<'_>) {
+    pub fn render_scene(&mut self, target: &mut FrameTarget<'_>, input: SceneFrameInput<'_>) {
         {
             target.encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Main Command Buffer"),
@@ -300,11 +302,15 @@ impl SceneRenderer {
                 );
             });
 
-        self.render_selected_outline(target);
+        self.render_outlined_meshes(target, input.outlined_mesh_ids);
     }
 
-    fn render_selected_outline(&mut self, target: &mut FrameTarget<'_>) {
-        if self.selected_mesh_ids.is_empty() {
+    fn render_outlined_meshes(
+        &mut self,
+        target: &mut FrameTarget<'_>,
+        outlined_mesh_ids: &[MeshId],
+    ) {
+        if outlined_mesh_ids.is_empty() {
             return;
         }
 
@@ -340,8 +346,8 @@ impl SceneRenderer {
             &[],
         );
 
-        for selected_mesh_id in &self.selected_mesh_ids {
-            let Some(render_mesh) = self.asset_manager.get_visible_asset(selected_mesh_id) else {
+        for outlined_mesh_id in outlined_mesh_ids {
+            let Some(render_mesh) = self.asset_manager.get_visible_asset(outlined_mesh_id) else {
                 continue;
             };
 
@@ -487,7 +493,7 @@ impl SceneRenderer {
         }
     }
 
-    pub fn ray_cast(&self, ray: &Ray) -> Option<MeshId> {
+    fn ray_cast(&self, ray: &Ray) -> Option<MeshId> {
         let mut closest_hit: Option<(MeshId, f32)> = None;
 
         for render_mesh in self.asset_manager.get_all_visible_assets() {

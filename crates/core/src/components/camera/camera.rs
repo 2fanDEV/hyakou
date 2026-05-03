@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Camera {
     pub id: Id,
     pub eye: Vec3,

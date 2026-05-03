@@ -4,7 +4,7 @@ use hyakou_core::{
 use log::{debug, error, warn};
 
 use crate::{
-    flow::{FlowCommandSender, RendererCommand},
+    flow::{FlowCommand, FlowCommandSender},
     gpu::glTF::ImportedScene,
     renderer::SceneRenderer,
 };
@@ -51,7 +51,7 @@ impl AssetUploadController {
             );
             match parsed_node_graph {
                 Ok(node_graph) => {
-                    self.send_command(RendererCommand::ApplyParsedAsset {
+                    self.send_command(FlowCommand::ApplyParsedAsset {
                         id,
                         file_name,
                         asset_type,
@@ -59,7 +59,7 @@ impl AssetUploadController {
                     });
                 }
                 Err(upload_error) => {
-                    self.send_command(RendererCommand::AssetUploadFailed {
+                    self.send_command(FlowCommand::AssetUploadFailed {
                         id,
                         file_name,
                         error: upload_error.to_string(),
@@ -78,13 +78,13 @@ impl AssetUploadController {
                     .load_from_bytes_with_label(bytes, file_name.clone())
                     .await;
                 let next_command = match parsed_node_graph {
-                    Ok(node_graph) => RendererCommand::ApplyParsedAsset {
+                    Ok(node_graph) => FlowCommand::ApplyParsedAsset {
                         id,
                         file_name,
                         asset_type,
                         imported_scene: node_graph,
                     },
-                    Err(upload_error) => RendererCommand::AssetUploadFailed {
+                    Err(upload_error) => FlowCommand::AssetUploadFailed {
                         id,
                         file_name,
                         error: upload_error.to_string(),
@@ -113,7 +113,7 @@ impl AssetUploadController {
                 pollster::block_on(gltf_loader.load_from_file_bundle(&file_name, files));
             match parsed_node_graph {
                 Ok(node_graph) => {
-                    self.send_command(RendererCommand::ApplyParsedAsset {
+                    self.send_command(FlowCommand::ApplyParsedAsset {
                         id,
                         file_name,
                         asset_type,
@@ -121,7 +121,7 @@ impl AssetUploadController {
                     });
                 }
                 Err(upload_error) => {
-                    self.send_command(RendererCommand::AssetUploadFailed {
+                    self.send_command(FlowCommand::AssetUploadFailed {
                         id,
                         file_name,
                         error: upload_error.to_string(),
@@ -138,13 +138,13 @@ impl AssetUploadController {
                 let gltf_loader = GLTFLoader::new();
                 let parsed_node_graph = gltf_loader.load_from_file_bundle(&file_name, files).await;
                 let next_command = match parsed_node_graph {
-                    Ok(node_graph) => RendererCommand::ApplyParsedAsset {
+                    Ok(node_graph) => FlowCommand::ApplyParsedAsset {
                         id,
                         file_name,
                         asset_type,
                         imported_scene: node_graph,
                     },
-                    Err(upload_error) => RendererCommand::AssetUploadFailed {
+                    Err(upload_error) => FlowCommand::AssetUploadFailed {
                         id,
                         file_name,
                         error: upload_error.to_string(),
@@ -194,7 +194,7 @@ impl AssetUploadController {
         self.fire_upload_status_error(id, file_name, error);
     }
 
-    fn send_command(&self, command: RendererCommand) {
+    fn send_command(&self, command: FlowCommand) {
         if !self.commands.send(command) {
             warn!("Failed to enqueue flow command: receiver dropped");
         }

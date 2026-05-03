@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
+use anyhow::{Result, anyhow};
 use hyakou_core::{
     Shared, SharedAccess,
-    components::camera::data_structures::CameraAnimationRequest,
+    components::camera::{camera::Camera, data_structures::CameraAnimationRequest},
     geometry::ray::Ray,
+    selection::structure::{SelectionScope, SelectionTarget},
     shared,
-    types::{ids::MeshId, selection::SelectionScope},
+    types::Size,
 };
 use log::{error, warn};
 use winit::window::Window;
@@ -14,7 +16,8 @@ use winit::window::Window;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::{
-    flow::{FlowCommandSender, FrameComposer},
+    flow::SceneFrameInput,
+    flow::{FlowCommandSender, FrameComposer, selection_controller::SelectionSurface},
     gui::EguiRenderer,
     renderer::{SceneRenderer, surface_frame_controller::SurfaceFrameController},
 };
@@ -125,7 +128,12 @@ impl RenderController {
         }
     }
 
-    pub fn render_frame(&mut self, frame_composer: &mut FrameComposer, dt: f64) {
+    pub fn render_frame(
+        &mut self,
+        frame_composer: &mut FrameComposer,
+        dt: f64,
+        scene_input: SceneFrameInput<'_>,
+    ) {
         let Some(window) = self.window.clone() else {
             return;
         };
@@ -143,6 +151,7 @@ impl RenderController {
                     renderer,
                     egui_renderer.as_mut(),
                     dt,
+                    scene_input,
                 )
             });
 
@@ -162,6 +171,7 @@ impl RenderController {
                         renderer,
                         None,
                         dt,
+                        scene_input,
                     ) {
                         error!("Renderer frame composition failed: {render_error:?}");
                     }
@@ -177,6 +187,7 @@ impl RenderController {
         renderer: &mut SceneRenderer,
         mut egui_renderer: Option<&mut EguiRenderer>,
         dt: f64,
+        scene_input: SceneFrameInput<'_>,
     ) -> anyhow::Result<()> {
         renderer.update(dt);
 
@@ -188,9 +199,9 @@ impl RenderController {
 
         {
             let mut target = frame.target();
+            renderer.render_scene(&mut target, scene_input);
             frame_composer.compose_frame(
                 &mut target,
-                renderer,
                 egui_renderer.as_mut().map(|renderer| &mut **renderer),
             );
         }
@@ -230,44 +241,6 @@ impl RenderController {
         });
     }
 
-    pub fn ray_cast(&self, ray: Ray) -> Option<MeshId> {
-        match self.renderer.try_read_shared(|renderer_slot| {
-            renderer_slot
-                .as_ref()
-                .and_then(|renderer| renderer.ray_cast(&ray))
-        }) {
-            Ok(mesh_id) => mesh_id,
-            Err(lock_error) => {
-                warn!("Failed to acquire renderer lock during ray cast: {lock_error:?}");
-                None
-            }
-        }
-    }
-
-    pub fn select_mesh(&self, mesh_id: MeshId, scope: SelectionScope) {
-        if let Err(lock_error) = self.renderer.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-
-            renderer.select_mesh(mesh_id, scope);
-        }) {
-            warn!("Failed to acquire renderer lock during mesh selection: {lock_error:?}");
-        }
-    }
-
-    pub fn clear_selection(&self) {
-        if let Err(lock_error) = self.renderer.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-
-            renderer.clear_selection();
-        }) {
-            warn!("Failed to acquire renderer lock while clearing selection: {lock_error:?}");
-        }
-    }
-
     #[cfg(not(target_arch = "wasm32"))]
     fn create_egui_renderer(&mut self) {
         let egui_renderer = self
@@ -290,5 +263,39 @@ impl RenderController {
         self.egui_renderer
             .try_write_shared(|slot| *slot = egui_renderer)
             .unwrap();
+    }
+}
+
+impl SelectionSurface for RenderController {
+    fn active_camera(&self) -> Result<Camera> {
+        self.renderer.try_read_shared(|renderer_slot| {
+            renderer_slot
+                .as_ref()
+                .map(|renderer| renderer.camera.clone())
+                .ok_or_else(|| anyhow!("Renderer missing or not initialized"))
+        })?
+    }
+
+    fn viewport_size(&self) -> Result<Size> {
+        self.renderer.try_read_shared(|renderer_slot| {
+            renderer_slot
+                .as_ref()
+                .map(|renderer| renderer.ctx.size)
+                .ok_or_else(|| anyhow!("Renderer missing or not initialized"))
+        })?
+    }
+
+    fn resolve_selection_target(&self, ray: Ray, scope: SelectionScope) -> Option<SelectionTarget> {
+        match self.renderer.try_read_shared(|renderer_slot| {
+            renderer_slot
+                .as_ref()
+                .and_then(|renderer| renderer.resolve_selection_target(&ray, scope))
+        }) {
+            Ok(target) => target,
+            Err(lock_error) => {
+                warn!("Failed to acquire renderer lock during selection resolve: {lock_error:?}");
+                None
+            }
+        }
     }
 }
