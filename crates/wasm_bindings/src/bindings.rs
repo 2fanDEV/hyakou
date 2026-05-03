@@ -1,4 +1,4 @@
-use hyako::{renderer::Renderer, state::AppState};
+use hyako::{renderer::SceneRenderer, state::AppState};
 use hyakou_core::{
     Shared, SharedAccess,
     components::{LightType, camera::data_structures::CameraMode},
@@ -22,7 +22,7 @@ use crate::{CameraAnimationOptions, CameraAnimationStateDO, CameraDO};
 #[wasm_bindgen]
 pub struct Hyako {
     app_state: Option<AppState>,
-    renderer: Shared<Option<Renderer>>,
+    renderer: Shared<Option<SceneRenderer>>,
     event_loop: Option<EventLoop<Event>>,
     event_loop_proxy: EventLoopProxy<Event>,
     upload_status_callback: Shared<Option<js_sys::Function>>,

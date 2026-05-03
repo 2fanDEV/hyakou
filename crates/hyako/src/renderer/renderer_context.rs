@@ -16,8 +16,12 @@ use wgpu::{
 
 use crate::{
     gpu::{
-        buffers::camera_buffer::CameraUniform, buffers::model_matrix::ModelMatrixUniform,
-        material::GpuMaterial, render_pipeline::create_render_pipeline, texture::Texture,
+        buffers::camera_buffer::CameraUniform,
+        buffers::model_matrix::ModelMatrixUniform,
+        material::GpuMaterial,
+        outline::OutlineUniform,
+        render_pipeline::{create_outline_render_pipeline, create_render_pipeline},
+        texture::Texture,
     },
     renderer::wrappers::SurfaceProvider,
 };
@@ -29,11 +33,13 @@ pub struct RenderContext {
     pub device: Arc<Device>,
     pub light_render_pipeline: RenderPipeline,
     pub no_light_render_pipeline: RenderPipeline,
+    pub outline_render_pipeline: RenderPipeline,
     pub size: Size,
     pub camera_bind_group_layout: BindGroupLayout,
     pub light_bind_group_layout: BindGroupLayout,
     pub model_bind_group_layout: Option<BindGroupLayout>,
     pub material_bind_group_layout: BindGroupLayout,
+    pub outline_bind_group_layout: BindGroupLayout,
     pub model_binding_mode: ModelMatrixBindingMode,
     pub depth_texture: Texture,
     pub queue: Queue,
@@ -117,6 +123,7 @@ impl RenderContext {
         let model_bind_group_layout = (model_binding_mode == ModelMatrixBindingMode::Uniform)
             .then(|| ModelMatrixUniform::bind_group_layout(&device));
         let material_bind_group_layout = GpuMaterial::bind_group_layout(&device);
+        let outline_bind_group_layout = OutlineUniform::bind_group_layout(&device);
 
         let vertex_shader = create_light_shader_module(&device, model_binding_mode);
         let no_light_vertex_shader = create_no_light_shader_module(&device, model_binding_mode);
@@ -139,6 +146,30 @@ impl RenderContext {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &bind_group_layouts,
+                immediate_size: if model_binding_mode == ModelMatrixBindingMode::Immediate {
+                    Self::IMMEDIATE_MODEL_MATRIX_SIZE
+                } else {
+                    0
+                },
+            });
+
+        let outline_bind_group_layouts =
+            if let Some(model_bind_group_layout) = model_bind_group_layout.as_ref() {
+                vec![
+                    Some(&camera_bind_group_layout),
+                    Some(model_bind_group_layout),
+                    Some(&outline_bind_group_layout),
+                ]
+            } else {
+                vec![
+                    Some(&camera_bind_group_layout),
+                    Some(&outline_bind_group_layout),
+                ]
+            };
+        let outline_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Outline Pipeline Layout"),
+                bind_group_layouts: &outline_bind_group_layouts,
                 immediate_size: if model_binding_mode == ModelMatrixBindingMode::Immediate {
                     Self::IMMEDIATE_MODEL_MATRIX_SIZE
                 } else {
@@ -170,6 +201,14 @@ impl RenderContext {
             Some(TextureFormat::Depth32Float),
         );
 
+        let outline_render_pipeline = create_outline_render_pipeline(
+            &device,
+            &outline_pipeline_layout,
+            format,
+            create_outline_shader_module(&device, model_binding_mode),
+            TextureFormat::Depth32Float,
+        );
+
         Ok(Self {
             instance,
             surface,
@@ -177,12 +216,14 @@ impl RenderContext {
             device,
             light_render_pipeline,
             no_light_render_pipeline,
+            outline_render_pipeline,
             size,
             depth_texture,
             light_bind_group_layout,
             camera_bind_group_layout,
             model_bind_group_layout,
             material_bind_group_layout,
+            outline_bind_group_layout,
             model_binding_mode,
             queue,
         })
@@ -288,6 +329,20 @@ fn create_no_light_shader_module(
         }
         ModelMatrixBindingMode::Uniform => {
             device.create_shader_module(include_wgsl!("../../assets/no_light_vertex_uniform.wgsl"))
+        }
+    }
+}
+
+fn create_outline_shader_module(
+    device: &Device,
+    model_binding_mode: ModelMatrixBindingMode,
+) -> wgpu::ShaderModule {
+    match model_binding_mode {
+        ModelMatrixBindingMode::Immediate => {
+            device.create_shader_module(include_wgsl!("../../assets/outline.wgsl"))
+        }
+        ModelMatrixBindingMode::Uniform => {
+            device.create_shader_module(include_wgsl!("../../assets/outline_uniform.wgsl"))
         }
     }
 }

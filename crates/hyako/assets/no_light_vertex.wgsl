@@ -40,9 +40,7 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    //this is just for testing purposes
-    var scale: f32 = 0.25;
-    out.clip_position =  camera.view_projection_matrix * im.model_matrix * vec4<f32>(model.position * scale + light.transform.translation, 1.0);
+    out.clip_position =  camera.view_projection_matrix * im.model_matrix * vec4<f32>(model.position, 1.0);
     out.color = light.color;
     return out;
 }

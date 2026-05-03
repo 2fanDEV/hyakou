@@ -106,6 +106,11 @@ impl KeyboardHandler {
         self.pressed_keys.get(&key_code).is_some()
     }
 
+    pub fn is_shift_pressed(&self) -> bool {
+        self.pressed_modifiers.contains(&KeyCode::ShiftLeft)
+            || self.pressed_modifiers.contains(&KeyCode::ShiftRight)
+    }
+
     pub fn get_active_actions(&self) -> SmallVec<[Action; 4]> {
         self.current_actions.iter().cloned().collect()
     }

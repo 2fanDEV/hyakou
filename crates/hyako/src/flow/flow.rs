@@ -1,22 +1,23 @@
 use std::sync::mpsc::{Receiver, channel};
 
-use hyakou_core::Shared;
+use hyakou_core::{Shared, selection::structure::SelectionTarget, types::ids::MeshId};
 use log::{debug, warn};
 
 use crate::{
     flow::{
-        AssetUploadController, FlowCommandSender, FrameComposer, InputController, RenderController,
-        RendererCommand,
+        AssetUploadController, FlowCommand, FlowCommandSender, FrameComposer, InputController,
+        RenderController, selection_controller::SelectionController,
     },
     renderer::SceneRenderer,
 };
 
 pub struct FlowController {
-    rx: Receiver<RendererCommand>,
+    rx: Receiver<FlowCommand>,
     render_controller: RenderController,
     frame_composer: FrameComposer,
     input_controller: InputController,
     asset_upload_controller: AssetUploadController,
+    selection_controller: SelectionController,
 }
 
 #[derive(Clone)]
@@ -29,7 +30,7 @@ impl FlowController {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new_pair() -> (Self, FlowHandle) {
-        let (tx, rx) = channel::<RendererCommand>();
+        let (tx, rx) = channel::<FlowCommand>();
         let commands = FlowCommandSender::new(tx);
         let controller = Self {
             rx,
@@ -37,6 +38,7 @@ impl FlowController {
             frame_composer: FrameComposer::new(),
             input_controller: InputController::new(commands.clone()),
             asset_upload_controller: AssetUploadController::new(commands.clone()),
+            selection_controller: SelectionController::new(),
         };
 
         (controller, FlowHandle::new(commands))
@@ -46,7 +48,7 @@ impl FlowController {
     pub fn new_pair(
         upload_status_callback: Shared<Option<js_sys::Function>>,
     ) -> (Self, FlowHandle) {
-        let (tx, rx) = channel::<RendererCommand>();
+        let (tx, rx) = channel::<FlowCommand>();
         let commands = FlowCommandSender::new(tx);
         let controller = Self {
             rx,
@@ -57,10 +59,12 @@ impl FlowController {
                 commands.clone(),
                 upload_status_callback,
             ),
+            selection_controller: SelectionController::new(),
         };
 
         (controller, FlowHandle::new(commands))
     }
+
     pub fn get_renderer(&self) -> Shared<Option<SceneRenderer>> {
         self.render_controller.renderer()
     }
@@ -84,32 +88,38 @@ impl FlowController {
         );
     }
 
-    fn handle_command(&mut self, command: RendererCommand) {
+    pub fn current_selection(&self) -> &[SelectionTarget] {
+        self.selection_controller.current_selection()
+    }
+
+    pub fn outline_selection(&self) -> &[MeshId] {
+        self.selection_controller.outlined_mesh_ids()
+    }
+
+    fn handle_command(&mut self, command: FlowCommand) {
         match command {
-            RendererCommand::WindowCreated(window) => {
+            FlowCommand::WindowCreated(window) => {
                 self.render_controller.handle_window_created(window)
             }
-            RendererCommand::AnimateCamera(request) => {
-                self.render_controller.animate_camera(request)
-            }
-            RendererCommand::StopCameraAnimation => self.render_controller.stop_camera_animation(),
-            RendererCommand::CursorInWindow { is_inside } => {
+            FlowCommand::AnimateCamera(request) => self.render_controller.animate_camera(request),
+            FlowCommand::StopCameraAnimation => self.render_controller.stop_camera_animation(),
+            FlowCommand::CursorInWindow { is_inside } => {
                 self.input_controller.handle_cursor_in_window(is_inside)
             }
-            RendererCommand::CursorMoved { x, y } => {
+            FlowCommand::CursorMoved { x, y } => {
                 self.input_controller.handle_cursor_moved(x, y);
             }
-            RendererCommand::KeyboardInput { key, pressed } => {
+            FlowCommand::KeyboardInput { key, pressed } => {
                 let renderer = self.render_controller.renderer();
                 self.input_controller
                     .handle_keyboard_input(&renderer, key, pressed);
             }
-            RendererCommand::MouseMotion { dx, dy, dt } => {
+            FlowCommand::MouseMotion { dx, dy, dt } => {
                 let renderer = self.render_controller.renderer();
                 self.input_controller
                     .handle_mouse_motion(&renderer, dx, dy, dt);
             }
-            RendererCommand::MouseButton { button, pressed } => {
+            FlowCommand::MouseButton { button, pressed } => {
                 let renderer = self.render_controller.renderer();
                 let _ = self.input_controller.handle_mouse_button(
                     &renderer,
@@ -118,7 +128,7 @@ impl FlowController {
                     pressed,
                 );
             }
-            RendererCommand::AssetUploadRequested {
+            FlowCommand::AssetUploadRequested {
                 id,
                 file_name,
                 asset_type,
@@ -126,7 +136,7 @@ impl FlowController {
             } => self
                 .asset_upload_controller
                 .handle_asset_upload_requested(id, file_name, asset_type, bytes),
-            RendererCommand::AssetBundleUploadRequested {
+            FlowCommand::AssetBundleUploadRequested {
                 id,
                 file_name,
                 asset_type,
@@ -134,7 +144,7 @@ impl FlowController {
             } => self
                 .asset_upload_controller
                 .handle_asset_bundle_upload_requested(id, file_name, asset_type, files),
-            RendererCommand::ApplyParsedAsset {
+            FlowCommand::ApplyParsedAsset {
                 id,
                 file_name,
                 asset_type,
@@ -146,28 +156,27 @@ impl FlowController {
                 asset_type,
                 imported_scene,
             ),
-            RendererCommand::AssetUploadFailed {
+            FlowCommand::AssetUploadFailed {
                 id,
                 file_name,
                 error,
             } => self
                 .asset_upload_controller
                 .handle_asset_upload_failed(id, file_name, error),
-            RendererCommand::Redraw { dt } => self
-                .render_controller
-                .render_frame(&mut self.frame_composer, dt),
-            RendererCommand::Resize { dt, width, height } => {
-                self.render_controller.handle_resize(width, height);
+            FlowCommand::Redraw { dt } => {
+                let scene_input = self.selection_controller.scene_frame_input();
                 self.render_controller
-                    .render_frame(&mut self.frame_composer, dt);
+                    .render_frame(&mut self.frame_composer, dt, scene_input);
             }
-            RendererCommand::RayCast { ray } => {
-                if let Some(mesh_id) = self.render_controller.ray_cast(ray) {
-                    debug!("Ray hit mesh: {}", mesh_id.0);
-                } else {
-                    debug!("Ray missed all visible meshes");
-                }
+            FlowCommand::Resize { dt, width, height } => {
+                self.render_controller.handle_resize(width, height);
+                let scene_input = self.selection_controller.scene_frame_input();
+                self.render_controller
+                    .render_frame(&mut self.frame_composer, dt, scene_input);
             }
+            FlowCommand::SelectAtScreenPoint { x, y, scope } => self
+                .selection_controller
+                .select_at_screen_point(&self.render_controller, x, y, scope),
         }
     }
 }
@@ -177,7 +186,7 @@ impl FlowHandle {
         Self { commands }
     }
 
-    pub fn send(&self, command: RendererCommand) {
+    pub fn send(&self, command: FlowCommand) {
         if !self.commands.send(command) {
             debug!("Ignoring flow command because receiver dropped");
         }

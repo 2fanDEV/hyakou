@@ -1,10 +1,12 @@
 use std::{collections::HashMap, f32::consts::PI, sync::Arc};
 
 use crate::{
+    flow::SceneFrameInput,
     gpu::{
         buffers::{
             camera_buffer::CameraUniform, model_matrix::ModelMatrixUniform, uniform::UniformBuffer,
         },
+        outline::OutlineUniform,
         render_mesh::RenderMesh,
     },
     renderer::{
@@ -16,7 +18,7 @@ use crate::{
 };
 use anyhow::Result;
 use bytemuck::bytes_of;
-use glam::Vec3;
+use glam::{Vec3, Vec4};
 use hyakou_core::{
     SharedAccess,
     animations::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
@@ -26,6 +28,7 @@ use hyakou_core::{
         light::LightSource,
     },
     geometry::ray::{Ray, math::intersect_transformed_mesh},
+    selection::structure::{SelectionScope, SelectionTarget},
     shared,
     traits::BindGroupProvider,
     types::{
@@ -37,9 +40,8 @@ use hyakou_core::{
 };
 use log::{error, warn};
 use wgpu::{
-    BindGroup, Color, CommandEncoder, Device, Operations, Queue, RenderPassColorAttachment,
+    BindGroup, Color, Device, Operations, Queue, RenderPassColorAttachment,
     RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline, SurfaceConfiguration,
-    TextureView,
 };
 use winit::window::Window;
 
@@ -60,12 +62,18 @@ pub struct SceneRenderer {
     light: LightSource,
     light_uniform_buffer: UniformBuffer,
     light_bind_group: BindGroup,
+    outline_uniform: OutlineUniform,
+    outline_uniform_buffer: UniformBuffer,
+    outline_bind_group: BindGroup,
     animators: HashMap<MeshId, Animator>,
     pub camera_handler: CameraHandler,
     pub asset_manager: AssetHandler,
 }
 
 impl SceneRenderer {
+    const DEFAULT_OUTLINE_COLOR: Vec4 = Vec4::new(0.5, 0.1, 1.0, 1.0);
+    const DEFAULT_OUTLINE_THICKNESS: f32 = 0.05;
+
     pub async fn new(window: Arc<Window>) -> Result<Self> {
         const CAMERA_SPEED_UNITS_PER_SECOND: f32 = 20.0;
         const CAMERA_SENSITIVITY: f32 = 0.001;
@@ -98,9 +106,10 @@ impl SceneRenderer {
                 assets_dir.join("assets/gltf/Cube.gltf").as_path(),
             )
             .await?;
-        cube_light_mesh
-            .transform
-            .try_write_shared(|t| t.translate(Vec3::new(0.0, 1.0, 1.0)))?;
+        cube_light_mesh.transform.try_write_shared(|t| {
+            t.translate(Vec3::new(0.0, 2.0, 1.0));
+            t.scale(Vec3::splat(0.25));
+        })?;
         let light = LightSource::new(cube_light_mesh.transform.clone(), Vec3::new(1.0, 1.0, 1.0));
         let light_uniform_buffer = UniformBuffer::new(
             UniformBufferId::new("Light Uniform Buffer".to_string()),
@@ -113,6 +122,15 @@ impl SceneRenderer {
             &ctx.device,
             &light_uniform_buffer,
             &LightSource::bind_group_layout(&ctx.device),
+        );
+
+        let outline_uniform =
+            OutlineUniform::new(Self::DEFAULT_OUTLINE_COLOR, Self::DEFAULT_OUTLINE_THICKNESS);
+        let outline_uniform_buffer = OutlineUniform::uniform_buffer(&ctx.device, &outline_uniform);
+        let outline_bind_group = OutlineUniform::bind_group(
+            &ctx.device,
+            &outline_uniform_buffer,
+            &ctx.outline_bind_group_layout,
         );
 
         let aspect = Camera::aspect_ratio_from_size(ctx.size);
@@ -149,7 +167,6 @@ impl SceneRenderer {
         let test_trajectory = LinearTrajectory::new_deconstructed_mesh(
             cube_light_mesh.id.clone(),
             cube_light_mesh.transform.clone(),
-            Vec3::new(0.0, 1.0, 0.0),
             f32::to_radians(0.0),
             f32::to_radians(0.0),
             3.0,
@@ -175,6 +192,9 @@ impl SceneRenderer {
             light,
             light_uniform_buffer,
             light_bind_group,
+            outline_uniform,
+            outline_uniform_buffer,
+            outline_bind_group,
             animators,
             camera_handler: CameraHandler::new(CameraMode::ORBIT),
         })
@@ -204,7 +224,27 @@ impl SceneRenderer {
         );
     }
 
-    pub fn render_scene(&mut self, target: &mut FrameTarget<'_>) {
+    pub fn resolve_selection_target(
+        &self,
+        ray: &Ray,
+        scope: SelectionScope,
+    ) -> Option<SelectionTarget> {
+        let hit_mesh_id = self.ray_cast(ray)?;
+        let outline_mesh_ids = self.asset_manager.selection_ids_for(&hit_mesh_id, &scope);
+
+        Some(SelectionTarget::new(hit_mesh_id, outline_mesh_ids, scope))
+    }
+
+    pub fn set_outline_color(&mut self, color: Vec4) {
+        self.outline_uniform.color = color;
+        self.ctx.queue.write_buffer(
+            &self.outline_uniform_buffer,
+            0,
+            bytes_of(&self.outline_uniform),
+        );
+    }
+
+    pub fn render_scene(&mut self, target: &mut FrameTarget<'_>, input: SceneFrameInput<'_>) {
         {
             target.encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Main Command Buffer"),
@@ -240,15 +280,12 @@ impl SceneRenderer {
             .get_all_visible_assets_with_modifier(&LightType::LIGHT)
             .for_each(|elem| {
                 Self::record_scene_pass_command_encoder(
-                    target.encoder,
+                    target,
                     elem,
                     &self.ctx.light_render_pipeline,
-                    target.queue,
                     self.ctx.model_binding_mode,
                     &self.camera_bind_group,
                     &self.light_bind_group,
-                    target.color_view,
-                    target.depth_view,
                 );
             });
 
@@ -256,34 +293,31 @@ impl SceneRenderer {
             .get_all_visible_assets_with_modifier(&LightType::NO_LIGHT)
             .for_each(|elem| {
                 Self::record_scene_pass_command_encoder(
-                    target.encoder,
+                    target,
                     elem,
                     &self.ctx.no_light_render_pipeline,
-                    target.queue,
                     self.ctx.model_binding_mode,
                     &self.camera_bind_group,
                     &self.light_bind_group,
-                    target.color_view,
-                    target.depth_view,
                 );
             });
+
+        self.render_outlined_meshes(target, input.outlined_mesh_ids);
     }
 
-    fn record_scene_pass_command_encoder(
-        encoder: &mut CommandEncoder,
-        render_mesh: &RenderMesh,
-        render_pipeline: &RenderPipeline,
-        queue: &Queue,
-        model_binding_mode: ModelMatrixBindingMode,
-        camera_bind_group: &BindGroup,
-        light_bind_group: &BindGroup,
-        view: &TextureView,
-        depth_view: &TextureView,
+    fn render_outlined_meshes(
+        &mut self,
+        target: &mut FrameTarget<'_>,
+        outlined_mesh_ids: &[MeshId],
     ) {
-        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-            label: Some("Main Command Buffer"),
+        if outlined_mesh_ids.is_empty() {
+            return;
+        }
+
+        let mut render_pass = target.encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Outline Command Buffer"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view,
+                view: target.color_view,
                 depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
@@ -295,7 +329,61 @@ impl SceneRenderer {
             timestamp_writes: None,
             occlusion_query_set: None,
             depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                view: depth_view,
+                view: target.depth_view,
+                depth_ops: Some(Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+        });
+
+        render_pass.set_pipeline(&self.ctx.outline_render_pipeline);
+        render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+        render_pass.set_bind_group(
+            Self::outline_bind_group_index(self.ctx.model_binding_mode),
+            &self.outline_bind_group,
+            &[],
+        );
+
+        for outlined_mesh_id in outlined_mesh_ids {
+            let Some(render_mesh) = self.asset_manager.get_visible_asset(outlined_mesh_id) else {
+                continue;
+            };
+
+            Self::record_outline_draw_commands(
+                &mut render_pass,
+                render_mesh,
+                target.queue,
+                self.ctx.model_binding_mode,
+            );
+        }
+    }
+
+    fn record_scene_pass_command_encoder(
+        target: &mut FrameTarget<'_>,
+        render_mesh: &RenderMesh,
+        render_pipeline: &RenderPipeline,
+        model_binding_mode: ModelMatrixBindingMode,
+        camera_bind_group: &BindGroup,
+        light_bind_group: &BindGroup,
+    ) {
+        let mut render_pass = target.encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Main Command Buffer"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: target.color_view,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            multiview_mask: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                view: target.depth_view,
                 depth_ops: Some(Operations {
                     load: wgpu::LoadOp::Load,
                     store: wgpu::StoreOp::Store,
@@ -305,7 +393,13 @@ impl SceneRenderer {
         });
 
         render_pass.set_pipeline(render_pipeline);
-        Self::apply_model_matrix(&mut render_pass, render_mesh, queue, model_binding_mode);
+        Self::apply_model_matrix(
+            &mut render_pass,
+            render_mesh,
+            target.queue,
+            model_binding_mode,
+            2,
+        );
         render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
         render_pass.set_bind_group(1, light_bind_group, &[]);
         render_pass.set_bind_group(0, camera_bind_group, &[]);
@@ -321,11 +415,27 @@ impl SceneRenderer {
         render_pass.draw_indexed(0..render_mesh.index_count, 0, 0..1);
     }
 
+    fn record_outline_draw_commands(
+        render_pass: &mut wgpu::RenderPass<'_>,
+        render_mesh: &RenderMesh,
+        queue: &Queue,
+        model_binding_mode: ModelMatrixBindingMode,
+    ) {
+        Self::apply_model_matrix(render_pass, render_mesh, queue, model_binding_mode, 1);
+        render_pass.set_vertex_buffer(0, render_mesh.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(
+            render_mesh.index_buffer.slice(..),
+            wgpu::IndexFormat::Uint32,
+        );
+        render_pass.draw_indexed(0..render_mesh.index_count, 0, 0..1);
+    }
+
     fn apply_model_matrix(
         render_pass: &mut wgpu::RenderPass<'_>,
         render_mesh: &RenderMesh,
         queue: &Queue,
         model_binding_mode: ModelMatrixBindingMode,
+        uniform_bind_group_index: u32,
     ) {
         let model_matrix = render_mesh.transform.read_shared(|t| t.get_matrix());
         match model_binding_mode {
@@ -342,8 +452,15 @@ impl SceneRenderer {
                     .as_ref()
                     .expect("Uniform model binding mode requires a model bind group on RenderMesh");
                 queue.write_buffer(model_uniform_buffer, 0, bytes_of(&model_uniform));
-                render_pass.set_bind_group(2, model_bind_group, &[]);
+                render_pass.set_bind_group(uniform_bind_group_index, model_bind_group, &[]);
             }
+        }
+    }
+
+    fn outline_bind_group_index(model_binding_mode: ModelMatrixBindingMode) -> u32 {
+        match model_binding_mode {
+            ModelMatrixBindingMode::Immediate => 1,
+            ModelMatrixBindingMode::Uniform => 2,
         }
     }
 
@@ -376,7 +493,7 @@ impl SceneRenderer {
         }
     }
 
-    pub fn ray_cast(&self, ray: &Ray) -> Option<MeshId> {
+    fn ray_cast(&self, ray: &Ray) -> Option<MeshId> {
         let mut closest_hit: Option<(MeshId, f32)> = None;
 
         for render_mesh in self.asset_manager.get_all_visible_assets() {
