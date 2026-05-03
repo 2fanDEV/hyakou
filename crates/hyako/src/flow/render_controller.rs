@@ -7,7 +7,7 @@ use hyakou_core::{
     geometry::ray::Ray,
     selection::structure::{SelectionScope, SelectionTarget},
     shared,
-    types::{Size, ids::MeshId},
+    types::Size,
 };
 use log::{error, warn};
 use winit::window::Window;
@@ -16,6 +16,7 @@ use winit::window::Window;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::{
+    flow::SceneFrameInput,
     flow::{FlowCommandSender, FrameComposer, selection_controller::SelectionSurface},
     gui::EguiRenderer,
     renderer::{SceneRenderer, surface_frame_controller::SurfaceFrameController},
@@ -127,7 +128,12 @@ impl RenderController {
         }
     }
 
-    pub fn render_frame(&mut self, frame_composer: &mut FrameComposer, dt: f64) {
+    pub fn render_frame(
+        &mut self,
+        frame_composer: &mut FrameComposer,
+        dt: f64,
+        scene_input: SceneFrameInput<'_>,
+    ) {
         let Some(window) = self.window.clone() else {
             return;
         };
@@ -145,6 +151,7 @@ impl RenderController {
                     renderer,
                     egui_renderer.as_mut(),
                     dt,
+                    scene_input,
                 )
             });
 
@@ -164,6 +171,7 @@ impl RenderController {
                         renderer,
                         None,
                         dt,
+                        scene_input,
                     ) {
                         error!("Renderer frame composition failed: {render_error:?}");
                     }
@@ -179,6 +187,7 @@ impl RenderController {
         renderer: &mut SceneRenderer,
         mut egui_renderer: Option<&mut EguiRenderer>,
         dt: f64,
+        scene_input: SceneFrameInput<'_>,
     ) -> anyhow::Result<()> {
         renderer.update(dt);
 
@@ -190,9 +199,9 @@ impl RenderController {
 
         {
             let mut target = frame.target();
+            renderer.render_scene(&mut target, scene_input);
             frame_composer.compose_frame(
                 &mut target,
-                renderer,
                 egui_renderer.as_mut().map(|renderer| &mut **renderer),
             );
         }
@@ -230,20 +239,6 @@ impl RenderController {
                 .state
                 .stop_camera_animation(&renderer.camera.id);
         });
-    }
-
-    pub fn ray_cast(&self, ray: Ray) -> Option<MeshId> {
-        match self.renderer.try_read_shared(|renderer_slot| {
-            renderer_slot
-                .as_ref()
-                .and_then(|renderer| renderer.ray_cast(&ray))
-        }) {
-            Ok(mesh_id) => mesh_id,
-            Err(lock_error) => {
-                warn!("Failed to acquire renderer lock during ray cast: {lock_error:?}");
-                None
-            }
-        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -301,30 +296,6 @@ impl SelectionSurface for RenderController {
                 warn!("Failed to acquire renderer lock during selection resolve: {lock_error:?}");
                 None
             }
-        }
-    }
-
-    fn set_outlined_meshes(&self, mesh_ids: Vec<MeshId>) {
-        if let Err(lock_error) = self.renderer.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-
-            renderer.set_outlined_meshes(mesh_ids);
-        }) {
-            warn!("Failed to acquire renderer lock during outline update: {lock_error:?}");
-        }
-    }
-
-    fn clear_outlined_meshes(&self) {
-        if let Err(lock_error) = self.renderer.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-
-            renderer.clear_outlined_meshes();
-        }) {
-            warn!("Failed to acquire renderer lock during outline clear: {lock_error:?}");
         }
     }
 }

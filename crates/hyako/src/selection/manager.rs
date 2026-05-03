@@ -13,38 +13,25 @@ impl SelectionManager {
         }
     }
 
-    pub fn current_selection(&self) -> &[SelectionTarget] {
-        &self.selected
-    }
-
-    pub fn current_outline_selection(&self) -> &[MeshId] {
-        &self.outline_selected
-    }
-
-    pub fn select_single(&mut self, target: SelectionTarget) {
+    pub fn select(&mut self, target: SelectionTarget) {
         self.selected.clear();
         self.outline_selected.clear();
-        self.outline_selected
-            .extend_from_slice(target.outline_mesh_ids());
-        self.selected.push(target);
+        self.add_to_collection(target);
     }
 
-    pub fn add_selection(&mut self, target: SelectionTarget) {
-        self.outline_selected
-            .extend_from_slice(target.outline_mesh_ids());
+    pub fn add_to_collection(&mut self, target: SelectionTarget) {
         self.selected.push(target);
+        self.rebuild_outline_selection();
     }
 
-    pub fn deselect(&mut self, target: SelectionTarget) {
-        if let Some(index) = self
-            .selected
-            .iter()
-            .position(|s| s.mesh_id() == target.mesh_id())
-        {
-            self.selected.remove(index);
-            self.outline_selected
-                .retain(|mesh_id| !target.outline_mesh_ids().contains(mesh_id));
-        }
+    pub fn deselect(&mut self, target: &SelectionTarget) {
+        self.selected
+            .retain(|selected| selected.mesh_id() != target.mesh_id());
+        self.rebuild_outline_selection();
+    }
+
+    pub fn outline_selection(&self) -> &[MeshId] {
+        &self.outline_selected
     }
 
     pub fn clear(&mut self) {
@@ -52,11 +39,15 @@ impl SelectionManager {
         self.outline_selected.clear();
     }
 
-    pub fn current_selected(&self) -> &[SelectionTarget] {
-        &self.selected
-    }
-
-    pub fn current_outline_selected(&self) -> &[MeshId] {
-        &self.outline_selected
+    fn rebuild_outline_selection(&mut self) {
+        self.outline_selected.clear();
+        for target in &self.selected {
+            self.outline_selected
+                .extend_from_slice(target.outline_mesh_ids());
+        }
     }
 }
+
+#[cfg(test)]
+#[path = "manager_tests.rs"]
+mod manager_tests;

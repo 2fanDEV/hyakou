@@ -7,14 +7,12 @@ use hyakou_core::{
 };
 use log::{debug, warn};
 
-use crate::selection::manager::SelectionManager;
+use crate::{flow::SceneFrameInput, selection::manager::SelectionManager};
 
 pub trait SelectionSurface {
     fn active_camera(&self) -> Result<Camera>;
     fn viewport_size(&self) -> Result<Size>;
     fn resolve_selection_target(&self, ray: Ray, scope: SelectionScope) -> Option<SelectionTarget>;
-    fn set_outlined_meshes(&self, mesh_ids: Vec<MeshId>);
-    fn clear_outlined_meshes(&self);
 }
 
 pub struct SelectionController {
@@ -67,40 +65,27 @@ impl SelectionController {
 
         let Some(target) = surface.resolve_selection_target(ray, scope) else {
             self.clear();
-            surface.clear_outlined_meshes();
             return;
         };
 
-        let outline_mesh_ids = target.outline_mesh_ids().clone();
         self.select(target);
-        surface.set_outlined_meshes(outline_mesh_ids);
     }
 
     pub fn select(&mut self, target: SelectionTarget) {
-        self.selection_manager.select_single(target);
-    }
-
-    pub fn deselect(&mut self, target: SelectionTarget) {
-        self.selection_manager.deselect(target);
-    }
-
-    pub fn is_selected(&self, mesh_id: &MeshId) -> bool {
-        self.selection_manager
-            .current_selected()
-            .iter()
-            .filter(|target| target.mesh_id().eq(mesh_id))
-            .count()
-            > 0
-            || self
-                .selection_manager
-                .current_outline_selected()
-                .iter()
-                .filter(|mesh| mesh_id.eq(mesh))
-                .count()
-                > 0
+        self.selection_manager.select(target);
     }
 
     pub fn clear(&mut self) {
         self.selection_manager.clear();
+    }
+
+    pub fn outlined_mesh_ids(&self) -> &[MeshId] {
+        self.selection_manager.outline_selection()
+    }
+
+    pub fn scene_frame_input(&self) -> SceneFrameInput<'_> {
+        SceneFrameInput {
+            outlined_mesh_ids: self.outlined_mesh_ids(),
+        }
     }
 }

@@ -154,13 +154,16 @@ impl FlowController {
             } => self
                 .asset_upload_controller
                 .handle_asset_upload_failed(id, file_name, error),
-            FlowCommand::Redraw { dt } => self
-                .render_controller
-                .render_frame(&mut self.frame_composer, dt),
+            FlowCommand::Redraw { dt } => {
+                let scene_input = self.selection_controller.scene_frame_input();
+                self.render_controller
+                    .render_frame(&mut self.frame_composer, dt, scene_input);
+            }
             FlowCommand::Resize { dt, width, height } => {
                 self.render_controller.handle_resize(width, height);
+                let scene_input = self.selection_controller.scene_frame_input();
                 self.render_controller
-                    .render_frame(&mut self.frame_composer, dt);
+                    .render_frame(&mut self.frame_composer, dt, scene_input);
             }
             FlowCommand::SelectAtScreenPoint { x, y, scope } => self
                 .selection_controller
