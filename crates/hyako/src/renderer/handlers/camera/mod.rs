@@ -53,7 +53,13 @@ impl CameraHandler {
     }
 
     pub fn handle_action(&mut self, action: &Action, is_pressed: bool) {
-        self.movement_handler.handle_action(action, is_pressed);
+        match action {
+            Action::Camera(_) => self.movement_handler.handle_action(action, is_pressed),
+            Action::CameraHandler(camera_handler_action) => {
+                self.camera_mode_handler
+                    .handle_action(camera_handler_action, is_pressed);
+            }
+        }
     }
 
     pub fn update(&mut self, camera: &mut Camera, delta_time: DeltaTime) {

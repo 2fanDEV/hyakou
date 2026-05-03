@@ -1,3 +1,5 @@
+use crate::renderer::actions::ActionImpl;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CameraActions {
     SlowModifier,
@@ -9,4 +11,10 @@ pub enum CameraActions {
     Up,
     Down,
     Drag,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CameraHandlerAction {
+    SwitchCameraModeForward,
+    SwitchCameraModeBackwards,
 }

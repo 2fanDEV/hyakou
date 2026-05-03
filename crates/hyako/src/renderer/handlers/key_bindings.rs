@@ -4,7 +4,10 @@ use log::{trace, warn};
 use smallvec::{SmallVec, smallvec};
 use winit::keyboard::KeyCode;
 
-use crate::renderer::actions::{Action, CameraActions};
+use crate::renderer::actions::{
+    Action, CameraActions,
+    camera_actions::{self, CameraHandlerAction},
+};
 
 const MAX_KEY_BIND_COUNT: usize = 5;
 
@@ -67,6 +70,17 @@ impl KeyBindingMap {
                 smallvec![],
             ),
             Action::Camera(CameraActions::SlowModifier),
+        );
+        binding.insert(
+            KeyBinding::new(smallvec![KeyCode::ControlLeft], smallvec![KeyCode::KeyC]),
+            Action::CameraHandler(CameraHandlerAction::SwitchCameraModeForward),
+        );
+        binding.insert(
+            KeyBinding::new(
+                smallvec![KeyCode::ControlLeft, KeyCode::ShiftLeft],
+                smallvec![KeyCode::KeyC],
+            ),
+            Action::CameraHandler(CameraHandlerAction::SwitchCameraModeBackwards),
         );
         Self { binding }
     }

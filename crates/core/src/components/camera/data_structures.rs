@@ -1,15 +1,22 @@
 use glam::Vec3;
+use strum::VariantArray;
 use strum_macros::{EnumIter, VariantArray};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::types::{DeltaTime, shared::Coordinates3};
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, VariantArray, EnumIter)]
+#[derive(Clone, Debug, VariantArray, EnumIter, PartialEq, Eq)]
 pub enum CameraMode {
     FLY,
     PAN,
     ORBIT,
+}
+
+impl CameraMode {
+    pub fn get_variants() -> &'static [CameraMode] {
+        CameraMode::VARIANTS
+    }
 }
 
 #[derive(Debug)]
