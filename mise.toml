@@ -4,6 +4,10 @@ node = "25.7.0"
 pnpm = "10.33.0"
 "cargo:wasm-pack" = "0.14.0"
 
+[tasks."ecs:ci"]
+run = "cargo test --all-targets --all-features -- --nocapture"
+dir = "crates/ecs"
+
 [tasks."build:wasm"]
 run = "wasm-pack build --target web --out-dir frontend/src/lib/hyakou"
 dir = "crates/wasm-bindings"
