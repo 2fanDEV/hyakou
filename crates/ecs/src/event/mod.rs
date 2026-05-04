@@ -1,4 +1,5 @@
 mod events;
+pub use events::Events;
 
 pub trait Event: 'static {}
 
