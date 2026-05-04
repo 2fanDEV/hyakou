@@ -1,6 +1,9 @@
 use crate::component::Component;
 
+#[derive(Debug)]
 struct TestComponent;
+
+#[derive(Debug)]
 struct TestComponent2;
 impl Component for TestComponent {}
 impl Component for TestComponent2 {}

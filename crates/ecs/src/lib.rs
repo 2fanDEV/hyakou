@@ -11,3 +11,4 @@ mod world;
 
 pub use component::Component;
 pub use event::Event;
+pub use world::World;
