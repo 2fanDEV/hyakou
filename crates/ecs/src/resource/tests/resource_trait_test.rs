@@ -27,7 +27,7 @@ fn test_resource_different_type() {
 
 #[test]
 fn test_resources_store_values_by_type() {
-    let mut resources = Resources::new();
+    let mut resources = Resources::default();
 
     resources.insert(TestResource(7));
     resources.insert(OtherResource("world"));

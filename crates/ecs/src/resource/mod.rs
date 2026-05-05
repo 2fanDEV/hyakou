@@ -11,10 +11,8 @@ pub struct Resources {
 }
 
 impl Resources {
-    pub fn new() -> Self {
-        Self {
-            values: TypeMap::new(),
-        }
+    pub fn new(values: TypeMap) -> Self {
+        Self { values }
     }
 
     pub fn insert<R: Resource>(&mut self, resource: R) -> Option<R> {

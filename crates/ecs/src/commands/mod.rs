@@ -4,8 +4,8 @@ pub struct CommandBuffer<T> {
 }
 
 impl<T> CommandBuffer<T> {
-    pub fn new() -> Self {
-        Self { commands: vec![] }
+    pub fn new(commands: Vec<T>) -> Self {
+        Self { commands }
     }
 
     pub fn push(&mut self, command: T) {

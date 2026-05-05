@@ -15,4 +15,8 @@ impl Entity {
             id: EntityId::new_uuid(index, version),
         }
     }
+
+    pub fn id(&self) -> &EntityId {
+        &self.id
+    }
 }

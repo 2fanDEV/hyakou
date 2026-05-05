@@ -6,20 +6,13 @@ struct EntitySlot {
     alive: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct EntityAllocator {
     slots: Vec<EntitySlot>,
     free_slots: Vec<usize>,
 }
 
 impl EntityAllocator {
-    pub fn new() -> Self {
-        Self {
-            slots: vec![],
-            free_slots: vec![],
-        }
-    }
-
     pub fn spawn(&mut self) -> EntityId {
         if let Some(index) = self.free_slots.pop() {
             let slot = &mut self.slots[index];
@@ -38,7 +31,7 @@ impl EntityAllocator {
         EntityId::new_uuid(index, 0)
     }
 
-    pub fn despawn(&mut self, id: EntityId) -> bool {
+    pub fn despawn(&mut self, id: &EntityId) -> bool {
         let Some(slot) = self.slots.get_mut(id.index()) else {
             return false;
         };

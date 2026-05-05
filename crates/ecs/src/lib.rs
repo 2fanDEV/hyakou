@@ -9,11 +9,11 @@ mod tests;
 mod world;
 
 pub use commands::CommandBuffer;
-pub use component::Component;
+pub use component::{Component, Components};
 pub use entity::Entity;
 pub use entity::EntityAllocator;
 pub use entity::EntityId;
 pub use event::Event;
 pub use event::Events;
-pub use resource::Resources;
+pub use resource::{Resource, Resources};
 pub use world::World;
