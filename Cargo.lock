@@ -683,10 +683,14 @@ dependencies = [
 name = "ecs"
 version = "0.1.0"
 dependencies = [
+<<<<<<< HEAD
  "anyhow",
  "log",
  "shared_types",
  "uuid",
+=======
+ "log",
+>>>>>>> ded483f4eb5b9b75b19fe89d817122d8c97c59bb
 ]
 
 [[package]]
