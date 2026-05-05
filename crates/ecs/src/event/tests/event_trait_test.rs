@@ -1,6 +1,7 @@
 use crate::event::Event;
-
+#[derive(Debug)]
 struct TestComponent;
+#[derive(Debug)]
 struct TestComponent2;
 impl Event for TestComponent {}
 impl Event for TestComponent2 {}
