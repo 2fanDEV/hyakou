@@ -5,7 +5,7 @@ use type_map::TypeMap;
 
 use crate::EntityId;
 
-pub trait Component: 'static + Debug {}
+pub trait Component: 'static + Debug + Clone {}
 
 #[derive(Debug, Default)]
 pub struct Components {
@@ -25,7 +25,7 @@ impl Components {
                     entity,
                     std::any::type_name::<C>()
                 );
-                return None;
+                return Some(c.clone());
             }
             None => self.storage_mut::<C>().insert(entity, component),
         }

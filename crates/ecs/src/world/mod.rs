@@ -61,7 +61,23 @@ impl World {
     }
 
     pub fn insert_component<C: Component>(&mut self, entity: EntityId, component: C) -> Option<C> {
+        let is_alive = self.is_alive(&entity);
+        if !is_alive {
+            return None;
+        }
         self.components.insert(entity, component)
+    }
+
+    pub fn get_component<C: Component>(&self, entity: &EntityId) -> Option<&C> {
+        self.components.get::<C>(entity)
+    }
+
+    pub fn get_component_mut<C: Component>(&mut self, entity: &EntityId) -> Option<&mut C> {
+        self.components.get_mut::<C>(entity)
+    }
+
+    pub fn remove_component<C: Component>(&mut self, entity: &EntityId) -> Option<C> {
+        self.components.remove::<C>(entity)
     }
 }
 
