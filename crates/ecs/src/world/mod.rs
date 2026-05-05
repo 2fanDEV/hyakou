@@ -1,13 +1,23 @@
-use crate::Component;
+use crate::{Component, EntityAllocator, Events};
 
 #[derive(Debug)]
 pub struct World {
     components: Vec<Box<dyn Component>>,
+    allocator: EntityAllocator,
+    events: Events,
 }
 
 impl World {
-    pub fn new() -> Self {
-        Self { components: vec![] }
+    pub fn new(
+        components: Vec<Box<dyn Component>>,
+        allocator: EntityAllocator,
+        events: Events,
+    ) -> Self {
+        Self {
+            components,
+            allocator,
+            events,
+        }
     }
 }
 

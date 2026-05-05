@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use anyhow::{Result, anyhow};
 
-use crate::{Entity, EntityId};
+use crate::EntityId;
 
+#[derive(Debug)]
 pub struct EntityAllocator {
     entities: Vec<EntityId>,
 }
@@ -13,9 +12,26 @@ impl EntityAllocator {
         Self { entities: vec![] }
     }
 
-    pub fn spawn(&self) -> Entity {
-        let entity = Entity::new_uuid(idx, version);
-        entity
+    pub fn spawn(&mut self) -> EntityId {
+        let stale_entities = self.entities.iter().filter(|id| id.stale == true);
+        let mut push_entity_id = false;
+        let idx = if stale_entities.clone().count() > 0 {
+            stale_entities
+                .take(1)
+                .next()
+                .map(|id| (id.index, id.version + 1))
+                .unwrap()
+        } else {
+            push_entity_id = true;
+            (self.entities.len(), 0)
+        };
+        let new_entity = EntityId::new_uuid(idx.0, idx.1);
+        if push_entity_id {
+            self.entities.push(new_entity.clone());
+        } else {
+            self.entities[idx.0] = new_entity.clone();
+        }
+        new_entity
     }
 
     pub fn despawn(&mut self, id: EntityId) -> Result<()> {
@@ -33,6 +49,7 @@ impl EntityAllocator {
     }
 
     pub fn get_next_idx(&self) -> usize {
-        self.entities.len() - 1
+        let length = self.entities.len();
+        if length > 0 { length - 1 } else { 0 }
     }
 }
