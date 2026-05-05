@@ -1,13 +1,7 @@
 use crate::component::Component;
 
-<<<<<<< HEAD
 #[derive(Debug)]
 struct TestComponent;
-
-#[derive(Debug)]
-=======
-struct TestComponent;
->>>>>>> ded483f4eb5b9b75b19fe89d817122d8c97c59bb
 struct TestComponent2;
 impl Component for TestComponent {}
 impl Component for TestComponent2 {}
