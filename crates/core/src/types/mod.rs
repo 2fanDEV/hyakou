@@ -48,6 +48,7 @@ pub enum ModelMatrixBindingMode {
     Uniform,
 }
 
+#[deprecated(note = "will be moved into a separate crate")]
 pub trait BaseId {
     fn get_id(&self) -> &str;
 }
