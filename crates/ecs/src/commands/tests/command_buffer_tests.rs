@@ -5,7 +5,7 @@ struct TestCommand(u32);
 
 #[test]
 fn test_empty_command_buffer_behavior() {
-    let buffer = CommandBuffer::<TestCommand>::new();
+    let buffer = CommandBuffer::<TestCommand>::new(Vec::default());
 
     assert!(buffer.is_empty());
     assert_eq!(buffer.len(), 0);
@@ -14,7 +14,7 @@ fn test_empty_command_buffer_behavior() {
 
 #[test]
 fn test_command_buffer_preserves_insertion_order() {
-    let mut buffer = CommandBuffer::new();
+    let mut buffer = CommandBuffer::new(Vec::default());
 
     buffer.push(TestCommand(1));
     buffer.push(TestCommand(2));
@@ -27,7 +27,7 @@ fn test_command_buffer_preserves_insertion_order() {
 
 #[test]
 fn test_command_buffer_can_be_cleared_after_apply() {
-    let mut buffer = CommandBuffer::new();
+    let mut buffer = CommandBuffer::new(Vec::default());
 
     buffer.push(TestCommand(1));
     buffer.clear();

@@ -1,23 +1,67 @@
-use crate::{Component, EntityAllocator, Events};
+use crate::component::Components;
+use crate::{Component, EntityAllocator, EntityId, Event, Events, Resources, resource::Resource};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct World {
-    components: Vec<Box<dyn Component>>,
+    components: Components,
     allocator: EntityAllocator,
+    resources: Resources,
     events: Events,
 }
 
 impl World {
     pub fn new(
-        components: Vec<Box<dyn Component>>,
+        components: Components,
         allocator: EntityAllocator,
+        resources: Resources,
         events: Events,
     ) -> Self {
         Self {
             components,
             allocator,
+            resources,
             events,
         }
+    }
+
+    pub fn spawn(&mut self) -> EntityId {
+        self.allocator.spawn()
+    }
+
+    pub fn despawn(&mut self, entity: &EntityId) -> bool {
+        self.allocator.despawn(entity)
+    }
+
+    pub fn is_alive(&self, entity: &EntityId) -> bool {
+        self.allocator.is_alive(entity)
+    }
+
+    pub fn write_event<E: Event>(&mut self, event: E) {
+        self.events.write(event);
+    }
+
+    pub fn read_events<E: Event>(&self) -> &[E] {
+        self.events.read::<E>()
+    }
+
+    pub fn insert_resource<R: Resource>(&mut self, resource: R) -> Option<R> {
+        self.resources.insert(resource)
+    }
+
+    pub fn resource<R: Resource>(&self) -> Option<&R> {
+        self.resources.get::<R>()
+    }
+
+    pub fn resource_mut<R: Resource>(&mut self) -> Option<&mut R> {
+        self.resources.get_mut::<R>()
+    }
+
+    pub fn remove_resource<R: Resource>(&mut self) -> Option<R> {
+        self.resources.remove::<R>()
+    }
+
+    pub fn insert_component<C: Component>(&mut self, entity: EntityId, component: C) -> Option<C> {
+        self.components.insert(entity, component)
     }
 }
 

@@ -1,9 +1,9 @@
 use shared_types::id::{BaseId, Id};
 
 mod allocator;
-mod entity;
+mod entity_data;
 pub use allocator::EntityAllocator;
-pub use entity::Entity;
+pub use entity_data::Entity;
 
 #[derive(Debug, Default, Hash, PartialEq, Eq, Clone)]
 pub struct EntityId {
