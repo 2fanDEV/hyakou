@@ -1,4 +1,4 @@
-use crate::{Resource, Resources};
+use crate::{Resources, resource::Resource};
 
 #[derive(Debug, PartialEq)]
 struct TestResource(u32);
