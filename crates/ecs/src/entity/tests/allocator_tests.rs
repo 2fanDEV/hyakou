@@ -2,7 +2,7 @@ use crate::EntityAllocator;
 
 #[test]
 fn test_spawn_creates_fresh_entity_ids() {
-    let mut allocator = EntityAllocator::new();
+    let mut allocator = EntityAllocator::default();
 
     let first = allocator.spawn();
     let second = allocator.spawn();
@@ -17,20 +17,20 @@ fn test_spawn_creates_fresh_entity_ids() {
 
 #[test]
 fn test_despawn_marks_entity_dead() {
-    let mut allocator = EntityAllocator::new();
+    let mut allocator = EntityAllocator::default();
     let entity = allocator.spawn();
 
-    assert!(allocator.despawn(entity.clone()));
+    assert!(allocator.despawn(&entity));
 
     assert!(!allocator.is_alive(&entity));
 }
 
 #[test]
 fn test_reusing_slot_increments_generation() {
-    let mut allocator = EntityAllocator::new();
+    let mut allocator = EntityAllocator::default();
     let old_entity = allocator.spawn();
 
-    assert!(allocator.despawn(old_entity.clone()));
+    assert!(allocator.despawn(&old_entity));
     let new_entity = allocator.spawn();
 
     assert_eq!(new_entity.index(), old_entity.index());
@@ -41,11 +41,11 @@ fn test_reusing_slot_increments_generation() {
 
 #[test]
 fn test_repeated_spawn_despawn_cycles() {
-    let mut allocator = EntityAllocator::new();
+    let mut allocator = EntityAllocator::default();
     let mut entity = allocator.spawn();
 
     for expected_version in 1..=8 {
-        assert!(allocator.despawn(entity));
+        assert!(allocator.despawn(&entity));
         entity = allocator.spawn();
 
         assert_eq!(entity.index(), 0);
@@ -56,14 +56,14 @@ fn test_repeated_spawn_despawn_cycles() {
 
 #[test]
 fn test_dead_or_stale_entities_fail_safely() {
-    let mut allocator = EntityAllocator::new();
+    let mut allocator = EntityAllocator::default();
     let stale_entity = allocator.spawn();
 
-    assert!(allocator.despawn(stale_entity.clone()));
-    assert!(!allocator.despawn(stale_entity.clone()));
+    assert!(allocator.despawn(&stale_entity));
+    assert!(!allocator.despawn(&stale_entity));
 
     let new_entity = allocator.spawn();
 
-    assert!(!allocator.despawn(stale_entity));
-    assert!(allocator.despawn(new_entity));
+    assert!(!allocator.despawn(&stale_entity));
+    assert!(allocator.despawn(&new_entity));
 }

@@ -1,32 +1,33 @@
-use std::{any::TypeId, collections::HashMap};
+use type_map::TypeMap;
 
 use crate::Event;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Events {
-    pub buckets: HashMap<TypeId, Vec<Box<dyn Event>>>,
+    queues: TypeMap,
 }
 
 impl Events {
-    pub fn new() -> Self {
-        Self {
-            buckets: HashMap::new(),
-        }
+    pub fn new(queues: TypeMap) -> Self {
+        Self { queues }
     }
 
-    pub fn push<E: Event>(&mut self, event: E) {
-        self.buckets
-            .entry(TypeId::of::<E>())
-            .or_default()
-            .push(Box::new(event));
+    pub fn write<E: Event>(&mut self, event: E) {
+        self.queues
+            .entry::<Vec<E>>()
+            .or_insert_with(Vec::new)
+            .push(event);
     }
 
     pub fn len<E: Event>(&self) -> usize {
-        self.buckets.get(&TypeId::of::<E>()).map_or(0, Vec::len)
+        self.read::<E>().len()
     }
 
-    pub fn get<E: Event>(&self) -> Option<&[Box<dyn Event>]> {
-        let type_id = TypeId::of::<E>();
-        self.buckets.get(&type_id).map(Vec::as_slice)
+    pub fn is_empty<E: Event>(&self) -> bool {
+        self.read::<E>().is_empty()
+    }
+
+    pub fn read<E: Event>(&self) -> &[E] {
+        self.queues.get::<Vec<E>>().map_or(&[], Vec::as_slice)
     }
 }
