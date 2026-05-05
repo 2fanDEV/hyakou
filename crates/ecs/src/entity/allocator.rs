@@ -1,55 +1,70 @@
-use anyhow::{Result, anyhow};
-
 use crate::EntityId;
 
 #[derive(Debug)]
+struct EntitySlot {
+    version: usize,
+    alive: bool,
+}
+
+#[derive(Debug)]
 pub struct EntityAllocator {
-    entities: Vec<EntityId>,
+    slots: Vec<EntitySlot>,
+    free_slots: Vec<usize>,
 }
 
 impl EntityAllocator {
     pub fn new() -> Self {
-        Self { entities: vec![] }
+        Self {
+            slots: vec![],
+            free_slots: vec![],
+        }
     }
 
     pub fn spawn(&mut self) -> EntityId {
-        let stale_entities = self.entities.iter().filter(|id| id.stale == true);
-        let mut push_entity_id = false;
-        let idx = if stale_entities.clone().count() > 0 {
-            stale_entities
-                .take(1)
-                .next()
-                .map(|id| (id.index, id.version + 1))
-                .unwrap()
-        } else {
-            push_entity_id = true;
-            (self.entities.len(), 0)
-        };
-        let new_entity = EntityId::new_uuid(idx.0, idx.1);
-        if push_entity_id {
-            self.entities.push(new_entity.clone());
-        } else {
-            self.entities[idx.0] = new_entity.clone();
+        if let Some(index) = self.free_slots.pop() {
+            let slot = &mut self.slots[index];
+            slot.version += 1;
+            slot.alive = true;
+
+            return EntityId::new_uuid(index, slot.version);
         }
-        new_entity
+
+        let index = self.slots.len();
+        self.slots.push(EntitySlot {
+            version: 0,
+            alive: true,
+        });
+
+        EntityId::new_uuid(index, 0)
     }
 
-    pub fn despawn(&mut self, id: EntityId) -> Result<()> {
-        let position = self.entities.iter().position(|p| id.eq(p));
-        match position {
-            Some(idx) => {
-                let Some(entity) = self.entities.get_mut(idx) else {
-                    return Err(anyhow!("No entity at index `{:?}` found", idx));
-                };
-                entity.stale = true;
-                Ok(())
-            }
-            None => Ok(()),
+    pub fn despawn(&mut self, id: EntityId) -> bool {
+        let Some(slot) = self.slots.get_mut(id.index()) else {
+            return false;
+        };
+
+        if !slot.alive || slot.version != id.version() {
+            return false;
         }
+
+        slot.alive = false;
+        self.free_slots.push(id.index());
+
+        true
+    }
+
+    pub fn is_alive(&self, id: &EntityId) -> bool {
+        self.slots
+            .get(id.index())
+            .is_some_and(|slot| slot.alive && slot.version == id.version())
     }
 
     pub fn get_next_idx(&self) -> usize {
-        let length = self.entities.len();
+        let length = self.slots.len();
         if length > 0 { length - 1 } else { 0 }
     }
 }
+
+#[cfg(test)]
+#[path = "tests/allocator_tests.rs"]
+mod allocator_tests;

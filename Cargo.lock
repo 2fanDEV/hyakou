@@ -686,6 +686,7 @@ dependencies = [
  "anyhow",
  "log",
  "shared_types",
+ "type-map",
  "uuid",
 ]
 
