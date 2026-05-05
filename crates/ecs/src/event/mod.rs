@@ -1,6 +1,9 @@
 mod events;
+use std::fmt::Debug;
 
-pub trait Event: 'static {}
+pub use events::Events;
+
+pub trait Event: 'static + Debug {}
 
 #[cfg(test)]
 #[path = "tests/event_trait_test.rs"]

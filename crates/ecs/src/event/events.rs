@@ -2,6 +2,7 @@ use std::{any::TypeId, collections::HashMap};
 
 use crate::Event;
 
+#[derive(Debug)]
 pub struct Events {
     pub buckets: HashMap<TypeId, Vec<Box<dyn Event>>>,
 }

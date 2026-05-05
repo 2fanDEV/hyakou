@@ -5,3 +5,7 @@ edition = "2024"
 
 [dependencies]
 log = "0.4.29"
+shared_types = { path = "../shared_types" }
+uuid = { version = "1.18.1", features = ["v4", "js"] }
+anyhow = "1.0.102"
+
