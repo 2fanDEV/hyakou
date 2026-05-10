@@ -1,88 +1,13 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::any::Any;
+use std::collections::HashMap;
+use std::fmt::Debug;
 
 use log::error;
-use type_map::TypeMap;
 
 use crate::EntityId;
+use crate::storage::{KeyedStorage, Storage, TypeStorage};
 
 pub trait Component: 'static + Debug + Clone {}
-
-#[derive(Debug, Default)]
-pub struct Components {
-    storages: TypeMap,
-}
-
-impl Components {
-    pub fn new(storages: TypeMap) -> Self {
-        Self { storages }
-    }
-
-    pub(crate) fn insert<C: Component>(&mut self, entity: EntityId, component: C) -> Option<C> {
-        match self.get::<C>(&entity) {
-            Some(c) => {
-                error!(
-                    "entity {:?} already has a component of type {}",
-                    entity,
-                    std::any::type_name::<C>()
-                );
-                return Some(c.clone());
-            }
-            None => self.storage_mut::<C>().insert(entity, component),
-        }
-    }
-
-    pub(crate) fn get<C: Component>(&self, entity: &EntityId) -> Option<&C> {
-        if let Some(storage) = self.storage::<C>() {
-            storage.get(entity)
-        } else {
-            None
-        }
-    }
-
-    pub(crate) fn get_mut<C: Component>(&mut self, entity: &EntityId) -> Option<&mut C> {
-        self.storage_mut::<C>().get_mut(entity)
-    }
-
-    pub(crate) fn remove<C: Component>(&mut self, entity: &EntityId) -> Option<C> {
-        self.storage_mut::<C>().remove(entity)
-    }
-
-    pub(crate) fn contains<C: Component>(&self, entity: &EntityId) -> bool {
-        self.storage::<C>().map_or(false, |s| s.contains(entity))
-    }
-
-    pub fn contains_storage<C: Component>(&self) -> bool {
-        self.storages.contains::<ComponentStorage<C>>()
-    }
-
-    pub fn storage_len<C: Component>(&self) -> usize {
-        self.storages
-            .get::<ComponentStorage<C>>()
-            .map_or(0, ComponentStorage::len)
-    }
-
-    fn storage<C: Component>(&self) -> Option<&ComponentStorage<C>> {
-        let storage = self.storages.get::<ComponentStorage<C>>();
-        match storage {
-            Some(storage) => Some(storage),
-            None => {
-                error!(
-                    "ComponentStorage for type {} not populated",
-                    std::any::type_name::<C>()
-                );
-                None
-            }
-        }
-    }
-
-    fn storage_mut<C: Component>(&mut self) -> &mut ComponentStorage<C> {
-        self.storages
-            .entry::<ComponentStorage<C>>()
-            .or_insert_with(|| ComponentStorage {
-                values: HashMap::default(),
-            })
-    }
-}
 
 #[derive(Debug)]
 struct ComponentStorage<C> {
@@ -106,12 +31,102 @@ impl<C> ComponentStorage<C> {
         self.values.remove(entity)
     }
 
-    fn contains(&self, entity: &EntityId) -> bool {
-        self.values.contains_key(entity)
-    }
-
     fn len(&self) -> usize {
         self.values.len()
+    }
+}
+
+impl<C: Component> Storage for ComponentStorage<C> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
+    fn remove_any_key(&mut self, key: &dyn Any) -> bool {
+        key.downcast_ref::<EntityId>()
+            .is_some_and(|entity| self.remove_key(entity))
+    }
+}
+
+impl<C: Component> KeyedStorage<EntityId> for ComponentStorage<C> {
+    fn remove_key(&mut self, key: &EntityId) -> bool {
+        self.values.remove(key).is_some()
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Components {
+    storages: TypeStorage,
+}
+
+impl Components {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub(crate) fn insert<C: Component>(
+        &mut self,
+        entity: &mut EntityId,
+        component: C,
+    ) -> Option<C> {
+        if let Some(c) = self.get::<C>(entity) {
+            error!(
+                "entity {:?} already has a component of type {}",
+                entity,
+                std::any::type_name::<C>()
+            );
+            return Some(c.clone());
+        }
+
+        self.storage_mut::<C>().insert(entity.clone(), component)
+    }
+
+    pub(crate) fn get<C: Component>(&self, entity: &EntityId) -> Option<&C> {
+        self.storage::<C>()?.get(entity)
+    }
+
+    pub(crate) fn get_mut<C: Component>(&mut self, entity: &EntityId) -> Option<&mut C> {
+        self.storage_mut::<C>().get_mut(entity)
+    }
+
+    pub(crate) fn remove<C: Component>(&mut self, entity: &mut EntityId) -> Option<C> {
+        self.storage_mut::<C>().remove(entity)
+    }
+
+    pub fn contains_storage<C: Component>(&self) -> bool {
+        self.storages.contains::<ComponentStorage<C>>()
+    }
+
+    pub fn storage_len<C: Component>(&self) -> usize {
+        self.storage::<C>().map_or(0, |s| s.len())
+    }
+
+    pub(crate) fn remove_entity(&mut self, entity: &mut EntityId) -> usize {
+        let mut removed = 0;
+        for storage in self.storages.iter_mut() {
+            if storage.remove_any_key(entity) {
+                removed += 1;
+            }
+        }
+        removed
+    }
+
+    fn storage<C: Component>(&self) -> Option<&ComponentStorage<C>> {
+        self.storages.get::<ComponentStorage<C>>()
+    }
+
+    fn storage_mut<C: Component>(&mut self) -> &mut ComponentStorage<C> {
+        self.storages
+            .get_or_insert_with::<ComponentStorage<C>, _>(|| ComponentStorage::<C> {
+                values: HashMap::default(),
+            })
     }
 }
 
