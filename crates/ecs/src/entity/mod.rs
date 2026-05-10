@@ -5,7 +5,7 @@ mod entity_data;
 pub use allocator::EntityAllocator;
 pub use entity_data::Entity;
 
-#[derive(Debug, Default, Hash, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, Clone, Hash, PartialEq, Eq)]
 pub struct EntityId {
     id: Id,
     index: usize,

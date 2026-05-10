@@ -5,6 +5,7 @@ mod event;
 mod query;
 mod resource;
 mod schedule;
+mod storage;
 mod tests;
 mod world;
 
@@ -16,4 +17,5 @@ pub use entity::EntityId;
 pub use event::Event;
 pub use event::Events;
 pub use resource::{Resource, Resources};
+pub use storage::{KeyedStorage, Storage, TypeStorage};
 pub use world::World;

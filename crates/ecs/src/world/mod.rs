@@ -28,8 +28,18 @@ impl World {
         self.allocator.spawn()
     }
 
-    pub fn despawn(&mut self, entity: &EntityId) -> bool {
-        self.allocator.despawn(entity)
+    /// Despawns an entity and removes all its attached components.
+    ///
+    /// # Contract
+    /// - If the entity is dead, stale, or unknown, returns `false` and does not mutate components.
+    /// - On success, marks the entity dead first, then removes all components owned by exactly this `EntityId`.
+    /// - Cleanup does not touch components belonging to other entities.
+    pub fn despawn(&mut self, entity: &mut EntityId) -> bool {
+        if !self.allocator.despawn(entity) {
+            return false;
+        }
+        self.components.remove_entity(entity);
+        true
     }
 
     pub fn is_alive(&self, entity: &EntityId) -> bool {
@@ -60,8 +70,12 @@ impl World {
         self.resources.remove::<R>()
     }
 
-    pub fn insert_component<C: Component>(&mut self, entity: EntityId, component: C) -> Option<C> {
-        let is_alive = self.is_alive(&entity);
+    pub fn insert_component<C: Component>(
+        &mut self,
+        entity: &mut EntityId,
+        component: C,
+    ) -> Option<C> {
+        let is_alive = self.is_alive(entity);
         if !is_alive {
             return None;
         }
@@ -76,7 +90,7 @@ impl World {
         self.components.get_mut::<C>(entity)
     }
 
-    pub fn remove_component<C: Component>(&mut self, entity: &EntityId) -> Option<C> {
+    pub fn remove_component<C: Component>(&mut self, entity: &mut EntityId) -> Option<C> {
         self.components.remove::<C>(entity)
     }
 }
