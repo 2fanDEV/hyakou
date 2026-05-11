@@ -1,4 +1,6 @@
+use crate::commands::WorldCommand;
 use crate::component::Components;
+use crate::{Command, CommandBuffer};
 use crate::{Component, EntityAllocator, EntityId, Event, Events, Resources, resource::Resource};
 
 #[derive(Debug, Default)]
@@ -24,6 +26,21 @@ impl World {
         }
     }
 
+    pub fn apply_command_buffer(&mut self, buffer: &mut CommandBuffer) {
+        for command in buffer.drain(..) {
+            match command {
+                Command::World(world_command) => match world_command {
+                    WorldCommand::SPAWN => {
+                        self.spawn();
+                    }
+                    WorldCommand::DESPAWN(id) => {
+                        self.despawn(&id);
+                    }
+                },
+            }
+        }
+    }
+
     pub fn spawn(&mut self) -> EntityId {
         self.allocator.spawn()
     }
@@ -34,7 +51,7 @@ impl World {
     /// - If the entity is dead, stale, or unknown, returns `false` and does not mutate components.
     /// - On success, marks the entity dead first, then removes all components owned by exactly this `EntityId`.
     /// - Cleanup does not touch components belonging to other entities.
-    pub fn despawn(&mut self, entity: &mut EntityId) -> bool {
+    pub fn despawn(&mut self, entity: &EntityId) -> bool {
         if !self.allocator.despawn(entity) {
             return false;
         }

@@ -9,7 +9,9 @@ mod storage;
 mod tests;
 mod world;
 
+pub use commands::Command;
 pub use commands::CommandBuffer;
+pub use commands::WorldCommand;
 pub use component::{Component, Components};
 pub use entity::Entity;
 pub use entity::EntityAllocator;

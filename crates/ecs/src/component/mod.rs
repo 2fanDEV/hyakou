@@ -96,7 +96,7 @@ impl Components {
         self.storage_mut::<C>().get_mut(entity)
     }
 
-    pub(crate) fn remove<C: Component>(&mut self, entity: &mut EntityId) -> Option<C> {
+    pub(crate) fn remove<C: Component>(&mut self, entity: &EntityId) -> Option<C> {
         self.storage_mut::<C>().remove(entity)
     }
 
@@ -108,7 +108,7 @@ impl Components {
         self.storage::<C>().map_or(0, |s| s.len())
     }
 
-    pub(crate) fn remove_entity(&mut self, entity: &mut EntityId) -> usize {
+    pub(crate) fn remove_entity(&mut self, entity: &EntityId) -> usize {
         let mut removed = 0;
         for storage in self.storages.iter_mut() {
             if storage.remove_any_key(entity) {
