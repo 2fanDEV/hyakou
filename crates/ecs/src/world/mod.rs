@@ -1,4 +1,6 @@
+use crate::commands::EntityCommand;
 use crate::component::Components;
+use crate::{Command, CommandBuffer};
 use crate::{Component, EntityAllocator, EntityId, Event, Events, Resources, resource::Resource};
 
 #[derive(Debug, Default)]
@@ -24,16 +26,45 @@ impl World {
         }
     }
 
+    pub fn apply_command_buffer(&mut self, buffer: &mut CommandBuffer) {
+        for command in buffer.drain(..) {
+            match command {
+                Command::Entity(entity_command) => match entity_command {
+                    EntityCommand::Spawn => {
+                        self.spawn();
+                    }
+                    EntityCommand::Despawn(id) => {
+                        self.despawn(&id);
+                    }
+                },
+            }
+        }
+    }
+
     pub fn spawn(&mut self) -> EntityId {
         self.allocator.spawn()
     }
 
+    /// Despawns an entity and removes all its attached components.
+    ///
+    /// # Contract
+    /// - If the entity is dead, stale, or unknown, returns `false` and does not mutate components.
+    /// - On success, marks the entity dead first, then removes all components owned by exactly this `EntityId`.
+    /// - Cleanup does not touch components belonging to other entities.
     pub fn despawn(&mut self, entity: &EntityId) -> bool {
-        self.allocator.despawn(entity)
+        if !self.allocator.despawn(entity) {
+            return false;
+        }
+        self.components.remove_entity(entity);
+        true
     }
 
     pub fn is_alive(&self, entity: &EntityId) -> bool {
         self.allocator.is_alive(entity)
+    }
+
+    pub fn entity_count(&self) -> usize {
+        self.allocator.alive_count()
     }
 
     pub fn write_event<E: Event>(&mut self, event: E) {
@@ -60,8 +91,28 @@ impl World {
         self.resources.remove::<R>()
     }
 
-    pub fn insert_component<C: Component>(&mut self, entity: EntityId, component: C) -> Option<C> {
+    pub fn insert_component<C: Component>(
+        &mut self,
+        entity: &mut EntityId,
+        component: C,
+    ) -> Option<C> {
+        let is_alive = self.is_alive(entity);
+        if !is_alive {
+            return None;
+        }
         self.components.insert(entity, component)
+    }
+
+    pub fn get_component<C: Component>(&self, entity: &EntityId) -> Option<&C> {
+        self.components.get::<C>(entity)
+    }
+
+    pub fn get_component_mut<C: Component>(&mut self, entity: &EntityId) -> Option<&mut C> {
+        self.components.get_mut::<C>(entity)
+    }
+
+    pub fn remove_component<C: Component>(&mut self, entity: &mut EntityId) -> Option<C> {
+        self.components.remove::<C>(entity)
     }
 }
 

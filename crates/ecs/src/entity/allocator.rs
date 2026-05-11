@@ -56,6 +56,10 @@ impl EntityAllocator {
         let length = self.slots.len();
         if length > 0 { length - 1 } else { 0 }
     }
+
+    pub fn alive_count(&self) -> usize {
+        self.slots.iter().filter(|s| s.alive).count()
+    }
 }
 
 #[cfg(test)]

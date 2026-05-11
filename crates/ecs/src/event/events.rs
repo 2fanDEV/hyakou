@@ -1,21 +1,20 @@
-use type_map::TypeMap;
-
-use crate::Event;
+use super::EventQueue;
+use crate::{Event, TypeStorage};
 
 #[derive(Debug, Default)]
 pub struct Events {
-    queues: TypeMap,
+    queues: TypeStorage,
 }
 
 impl Events {
-    pub fn new(queues: TypeMap) -> Self {
+    pub fn new(queues: TypeStorage) -> Self {
         Self { queues }
     }
 
     pub fn write<E: Event>(&mut self, event: E) {
         self.queues
-            .entry::<Vec<E>>()
-            .or_insert_with(Vec::new)
+            .get_or_insert_with::<EventQueue<E>, _>(|| EventQueue { events: Vec::new() })
+            .events
             .push(event);
     }
 
@@ -28,6 +27,8 @@ impl Events {
     }
 
     pub fn read<E: Event>(&self) -> &[E] {
-        self.queues.get::<Vec<E>>().map_or(&[], Vec::as_slice)
+        self.queues
+            .get::<EventQueue<E>>()
+            .map_or(&[], |queue| queue.events.as_slice())
     }
 }
