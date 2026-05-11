@@ -26,32 +26,32 @@ pub fn empty_world_test() {
 #[test]
 fn test_world_spawn_and_despawn() {
     let mut world = World::default();
-    let entity = world.spawn();
+    let mut entity = world.spawn();
 
     assert!(world.is_alive(&entity));
-    assert!(world.despawn(&entity));
+    assert!(world.despawn(&mut entity));
     assert!(!world.is_alive(&entity));
 }
 
 #[test]
 fn test_world_double_despawn_fails_safely() {
     let mut world = World::default();
-    let entity = world.spawn();
+    let mut entity = world.spawn();
 
-    assert!(world.despawn(&entity));
-    assert!(!world.despawn(&entity));
+    assert!(world.despawn(&mut entity));
+    assert!(!world.despawn(&mut entity));
 }
 
 #[test]
 fn test_world_stale_despawn_fails_safely() {
     let mut world = World::default();
-    let stale_entity = world.spawn();
+    let mut stale_entity = world.spawn();
 
-    assert!(world.despawn(&stale_entity));
+    assert!(world.despawn(&mut stale_entity));
 
     let new_entity = world.spawn();
 
-    assert!(!world.despawn(&stale_entity));
+    assert!(!world.despawn(&mut stale_entity));
     assert!(world.is_alive(&new_entity));
 }
 
