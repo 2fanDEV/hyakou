@@ -1,6 +1,4 @@
-use shared_types::id::Id;
-
-use crate::{Command, CommandBuffer, Entity, EntityId, World, WorldCommand};
+use crate::{Command, CommandBuffer, EntityCommand, EntityId, World};
 
 #[test]
 fn test_empty_command_buffer_behavior() {
@@ -15,24 +13,23 @@ fn test_empty_command_buffer_behavior() {
 fn test_command_buffer_preserves_insertion_order() {
     let mut buffer = CommandBuffer::new(Vec::default());
 
-    buffer.push(Command::World(WorldCommand::DESPAWN(EntityId::new_uuid(
+    buffer.push(Command::Entity(EntityCommand::Despawn(EntityId::new_uuid(
         0, 0,
     ))));
-    buffer.push(Command::World(WorldCommand::DESPAWN(EntityId::new_uuid(
+    buffer.push(Command::Entity(EntityCommand::Despawn(EntityId::new_uuid(
         1, 0,
     ))));
-    buffer.push(Command::World(WorldCommand::DESPAWN(EntityId::new_uuid(
+    buffer.push(Command::Entity(EntityCommand::Despawn(EntityId::new_uuid(
         2, 0,
     ))));
 
     let values = buffer
         .iter()
         .map(|command| match command {
-            Command::World(val) => match val {
-                WorldCommand::DESPAWN(id) => id.index(),
+            Command::Entity(entity_command) => match entity_command {
+                EntityCommand::Despawn(id) => id.index(),
                 _ => unreachable!(),
             },
-            _ => unreachable!(),
         })
         .collect::<Vec<_>>();
 
@@ -40,25 +37,14 @@ fn test_command_buffer_preserves_insertion_order() {
 }
 
 #[test]
-fn test_command_buffer_can_be_cleared_after_apply() {
+fn test_command_buffer_is_cleared_after_apply() {
     let mut buffer = CommandBuffer::new(Vec::default());
 
-    buffer.push(Command::World(WorldCommand::SPAWN));
-    buffer.push(Command::World(WorldCommand::DESPAWN(EntityId::new_uuid(
-        0, 0,
-    ))));
+    buffer.push(Command::Entity(EntityCommand::Spawn));
+    buffer.push(Command::Entity(EntityCommand::Spawn));
 
-    let mut world = World::default();
-    world.apply_command_buffer(&mut buffer);
-    buffer.clear();
+    World::default().apply_command_buffer(&mut buffer);
 
     assert!(buffer.is_empty());
     assert_eq!(buffer.len(), 0);
-}
-
-#[test]
-fn test_command_buffer_empty() {
-    let mut buffer = CommandBuffer::new(Vec::default());
-    let mut world = World::default();
-    world.apply_command_buffer(&mut buffer);
 }

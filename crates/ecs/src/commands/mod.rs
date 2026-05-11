@@ -6,11 +6,11 @@ use crate::EntityId;
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
-    World(WorldCommand),
+    Entity(EntityCommand),
 }
 
 #[derive(Debug, PartialEq)]
-pub enum WorldCommand {
-    SPAWN,
-    DESPAWN(EntityId),
+pub enum EntityCommand {
+    Spawn,
+    Despawn(EntityId),
 }

@@ -1,4 +1,4 @@
-use crate::commands::WorldCommand;
+use crate::commands::EntityCommand;
 use crate::component::Components;
 use crate::{Command, CommandBuffer};
 use crate::{Component, EntityAllocator, EntityId, Event, Events, Resources, resource::Resource};
@@ -29,11 +29,11 @@ impl World {
     pub fn apply_command_buffer(&mut self, buffer: &mut CommandBuffer) {
         for command in buffer.drain(..) {
             match command {
-                Command::World(world_command) => match world_command {
-                    WorldCommand::SPAWN => {
+                Command::Entity(entity_command) => match entity_command {
+                    EntityCommand::Spawn => {
                         self.spawn();
                     }
-                    WorldCommand::DESPAWN(id) => {
+                    EntityCommand::Despawn(id) => {
                         self.despawn(&id);
                     }
                 },
@@ -61,6 +61,10 @@ impl World {
 
     pub fn is_alive(&self, entity: &EntityId) -> bool {
         self.allocator.is_alive(entity)
+    }
+
+    pub fn entity_count(&self) -> usize {
+        self.allocator.alive_count()
     }
 
     pub fn write_event<E: Event>(&mut self, event: E) {

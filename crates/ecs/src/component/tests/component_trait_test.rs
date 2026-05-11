@@ -70,7 +70,7 @@ fn test_remove_one_component_type_leaves_other_component_type_intact() {
     components.insert(&mut entity, TestComponent);
     components.insert(&mut entity, TestComponent2);
 
-    components.remove::<TestComponent>(&mut entity);
+    components.remove::<TestComponent>(&entity);
 
     assert!(components.get::<TestComponent>(&entity).is_none());
     assert!(components.get::<TestComponent2>(&entity).is_some());
@@ -86,7 +86,7 @@ fn test_components_remove_entity_removes_all_types() {
     components.insert(&mut entity, TestComponent);
     components.insert(&mut entity, TestComponent2);
 
-    let removed = components.remove_entity(&mut entity);
+    let removed = components.remove_entity(&entity);
     assert_eq!(removed, 2);
     assert!(components.get::<TestComponent>(&entity).is_none());
     assert!(components.get::<TestComponent2>(&entity).is_none());
@@ -95,9 +95,9 @@ fn test_components_remove_entity_removes_all_types() {
 #[test]
 fn test_components_remove_entity_returns_zero_for_unknown_entity() {
     let mut components = crate::component::Components::default();
-    let mut entity = EntityId::new_uuid(0, 0);
+    let entity = EntityId::new_uuid(0, 0);
 
-    let removed = components.remove_entity(&mut entity);
+    let removed = components.remove_entity(&entity);
     assert_eq!(removed, 0);
 }
 
@@ -110,7 +110,7 @@ fn test_components_remove_entity_does_not_affect_other_entities() {
     components.insert(&mut entity1, TestComponent);
     components.insert(&mut entity2, TestComponent);
 
-    let removed = components.remove_entity(&mut entity1);
+    let removed = components.remove_entity(&entity1);
     assert_eq!(removed, 1);
     assert!(components.get::<TestComponent>(&entity1).is_none());
     assert!(components.get::<TestComponent>(&entity2).is_some());
