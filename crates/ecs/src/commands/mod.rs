@@ -1,34 +1,16 @@
-#[derive(Debug, Default)]
-pub struct CommandBuffer<T> {
-    commands: Vec<T>,
+mod command_buffer;
+
+pub use command_buffer::CommandBuffer;
+
+use crate::EntityId;
+
+#[derive(Debug, PartialEq)]
+pub enum Command {
+    Entity(EntityCommand),
 }
 
-impl<T> CommandBuffer<T> {
-    pub fn new(commands: Vec<T>) -> Self {
-        Self { commands }
-    }
-
-    pub fn push(&mut self, command: T) {
-        self.commands.push(command);
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        self.commands.iter()
-    }
-
-    pub fn len(&self) -> usize {
-        self.commands.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.commands.is_empty()
-    }
-
-    pub fn clear(&mut self) {
-        self.commands.clear();
-    }
+#[derive(Debug, PartialEq)]
+pub enum EntityCommand {
+    Spawn,
+    Despawn(EntityId),
 }
-
-#[cfg(test)]
-#[path = "tests/command_buffer_tests.rs"]
-mod command_buffer_tests;
