@@ -2,9 +2,8 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use log::error;
-
 use crate::EntityId;
+use crate::commands::ComponentCommand;
 use crate::storage::{KeyedStorage, Storage, TypeStorage};
 
 pub trait Component: 'static + Debug + Clone {}
@@ -12,11 +11,16 @@ pub trait Component: 'static + Debug + Clone {}
 #[derive(Debug)]
 struct ComponentStorage<C> {
     values: HashMap<EntityId, C>,
+    component_commands: Vec<ComponentCommand<C>>,
 }
 
 impl<C> ComponentStorage<C> {
-    fn insert(&mut self, entity: EntityId, component: C) -> Option<C> {
-        self.values.insert(entity, component)
+    fn insert_command(&mut self, command: ComponentCommand<C>) {
+        self.component_commands.push(command);
+    }
+
+    fn insert(&mut self, entity: EntityId, component: C) {
+        self.values.insert(entity, component);
     }
 
     fn get(&self, entity: &EntityId) -> Option<&C> {
@@ -71,21 +75,12 @@ impl Components {
         Self::default()
     }
 
-    pub(crate) fn insert<C: Component>(
-        &mut self,
-        entity: &mut EntityId,
-        component: C,
-    ) -> Option<C> {
-        if let Some(c) = self.get::<C>(entity) {
-            error!(
-                "entity {:?} already has a component of type {}",
-                entity,
-                std::any::type_name::<C>()
-            );
-            return Some(c.clone());
-        }
-
-        self.storage_mut::<C>().insert(entity.clone(), component)
+    pub fn insert<C: Component>(&mut self, entity: &mut EntityId, component: C) {
+        self.storage_mut::<C>()
+            .insert_command(ComponentCommand::Insert {
+                entity: entity.clone(),
+                component,
+            });
     }
 
     pub(crate) fn get<C: Component>(&self, entity: &EntityId) -> Option<&C> {
@@ -96,8 +91,12 @@ impl Components {
         self.storage_mut::<C>().get_mut(entity)
     }
 
-    pub(crate) fn remove<C: Component>(&mut self, entity: &EntityId) -> Option<C> {
-        self.storage_mut::<C>().remove(entity)
+    pub fn remove<C: Component>(&mut self, entity: &EntityId) -> Option<C> {
+        self.storage_mut::<C>()
+            .insert_command(ComponentCommand::Remove {
+                entity: entity.clone(),
+            });
+        None
     }
 
     pub fn contains_storage<C: Component>(&self) -> bool {
@@ -108,7 +107,7 @@ impl Components {
         self.storage::<C>().map_or(0, |s| s.len())
     }
 
-    pub(crate) fn remove_entity(&mut self, entity: &EntityId) -> usize {
+    pub fn remove_entity(&mut self, entity: &EntityId) -> usize {
         let mut removed = 0;
         for storage in self.storages.iter_mut() {
             if storage.remove_any_key(entity) {
@@ -126,6 +125,7 @@ impl Components {
         self.storages
             .get_or_insert_with::<ComponentStorage<C>, _>(|| ComponentStorage::<C> {
                 values: HashMap::default(),
+                component_commands: Vec::default(),
             })
     }
 }
