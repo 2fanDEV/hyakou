@@ -1,6 +1,6 @@
-use crate::commands::EntityCommand;
+use crate::commands::{ComponentCommand, EntityCommand};
 use crate::component::Components;
-use crate::{Command, CommandBuffer};
+use crate::{CommandBuffer, commands};
 use crate::{Component, EntityAllocator, EntityId, Event, Events, Resources, resource::Resource};
 
 #[derive(Debug, Default)]
@@ -26,10 +26,10 @@ impl World {
         }
     }
 
-    pub fn apply_command_buffer(&mut self, buffer: &mut CommandBuffer) {
+    pub fn apply_command_buffer(&mut self, buffer: &mut CommandBuffer<EntityCommand>) {
         for command in buffer.drain(..) {
             match command {
-                Command::Entity(entity_command) => match entity_command {
+                entity_command => match entity_command {
                     EntityCommand::Spawn => {
                         self.spawn();
                     }
@@ -37,6 +37,7 @@ impl World {
                         self.despawn(&id);
                     }
                 },
+                _ => unreachable!(),
             }
         }
     }
@@ -91,16 +92,12 @@ impl World {
         self.resources.remove::<R>()
     }
 
-    pub fn insert_component<C: Component>(
-        &mut self,
-        entity: &mut EntityId,
-        component: C,
-    ) -> Option<C> {
+    pub fn insert_component<C: Component>(&mut self, entity: &mut EntityId, component: C) {
         let is_alive = self.is_alive(entity);
         if !is_alive {
-            return None;
+            return;
         }
-        self.components.insert(entity, component)
+        self.components.insert(entity, component);
     }
 
     pub fn get_component<C: Component>(&self, entity: &EntityId) -> Option<&C> {
@@ -111,8 +108,8 @@ impl World {
         self.components.get_mut::<C>(entity)
     }
 
-    pub fn remove_component<C: Component>(&mut self, entity: &mut EntityId) -> Option<C> {
-        self.components.remove::<C>(entity)
+    pub fn remove_component<C: Component>(&mut self, entity: &mut EntityId) {
+        self.components.remove::<C>(entity);
     }
 }
 

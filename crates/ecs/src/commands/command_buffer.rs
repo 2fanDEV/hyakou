@@ -1,26 +1,24 @@
 use std::ops::RangeBounds;
 
-use crate::commands::Command;
-
 #[derive(Debug, Default)]
-pub struct CommandBuffer {
-    commands: Vec<Command>,
+pub struct CommandBuffer<C> {
+    commands: Vec<C>,
 }
 
-impl CommandBuffer {
-    pub fn new(commands: Vec<Command>) -> Self {
+impl<C> CommandBuffer<C> {
+    pub fn new(commands: Vec<C>) -> Self {
         Self { commands }
     }
 
-    pub fn push(&mut self, command: Command) {
-        self.commands.push(command);
+    pub fn push(&mut self, C: C) {
+        self.commands.push(C);
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Command> {
+    pub fn iter(&self) -> impl Iterator<Item = &C> {
         self.commands.iter()
     }
 
-    pub fn drain(&mut self, range: impl RangeBounds<usize>) -> impl Iterator<Item = Command> {
+    pub fn drain(&mut self, range: impl RangeBounds<usize>) -> impl Iterator<Item = C> {
         self.commands.drain(range)
     }
 
