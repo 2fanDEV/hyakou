@@ -10,8 +10,8 @@ impl<C> CommandBuffer<C> {
         Self { commands }
     }
 
-    pub fn push(&mut self, C: C) {
-        self.commands.push(C);
+    pub fn push(&mut self, cmd: C) {
+        self.commands.push(cmd);
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &C> {
