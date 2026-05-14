@@ -1,6 +1,6 @@
-use crate::commands::{ComponentCommand, EntityCommand};
+use crate::commands::EntityCommand;
 use crate::component::Components;
-use crate::{CommandBuffer, commands};
+use crate::CommandBuffer;
 use crate::{Component, EntityAllocator, EntityId, Event, Events, Resources, resource::Resource};
 
 #[derive(Debug, Default)]
@@ -37,9 +37,13 @@ impl World {
                         self.despawn(&id);
                     }
                 },
-                _ => unreachable!(),
             }
         }
+        self.cascading_apply();
+    }
+
+    pub fn cascading_apply(&self) {
+       self.components.
     }
 
     pub fn spawn(&mut self) -> EntityId {
