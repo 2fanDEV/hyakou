@@ -1,4 +1,4 @@
-use shared_types::id::{BaseId, Id};
+use shared::id::Id;
 
 mod allocator;
 mod entity_data;

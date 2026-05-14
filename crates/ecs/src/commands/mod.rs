@@ -10,8 +10,14 @@ pub enum EntityCommand {
     Despawn(EntityId),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ComponentCommand<C> {
     Insert { entity: EntityId, component: C },
     Remove { entity: EntityId },
+}
+
+#[derive(Debug)]
+pub struct ExecutedComponentCommand<C> {
+    pub command: ComponentCommand<C>,
+    pub timestamp: u128,
 }

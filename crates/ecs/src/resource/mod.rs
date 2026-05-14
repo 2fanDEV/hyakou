@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use crate::{Storage, TypeStorage};
 
 /// World-owned singleton data, stored independently from per-entity components.
-pub trait Resource: 'static + Debug {}
+pub trait Resource: 'static + Send + Debug {}
 
 #[derive(Debug)]
 struct ResourceValue<R> {

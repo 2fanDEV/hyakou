@@ -1,9 +1,10 @@
 use std::ops::Deref;
 
+use ::shared::Shared;
 use anyhow::Result;
 use wgpu::{Buffer, Queue};
 
-use crate::{Shared, types::transform::Transform};
+use crate::types::transform::Transform;
 
 pub mod base;
 pub mod camera;

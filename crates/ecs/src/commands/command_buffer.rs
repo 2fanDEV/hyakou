@@ -10,6 +10,10 @@ impl<C> CommandBuffer<C> {
         Self { commands }
     }
 
+    pub fn empty() -> Self {
+        Self::new(Vec::new())
+    }
+
     pub fn push(&mut self, cmd: C) {
         self.commands.push(cmd);
     }

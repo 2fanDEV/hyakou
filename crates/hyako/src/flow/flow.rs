@@ -1,7 +1,8 @@
 use std::sync::mpsc::{Receiver, channel};
 
-use hyakou_core::{Shared, selection::structure::SelectionTarget, types::ids::MeshId};
+use hyakou_core::{selection::structure::SelectionTarget, types::ids::MeshId};
 use log::{debug, warn};
+use shared::Shared;
 
 use crate::{
     flow::{

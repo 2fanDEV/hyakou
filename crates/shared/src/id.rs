@@ -14,6 +14,12 @@ impl Id {
         Self { value }
     }
 
+    pub fn uuid() -> Self {
+        Self {
+            value: uuid::Uuid::new_v4().to_string(),
+        }
+    }
+
     #[wasm_bindgen(getter)]
     pub fn get_value(&self) -> String {
         self.value.clone()
@@ -26,14 +32,12 @@ pub trait BaseId {
 }
 
 impl BaseId for Id {
-    fn get_id(&self) -> &str {
-        &self.value
+    fn uuid() -> Self {
+        Self::uuid()
     }
 
-    fn uuid() -> Self {
-        Self {
-            value: uuid::Uuid::new_v4().to_string(),
-        }
+    fn get_id(&self) -> &str {
+        &self.value
     }
 }
 

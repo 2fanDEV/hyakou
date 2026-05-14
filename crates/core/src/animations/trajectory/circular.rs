@@ -1,9 +1,9 @@
 use std::f32::consts::PI;
 
+use ::shared::{Shared, SharedAccess};
 use anyhow::{Result, anyhow};
 
 use crate::{
-    Shared, SharedAccess,
     animations::Animation,
     types::{DeltaTime, ids::MeshId, transform::Transform},
 };
@@ -67,7 +67,7 @@ impl Animation for CircularTrajectory {
 #[cfg(test)]
 mod tests {
 
-    use crate::{SharedAccess, shared};
+    use ::shared::{SharedAccess, shared};
 
     use super::*;
     use glam::Vec3;
