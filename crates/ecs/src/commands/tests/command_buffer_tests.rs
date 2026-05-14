@@ -2,7 +2,7 @@ use crate::{CommandBuffer, EntityCommand, EntityId, World};
 
 #[test]
 fn test_empty_command_buffer_behavior() {
-    let buffer = CommandBuffer::<EntityCommand>::new(Vec::default());
+    let buffer = CommandBuffer::<EntityCommand>::new(vec![]);
 
     assert!(buffer.is_empty());
     assert_eq!(buffer.len(), 0);
@@ -11,7 +11,7 @@ fn test_empty_command_buffer_behavior() {
 
 #[test]
 fn test_command_buffer_preserves_insertion_order() {
-    let mut buffer = CommandBuffer::new(Vec::default());
+    let mut buffer = CommandBuffer::new(vec![]);
 
     buffer.push(EntityCommand::Despawn(EntityId::new_uuid(0, 0)));
     buffer.push(EntityCommand::Despawn(EntityId::new_uuid(1, 0)));
@@ -32,7 +32,7 @@ fn test_command_buffer_preserves_insertion_order() {
 
 #[test]
 fn test_command_buffer_is_cleared_after_apply() {
-    let mut buffer = CommandBuffer::new(Vec::default());
+    let mut buffer = CommandBuffer::new(vec![]);
 
     buffer.push(EntityCommand::Spawn);
     buffer.push(EntityCommand::Spawn);

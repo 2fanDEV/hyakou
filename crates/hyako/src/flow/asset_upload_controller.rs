@@ -1,7 +1,6 @@
-use hyakou_core::{
-    Shared, SharedAccess, components::LightType, types::import_diagnostic::ImportDiagnostic,
-};
+use hyakou_core::{components::LightType, types::import_diagnostic::ImportDiagnostic};
 use log::{debug, error, warn};
+use shared::{Shared, SharedAccess};
 
 use crate::{
     flow::{FlowCommand, FlowCommandSender},

@@ -11,10 +11,8 @@ use crate::{
 };
 
 use hyakou_core::{
-    Shared, SharedAccess,
     components::{LightType, mesh_node::MeshNode},
     geometry::mesh::Mesh,
-    shared,
     traits::BindGroupProvider,
     types::{
         ModelMatrixBindingMode,
@@ -22,6 +20,7 @@ use hyakou_core::{
         transform::Transform,
     },
 };
+use shared::{Shared, SharedAccess, shared};
 use std::{ops::Deref, rc::Rc};
 
 #[derive(Debug, Clone)]

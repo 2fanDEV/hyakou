@@ -1,3 +1,5 @@
+use shared::id::Id;
+
 use hyakou_core::{
     components::camera::{
         camera::Camera,
@@ -5,7 +7,7 @@ use hyakou_core::{
             CameraAnimationEasing, CameraAnimationRequest, CameraAnimationStateSnapshot,
         },
     },
-    types::{base::Id, shared::Coordinates3},
+    types::shared::Coordinates3,
 };
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 

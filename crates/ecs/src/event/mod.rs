@@ -6,7 +6,7 @@ pub use events::Events;
 
 use crate::Storage;
 
-pub trait Event: 'static + Debug {}
+pub trait Event: 'static + Send + Debug {}
 
 #[derive(Debug)]
 pub(super) struct EventQueue<E: Event> {

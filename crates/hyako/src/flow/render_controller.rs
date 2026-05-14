@@ -2,14 +2,13 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use hyakou_core::{
-    Shared, SharedAccess,
     components::camera::{camera::Camera, data_structures::CameraAnimationRequest},
     geometry::ray::Ray,
     selection::structure::{SelectionScope, SelectionTarget},
-    shared,
     types::Size,
 };
 use log::{error, warn};
+use shared::{Shared, SharedAccess, shared};
 use winit::window::Window;
 
 #[cfg(target_arch = "wasm32")]

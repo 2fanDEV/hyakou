@@ -1,23 +1,21 @@
+use shared::Shared;
+
+use crate::CommandBuffer;
 use crate::commands::EntityCommand;
 use crate::component::Components;
-use crate::CommandBuffer;
 use crate::{Component, EntityAllocator, EntityId, Event, Events, Resources, resource::Resource};
 
 #[derive(Debug, Default)]
 pub struct World {
     components: Components,
-    allocator: EntityAllocator,
+    allocator: Shared<EntityAllocator>,
     resources: Resources,
     events: Events,
 }
 
 impl World {
-    pub fn new(
-        components: Components,
-        allocator: EntityAllocator,
-        resources: Resources,
-        events: Events,
-    ) -> Self {
+    pub fn new(allocator: Shared<EntityAllocator>, resources: Resources, events: Events) -> Self {
+        let components = Components::new(allocator.clone());
         Self {
             components,
             allocator,
@@ -42,12 +40,12 @@ impl World {
         self.cascading_apply();
     }
 
-    pub fn cascading_apply(&self) {
-       self.components.
+    pub fn cascading_apply(&mut self) {
+        self.components.apply_commands();
     }
 
     pub fn spawn(&mut self) -> EntityId {
-        self.allocator.spawn()
+        self.allocator.borrow_mut().spawn()
     }
 
     /// Despawns an entity and removes all its attached components.
@@ -57,7 +55,7 @@ impl World {
     /// - On success, marks the entity dead first, then removes all components owned by exactly this `EntityId`.
     /// - Cleanup does not touch components belonging to other entities.
     pub fn despawn(&mut self, entity: &EntityId) -> bool {
-        if !self.allocator.despawn(entity) {
+        if !self.allocator.borrow_mut().despawn(entity) {
             return false;
         }
         self.components.remove_entity(entity);
@@ -65,11 +63,11 @@ impl World {
     }
 
     pub fn is_alive(&self, entity: &EntityId) -> bool {
-        self.allocator.is_alive(entity)
+        self.allocator.borrow().is_alive(entity)
     }
 
     pub fn entity_count(&self) -> usize {
-        self.allocator.alive_count()
+        self.allocator.borrow().alive_count()
     }
 
     pub fn write_event<E: Event>(&mut self, event: E) {

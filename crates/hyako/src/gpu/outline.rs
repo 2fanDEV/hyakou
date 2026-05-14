@@ -1,9 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 use glam::Vec4;
-use hyakou_core::{
-    shared,
-    types::{ids::UniformBufferId, transform::Transform},
-};
+use hyakou_core::types::{ids::UniformBufferId, transform::Transform};
+use shared::shared;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BufferBinding, Device, ShaderStages,

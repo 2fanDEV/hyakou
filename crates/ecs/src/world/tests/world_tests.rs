@@ -1,3 +1,5 @@
+use shared::{shared};
+
 use crate::{
     CommandBuffer, Component, Components, EntityAllocator, EntityCommand, Event, Events, Resource,
     Resources, world::World,
@@ -116,7 +118,7 @@ fn test_world_new_uses_injected_state() {
     let entity = allocator.spawn();
     let world = World::new(
         Components::default(),
-        allocator,
+        shared(allocator),
         Resources::default(),
         Events::default(),
     );

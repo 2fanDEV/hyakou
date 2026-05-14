@@ -1,3 +1,4 @@
+use ::shared::{Shared, SharedAccess};
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use wgpu::{
@@ -5,7 +6,7 @@ use wgpu::{
     BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,
 };
 
-use crate::{Shared, SharedAccess, traits::BindGroupProvider, types::transform::Transform};
+use crate::{traits::BindGroupProvider, types::transform::Transform};
 
 #[derive(Debug, Clone)]
 pub struct LightSource {

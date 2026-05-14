@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 log = "0.4.29"
-shared_types = { path = "../shared_types" }
-uuid = { version = "1.18.1", features = ["v4", "js"] }
+shared = { path = "../shared" }
+ecs_macros = { path = "../ecs_macros" }
 anyhow = "1.0.102"
+fxhash = "0.2.1"
+rayon = "1.12.0"

@@ -1,22 +1,28 @@
 use std::any::Any;
 use std::collections::HashMap;
+use std::default;
 use std::fmt::Debug;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::EntityId;
-use crate::commands::ComponentCommand;
+use rayon::iter::{ParallelBridge, ParallelIterator};
+use shared::Shared;
+
+use crate::commands::{ComponentCommand, ExecutedComponentCommand};
 use crate::storage::{KeyedStorage, Storage, TypeStorage};
+use crate::{CommandBuffer, EntityAllocator, EntityId};
 
-pub trait Component: 'static + Debug + Clone {}
+pub trait Component: 'static + Send + Debug + Clone {}
 
 #[derive(Debug)]
-struct ComponentStorage<C> {
+struct ComponentStorage<C: Component> {
     values: HashMap<EntityId, C>,
-    component_commands: Vec<ComponentCommand<C>>,
+    outstanding_commands: CommandBuffer<ComponentCommand<C>>,
+    executed_commands: Vec<ExecutedComponentCommand<C>>,
 }
 
-impl<C> ComponentStorage<C> {
+impl<C: Component> ComponentStorage<C> {
     fn insert_command(&mut self, command: ComponentCommand<C>) {
-        self.component_commands.push(command);
+        self.outstanding_commands.push(command);
     }
 
     fn insert(&mut self, entity: EntityId, component: C) {
@@ -37,6 +43,32 @@ impl<C> ComponentStorage<C> {
 
     fn len(&self) -> usize {
         self.values.len()
+    }
+
+    pub fn has_outstanding_commands(&self) -> bool {
+        !self.outstanding_commands.is_empty()
+    }
+
+    pub fn apply_outstanding_commands(&mut self) {
+        let drainage = self.outstanding_commands.drain(..).collect::<Vec<_>>();
+        for command in drainage {
+            let cmd = command.clone();
+            match command {
+                ComponentCommand::Insert { entity, component } => {
+                    self.insert(entity, component);
+                }
+                ComponentCommand::Remove { entity } => {
+                    self.remove(&entity);
+                }
+            }
+            self.executed_commands.push(ExecutedComponentCommand {
+                command: cmd,
+                timestamp: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            });
+        }
     }
 }
 
@@ -68,19 +100,32 @@ impl<C: Component> KeyedStorage<EntityId> for ComponentStorage<C> {
 #[derive(Debug, Default)]
 pub struct Components {
     storages: TypeStorage,
+    allocator: Shared<EntityAllocator>,
 }
 
 impl Components {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(allocator: Shared<EntityAllocator>) -> Self {
+        Self {
+            storages: TypeStorage::default(),
+            allocator,
+        }
+    }
+
+    pub fn apply_commands(&mut self) {
+        let storages = self.storages.filter(|stor| stor.has_outstanding_commands());
+        storages
+            .par_bridge()
+            .for_each(|storage| storage.apply_outstanding_commands());
     }
 
     pub fn insert<C: Component>(&mut self, entity: &mut EntityId, component: C) {
-        self.storage_mut::<C>()
-            .insert_command(ComponentCommand::Insert {
-                entity: entity.clone(),
-                component,
-            });
+        if self.allocator.borrow().is_alive(entity) {
+            self.storage_mut::<C>()
+                .insert_command(ComponentCommand::Insert {
+                    entity: entity.clone(),
+                    component,
+                });
+        }
     }
 
     pub(crate) fn get<C: Component>(&self, entity: &EntityId) -> Option<&C> {
@@ -125,7 +170,8 @@ impl Components {
         self.storages
             .get_or_insert_with::<ComponentStorage<C>, _>(|| ComponentStorage::<C> {
                 values: HashMap::default(),
-                component_commands: Vec::default(),
+                outstanding_commands: CommandBuffer::<ComponentCommand<C>>::empty(),
+                executed_commands: Vec::default(),
             })
     }
 }
