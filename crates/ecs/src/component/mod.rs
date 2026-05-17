@@ -1,11 +1,10 @@
 use std::any::Any;
 use std::collections::HashMap;
-use std::default;
 use std::fmt::Debug;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use shared::Shared;
+use shared::{Shared, SharedAccess};
 
 use crate::commands::{ComponentCommand, ExecutedComponentCommand};
 use crate::storage::{KeyedStorage, Storage, TypeStorage};
@@ -25,8 +24,8 @@ impl<C: Component> ComponentStorage<C> {
         self.outstanding_commands.push(command);
     }
 
-    fn insert(&mut self, entity: EntityId, component: C) {
-        self.values.insert(entity, component);
+    fn insert(&mut self, entity: &EntityId, component: C) {
+        self.values.insert(entity.clone(), component);
     }
 
     fn get(&self, entity: &EntityId) -> Option<&C> {
@@ -43,32 +42,6 @@ impl<C: Component> ComponentStorage<C> {
 
     fn len(&self) -> usize {
         self.values.len()
-    }
-
-    pub fn has_outstanding_commands(&self) -> bool {
-        !self.outstanding_commands.is_empty()
-    }
-
-    pub fn apply_outstanding_commands(&mut self) {
-        let drainage = self.outstanding_commands.drain(..).collect::<Vec<_>>();
-        for command in drainage {
-            let cmd = command.clone();
-            match command {
-                ComponentCommand::Insert { entity, component } => {
-                    self.insert(entity, component);
-                }
-                ComponentCommand::Remove { entity } => {
-                    self.remove(&entity);
-                }
-            }
-            self.executed_commands.push(ExecutedComponentCommand {
-                command: cmd,
-                timestamp: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
-            });
-        }
     }
 }
 
@@ -89,11 +62,66 @@ impl<C: Component> Storage for ComponentStorage<C> {
         key.downcast_ref::<EntityId>()
             .is_some_and(|entity| self.remove_key(entity))
     }
+
+    fn has_outstanding_commands(&self) -> bool {
+        !self.outstanding_commands.is_empty()
+    }
+
+    fn apply_outstanding_commands(&mut self) {
+        let drainage = self.outstanding_commands.drain(..).collect::<Vec<_>>();
+        for command in drainage {
+            let cmd = command.clone();
+            match command {
+                ComponentCommand::Insert { entity, component } => {
+                    self.insert(&entity, component);
+                }
+                ComponentCommand::Remove { entity } => {
+                    self.remove(&entity);
+                }
+            }
+            self.executed_commands.push(ExecutedComponentCommand {
+                command: cmd,
+                timestamp: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            });
+        }
+    }
 }
 
 impl<C: Component> KeyedStorage<EntityId> for ComponentStorage<C> {
     fn remove_key(&mut self, key: &EntityId) -> bool {
         self.values.remove(key).is_some()
+    }
+}
+
+pub struct ComponentRecord<'a> {
+    components: &'a mut Components,
+}
+
+impl<'a> ComponentRecord<'a> {
+    fn insert<C: Component>(&mut self, entity: &mut EntityId, component: C) {
+        let storage = self.components.storage_mut::<C>();
+        storage.insert_command(ComponentCommand::Insert {
+            entity: entity.clone(),
+            component,
+        });
+    }
+
+    pub fn insert_command<C: Component>(&mut self, entity: &mut EntityId, component: C) {
+        if let Ok(_) = self
+            .components
+            .allocator
+            .try_read_shared(|alloc| alloc.is_alive(entity))
+        {
+            self.components
+                .storage_mut::<C>()
+                .insert_command(ComponentCommand::Insert {
+                    entity: entity.clone(),
+                    component,
+                });
+        }
     }
 }
 
@@ -111,6 +139,10 @@ impl Components {
         }
     }
 
+    pub fn record(&mut self) -> ComponentRecord<'_> {
+        ComponentRecord { components: self }
+    }
+
     pub fn apply_commands(&mut self) {
         let storages = self.storages.filter(|stor| stor.has_outstanding_commands());
         storages
@@ -118,14 +150,8 @@ impl Components {
             .for_each(|storage| storage.apply_outstanding_commands());
     }
 
-    pub fn insert<C: Component>(&mut self, entity: &mut EntityId, component: C) {
-        if self.allocator.borrow().is_alive(entity) {
-            self.storage_mut::<C>()
-                .insert_command(ComponentCommand::Insert {
-                    entity: entity.clone(),
-                    component,
-                });
-        }
+    pub(crate) fn insert<C: Component>(&mut self, entity: &EntityId, component: C) {
+        self.storage_mut::<C>().insert(entity, component);
     }
 
     pub(crate) fn get<C: Component>(&self, entity: &EntityId) -> Option<&C> {
@@ -136,20 +162,20 @@ impl Components {
         self.storage_mut::<C>().get_mut(entity)
     }
 
-    pub fn remove<C: Component>(&mut self, entity: &EntityId) -> Option<C> {
-        self.storage_mut::<C>()
-            .insert_command(ComponentCommand::Remove {
-                entity: entity.clone(),
-            });
-        None
-    }
-
     pub fn contains_storage<C: Component>(&self) -> bool {
         self.storages.contains::<ComponentStorage<C>>()
     }
 
     pub fn storage_len<C: Component>(&self) -> usize {
         self.storage::<C>().map_or(0, |s| s.len())
+    }
+
+    pub fn remove_command<C: Component>(&mut self, entity: &EntityId) -> Option<C> {
+        self.storage_mut::<C>()
+            .insert_command(ComponentCommand::Remove {
+                entity: entity.clone(),
+            });
+        None
     }
 
     pub fn remove_entity(&mut self, entity: &EntityId) -> usize {
@@ -160,6 +186,10 @@ impl Components {
             }
         }
         removed
+    }
+
+    pub fn remove_component<C: Component>(&mut self) -> Option<ComponentStorage<C>> {
+        self.storages.remove::<ComponentStorage<C>>()
     }
 
     fn storage<C: Component>(&self) -> Option<&ComponentStorage<C>> {

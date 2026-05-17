@@ -24,7 +24,7 @@ fn test_distinct_component_types_are_stored_independently() {
 
     components.insert(&mut entity, TestComponent);
     components.insert(&mut entity, TestComponent2);
-
+    components.apply_commands();
     assert!(components.get::<TestComponent>(&entity).is_some());
     assert!(components.get::<TestComponent2>(&entity).is_some());
     assert_eq!(components.storage_len::<TestComponent>(), 1);
@@ -39,7 +39,7 @@ fn test_same_component_type_reuses_one_storage() {
 
     components.insert(&mut entity1, TestComponent);
     components.insert(&mut entity2, TestComponent);
-
+    components.apply_commands();
     assert!(components.get::<TestComponent>(&entity1).is_some());
     assert!(components.get::<TestComponent>(&entity2).is_some());
     assert_eq!(components.storage_len::<TestComponent>(), 2);
@@ -52,7 +52,7 @@ fn test_mutable_access_updates_only_requested_component_type() {
 
     components.insert(&mut entity, Health(100));
     components.insert(&mut entity, Mana(50));
-
+    components.apply_commands();
     {
         let health = components.get_mut::<Health>(&entity).unwrap();
         health.0 = 200;
@@ -70,8 +70,7 @@ fn test_remove_one_component_type_leaves_other_component_type_intact() {
     components.insert(&mut entity, TestComponent);
     components.insert(&mut entity, TestComponent2);
 
-    components.remove::<TestComponent>(&entity);
-
+    components.remove_component::<TestComponent>();
     assert!(components.get::<TestComponent>(&entity).is_none());
     assert!(components.get::<TestComponent2>(&entity).is_some());
     assert_eq!(components.storage_len::<TestComponent>(), 0);
@@ -85,7 +84,7 @@ fn test_components_remove_entity_removes_all_types() {
 
     components.insert(&mut entity, TestComponent);
     components.insert(&mut entity, TestComponent2);
-
+    components.apply_commands();
     let removed = components.remove_entity(&entity);
     assert_eq!(removed, 2);
     assert!(components.get::<TestComponent>(&entity).is_none());
@@ -109,7 +108,7 @@ fn test_components_remove_entity_does_not_affect_other_entities() {
 
     components.insert(&mut entity1, TestComponent);
     components.insert(&mut entity2, TestComponent);
-
+    components.apply_commands();
     let removed = components.remove_entity(&entity1);
     assert_eq!(removed, 1);
     assert!(components.get::<TestComponent>(&entity1).is_none());

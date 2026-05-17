@@ -18,7 +18,6 @@ impl EntityAllocator {
             let slot = &mut self.slots[index];
             slot.version += 1;
             slot.alive = true;
-
             return EntityId::new_uuid(index, slot.version);
         }
 
