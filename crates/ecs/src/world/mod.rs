@@ -1,16 +1,30 @@
-use shared::Shared;
+use anyhow::{Result, anyhow};
+use log::{debug, error};
+use shared::{Shared, SharedAccess};
 
 use crate::CommandBuffer;
 use crate::commands::EntityCommand;
 use crate::component::Components;
 use crate::{Component, EntityAllocator, EntityId, Event, Events, Resources, resource::Resource};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct World {
     components: Components,
     allocator: Shared<EntityAllocator>,
     resources: Resources,
     events: Events,
+}
+
+impl Default for World {
+    fn default() -> Self {
+        let allocator: Shared<EntityAllocator> = Default::default();
+        Self {
+            components: Components::new(allocator.clone()),
+            allocator: allocator,
+            resources: Default::default(),
+            events: Default::default(),
+        }
+    }
 }
 
 impl World {
@@ -44,8 +58,10 @@ impl World {
         self.components.apply_commands();
     }
 
-    pub fn spawn(&mut self) -> EntityId {
-        self.allocator.borrow_mut().spawn()
+    pub fn spawn(&mut self) -> Result<EntityId> {
+        self.allocator
+            .try_write_shared(|alloc| alloc.spawn())
+            .map_err(|e| anyhow!(e))
     }
 
     /// Despawns an entity and removes all its attached components.
@@ -55,19 +71,31 @@ impl World {
     /// - On success, marks the entity dead first, then removes all components owned by exactly this `EntityId`.
     /// - Cleanup does not touch components belonging to other entities.
     pub fn despawn(&mut self, entity: &EntityId) -> bool {
-        if !self.allocator.borrow_mut().despawn(entity) {
-            return false;
+        match self
+            .allocator
+            .try_write_shared(|alloc| alloc.despawn(entity))
+        {
+            Ok(res) => {
+                self.components.remove_entity(entity);
+                res
+            }
+            Err(e) => {
+                debug!("Failed to despawn entity: {}", e);
+                return false;
+            }
         }
-        self.components.remove_entity(entity);
-        true
     }
 
     pub fn is_alive(&self, entity: &EntityId) -> bool {
-        self.allocator.borrow().is_alive(entity)
+        self.allocator
+            .try_read_shared(|alloc| alloc.is_alive(entity))
+            .unwrap_or(false)
     }
 
     pub fn entity_count(&self) -> usize {
-        self.allocator.borrow().alive_count()
+        self.allocator
+            .try_read_shared(|alloc| alloc.alive_count())
+            .unwrap_or(0)
     }
 
     pub fn write_event<E: Event>(&mut self, event: E) {
@@ -111,7 +139,7 @@ impl World {
     }
 
     pub fn remove_component<C: Component>(&mut self, entity: &mut EntityId) {
-        self.components.remove::<C>(entity);
+        self.components.remove_entity(entity);
     }
 }
 

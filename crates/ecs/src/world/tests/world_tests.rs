@@ -1,8 +1,7 @@
-use shared::{shared};
+use shared::shared;
 
 use crate::{
-    CommandBuffer, Component, Components, EntityAllocator, EntityCommand, Event, Events, Resource,
-    Resources, world::World,
+    CommandBuffer, Component, EntityAllocator, EntityCommand, Event, Resource, world::World,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -28,7 +27,7 @@ pub fn empty_world_test() {
 #[test]
 fn test_world_spawn_and_despawn() {
     let mut world = World::default();
-    let mut entity = world.spawn();
+    let mut entity = world.spawn().unwrap();
 
     assert!(world.is_alive(&entity));
     assert!(world.despawn(&mut entity));
@@ -38,7 +37,7 @@ fn test_world_spawn_and_despawn() {
 #[test]
 fn test_world_double_despawn_fails_safely() {
     let mut world = World::default();
-    let mut entity = world.spawn();
+    let mut entity = world.spawn().unwrap();
 
     assert!(world.despawn(&mut entity));
     assert!(!world.despawn(&mut entity));
@@ -47,11 +46,11 @@ fn test_world_double_despawn_fails_safely() {
 #[test]
 fn test_world_stale_despawn_fails_safely() {
     let mut world = World::default();
-    let mut stale_entity = world.spawn();
+    let mut stale_entity = world.spawn().unwrap();
 
     assert!(world.despawn(&mut stale_entity));
 
-    let new_entity = world.spawn();
+    let new_entity = world.spawn().unwrap();
 
     assert!(!world.despawn(&mut stale_entity));
     assert!(world.is_alive(&new_entity));
@@ -104,7 +103,7 @@ fn test_world_resources_are_isolated() {
 fn test_world_component_storage_is_world_local() {
     let mut first_world = World::default();
     let second_world = World::default();
-    let mut entity = first_world.spawn();
+    let mut entity = first_world.spawn().unwrap();
 
     first_world.insert_component(&mut entity, TestComponent);
 
@@ -114,22 +113,15 @@ fn test_world_component_storage_is_world_local() {
 
 #[test]
 fn test_world_new_uses_injected_state() {
-    let mut allocator = EntityAllocator::default();
-    let entity = allocator.spawn();
-    let world = World::new(
-        Components::default(),
-        shared(allocator),
-        Resources::default(),
-        Events::default(),
-    );
-
+    let mut world = World::default();
+    let entity = world.spawn().unwrap();
     assert!(world.is_alive(&entity));
 }
 
 #[test]
 fn test_despawn_removes_attached_components() {
     let mut world = World::default();
-    let mut entity = world.spawn();
+    let mut entity = world.spawn().unwrap();
     world.insert_component(&mut entity, TestComponent);
 
     assert!(world.despawn(&entity));
@@ -140,11 +132,11 @@ fn test_despawn_removes_attached_components() {
 #[test]
 fn test_despawn_does_not_affect_other_entities() {
     let mut world = World::default();
-    let mut entity1 = world.spawn();
-    let mut entity2 = world.spawn();
+    let mut entity1 = world.spawn().unwrap();
+    let mut entity2 = world.spawn().unwrap();
     world.insert_component(&mut entity1, TestComponent);
     world.insert_component(&mut entity2, TestComponent);
-
+    world.cascading_apply();
     assert!(world.despawn(&entity1));
     assert!(world.is_alive(&entity2));
     assert_eq!(
@@ -156,8 +148,8 @@ fn test_despawn_does_not_affect_other_entities() {
 #[test]
 fn test_despawn_with_no_components() {
     let mut world = World::default();
-    let entity = world.spawn();
-
+    let entity = world.spawn().unwrap();
+    world.cascading_apply();
     assert!(world.despawn(&entity));
     assert!(!world.is_alive(&entity));
 }
@@ -165,9 +157,9 @@ fn test_despawn_with_no_components() {
 #[test]
 fn test_double_despawn_does_not_cleanup_again() {
     let mut world = World::default();
-    let mut entity = world.spawn();
+    let mut entity = world.spawn().unwrap();
     world.insert_component(&mut entity, TestComponent);
-
+    world.cascading_apply();
     assert!(world.despawn(&entity));
     assert!(!world.despawn(&entity));
     assert_eq!(world.get_component::<TestComponent>(&entity), None);
@@ -176,13 +168,12 @@ fn test_double_despawn_does_not_cleanup_again() {
 #[test]
 fn test_stale_despawn_does_not_remove_new_entity_components() {
     let mut world = World::default();
-    let mut stale_entity = world.spawn();
+    let mut stale_entity = world.spawn().unwrap();
     world.insert_component(&mut stale_entity, TestComponent);
     assert!(world.despawn(&stale_entity));
 
-    let mut new_entity = world.spawn();
+    let mut new_entity = world.spawn().unwrap();
     world.insert_component(&mut new_entity, TestComponent);
-
     assert!(!world.despawn(&stale_entity));
     assert!(world.is_alive(&new_entity));
     assert_eq!(
@@ -205,7 +196,7 @@ fn test_entity_spawn_via_command_buffer() {
 #[test]
 fn test_entity_despawn_via_command_buffer() {
     let mut world = World::default();
-    let entity = world.spawn();
+    let entity = world.spawn().unwrap();
     assert!(world.is_alive(&entity));
 
     let mut buffer = CommandBuffer::new(vec![EntityCommand::Despawn(entity.clone())]);
@@ -219,7 +210,7 @@ fn test_entity_despawn_via_command_buffer() {
 #[test]
 fn test_entity_spawn_then_despawn_ordering_via_buffer() {
     let mut world = World::default();
-    let entity = world.spawn();
+    let entity = world.spawn().unwrap();
     assert_eq!(world.entity_count(), 1);
 
     let mut buffer = CommandBuffer::new(vec![
@@ -236,7 +227,7 @@ fn test_entity_spawn_then_despawn_ordering_via_buffer() {
 #[test]
 fn test_entity_stale_despawn_via_buffer() {
     let mut world = World::default();
-    let entity = world.spawn();
+    let entity = world.spawn().unwrap();
     world.despawn(&entity);
 
     let mut buffer = CommandBuffer::new(vec![EntityCommand::Despawn(entity.clone())]);
@@ -250,7 +241,7 @@ fn test_entity_stale_despawn_via_buffer() {
 #[test]
 fn test_entity_empty_command_buffer_does_nothing() {
     let mut world = World::default();
-    world.spawn();
+    world.spawn().unwrap();
 
     let mut buffer = CommandBuffer::new(Vec::default());
     world.apply_command_buffer(&mut buffer);

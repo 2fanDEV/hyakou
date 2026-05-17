@@ -684,9 +684,20 @@ name = "ecs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ecs_macros",
+ "fxhash",
  "log",
- "shared_types",
- "uuid",
+ "rayon",
+ "shared",
+]
+
+[[package]]
+name = "ecs_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1077,6 +1088,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fxhash"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "gethostname"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1357,6 +1377,7 @@ dependencies = [
  "mockall",
  "parking_lot",
  "pollster",
+ "shared",
  "smallvec",
  "strum 0.27.2",
  "strum_macros 0.27.2",
@@ -1380,6 +1401,7 @@ dependencies = [
  "hyakou_core",
  "js-sys",
  "log",
+ "shared",
  "strum 0.28.0",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -1398,6 +1420,7 @@ dependencies = [
  "glam",
  "log",
  "parking_lot",
+ "shared",
  "strum 0.28.0",
  "strum_macros 0.28.0",
  "uuid",
@@ -2948,9 +2971,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "shared_types"
+name = "shared"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "parking_lot",
  "uuid",
  "wasm-bindgen",
 ]
