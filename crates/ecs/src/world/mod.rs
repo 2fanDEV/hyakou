@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use log::{debug, error};
+use log::debug;
 use shared::{Shared, SharedAccess};
 
 use crate::CommandBuffer;
@@ -7,10 +7,14 @@ use crate::commands::EntityCommand;
 use crate::component::Components;
 use crate::{Component, EntityAllocator, EntityId, Event, Events, Resources, resource::Resource};
 
+pub mod commands;
+pub mod recorder;
+
 #[derive(Debug)]
 pub struct World {
     components: Components,
     allocator: Shared<EntityAllocator>,
+    command_buffer: CommandBuffer<EntityCommand>,
     resources: Resources,
     events: Events,
 }
@@ -21,6 +25,7 @@ impl Default for World {
         Self {
             components: Components::new(allocator.clone()),
             allocator: allocator,
+            command_buffer: CommandBuffer::new(Vec::new()),
             resources: Default::default(),
             events: Default::default(),
         }
@@ -33,23 +38,16 @@ impl World {
         Self {
             components,
             allocator,
+            command_buffer: CommandBuffer::new(Vec::new()),
             resources,
             events,
         }
     }
 
-    pub fn apply_command_buffer(&mut self, buffer: &mut CommandBuffer<EntityCommand>) {
-        for command in buffer.drain(..) {
-            match command {
-                entity_command => match entity_command {
-                    EntityCommand::Spawn => {
-                        self.spawn();
-                    }
-                    EntityCommand::Despawn(id) => {
-                        self.despawn(&id);
-                    }
-                },
-            }
+    fn apply_command_buffer(&mut self) {
+        let cmd = std::mem::take(&mut self.command_buffer);
+        for command in cmd.iter() {
+            self.apply_command(command);
         }
         self.cascading_apply();
     }
@@ -58,18 +56,23 @@ impl World {
         self.components.apply_commands();
     }
 
+    pub fn apply_command(&mut self, command: &EntityCommand) {
+        match command {
+            EntityCommand::Spawn => {
+                self.spawn().unwrap();
+            }
+            EntityCommand::Despawn(id) => {
+                self.despawn(&id);
+            }
+        }
+    }
+
     pub fn spawn(&mut self) -> Result<EntityId> {
         self.allocator
             .try_write_shared(|alloc| alloc.spawn())
             .map_err(|e| anyhow!(e))
     }
 
-    /// Despawns an entity and removes all its attached components.
-    ///
-    /// # Contract
-    /// - If the entity is dead, stale, or unknown, returns `false` and does not mutate components.
-    /// - On success, marks the entity dead first, then removes all components owned by exactly this `EntityId`.
-    /// - Cleanup does not touch components belonging to other entities.
     pub fn despawn(&mut self, entity: &EntityId) -> bool {
         match self
             .allocator
