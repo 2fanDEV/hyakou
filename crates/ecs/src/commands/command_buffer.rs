@@ -1,8 +1,14 @@
 use std::ops::RangeBounds;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone)]
 pub struct CommandBuffer<C> {
     commands: Vec<C>,
+}
+
+impl<C> Default for CommandBuffer<C> {
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
 }
 
 impl<C> CommandBuffer<C> {

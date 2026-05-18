@@ -4,7 +4,7 @@ pub use command_buffer::CommandBuffer;
 
 use crate::EntityId;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum EntityCommand {
     Spawn,
     Despawn(EntityId),

@@ -1,8 +1,4 @@
-use shared::shared;
-
-use crate::{
-    CommandBuffer, Component, EntityAllocator, EntityCommand, Event, Resource, world::World,
-};
+use crate::{CommandBuffer, Component, EntityCommand, Event, Resource, world::World};
 
 #[derive(Debug, PartialEq, Clone)]
 struct TestComponent;
@@ -186,9 +182,7 @@ fn test_stale_despawn_does_not_remove_new_entity_components() {
 fn test_entity_spawn_via_command_buffer() {
     let mut world = World::default();
     let mut buffer = CommandBuffer::new(vec![EntityCommand::Spawn, EntityCommand::Spawn]);
-
-    world.apply_command_buffer(&mut buffer);
-
+    world.apply_command_buffer();
     assert_eq!(world.entity_count(), 2);
     assert!(buffer.is_empty());
 }
@@ -201,7 +195,7 @@ fn test_entity_despawn_via_command_buffer() {
 
     let mut buffer = CommandBuffer::new(vec![EntityCommand::Despawn(entity.clone())]);
 
-    world.apply_command_buffer(&mut buffer);
+    world.apply_command_buffer();
 
     assert!(!world.is_alive(&entity));
     assert_eq!(world.entity_count(), 0);
@@ -218,7 +212,7 @@ fn test_entity_spawn_then_despawn_ordering_via_buffer() {
         EntityCommand::Despawn(entity.clone()),
     ]);
 
-    world.apply_command_buffer(&mut buffer);
+    world.apply_command_buffer();
 
     assert!(!world.is_alive(&entity));
     assert_eq!(world.entity_count(), 1);
@@ -230,9 +224,7 @@ fn test_entity_stale_despawn_via_buffer() {
     let entity = world.spawn().unwrap();
     world.despawn(&entity);
 
-    let mut buffer = CommandBuffer::new(vec![EntityCommand::Despawn(entity.clone())]);
-
-    world.apply_command_buffer(&mut buffer);
+    world.apply_command_buffer();
 
     assert!(!world.is_alive(&entity));
     assert_eq!(world.entity_count(), 0);
@@ -244,7 +236,7 @@ fn test_entity_empty_command_buffer_does_nothing() {
     world.spawn().unwrap();
 
     let mut buffer = CommandBuffer::new(Vec::default());
-    world.apply_command_buffer(&mut buffer);
+    world.apply_command_buffer();
 
     assert_eq!(world.entity_count(), 1);
 }
