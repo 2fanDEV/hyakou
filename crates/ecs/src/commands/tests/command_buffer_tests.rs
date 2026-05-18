@@ -1,4 +1,4 @@
-use crate::{CommandBuffer, EntityCommand, EntityId, World};
+use crate::{CommandBuffer, EntityId, World, world::commands::EntityCommand};
 
 #[test]
 fn test_empty_command_buffer_behavior() {
@@ -32,13 +32,9 @@ fn test_command_buffer_preserves_insertion_order() {
 
 #[test]
 fn test_command_buffer_is_cleared_after_apply() {
-    let mut buffer = CommandBuffer::new(vec![]);
-
-    buffer.push(EntityCommand::Spawn);
-    buffer.push(EntityCommand::Spawn);
-
-    World::default().apply_command_buffer(&mut buffer);
-
-    assert!(buffer.is_empty());
-    assert_eq!(buffer.len(), 0);
+    let mut world = World::default();
+    world.recorder().spawn(EntityId::default());
+    world.recorder().spawn(EntityId::default());
+    world.apply_command_buffer();
+    assert!(world.buffer().is_empty());
 }
