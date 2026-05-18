@@ -3,8 +3,9 @@ use log::debug;
 use shared::{Shared, SharedAccess};
 
 use crate::CommandBuffer;
-use crate::commands::EntityCommand;
 use crate::component::Components;
+use crate::world::commands::EntityCommand;
+use crate::world::recorder::WorldRecorder;
 use crate::{Component, EntityAllocator, EntityId, Event, Events, Resources, resource::Resource};
 
 pub mod commands;
@@ -44,12 +45,20 @@ impl World {
         }
     }
 
-    fn apply_command_buffer(&mut self) {
+    pub fn recorder(&mut self) -> WorldRecorder<'_> {
+        WorldRecorder::new(self)
+    }
+
+    pub fn apply_command_buffer(&mut self) {
         let cmd = std::mem::take(&mut self.command_buffer);
         for command in cmd.iter() {
             self.apply_command(command);
         }
         self.cascading_apply();
+    }
+
+    pub fn buffer(&self) -> &CommandBuffer<EntityCommand> {
+        &self.command_buffer
     }
 
     pub fn cascading_apply(&mut self) {
@@ -58,13 +67,19 @@ impl World {
 
     pub fn apply_command(&mut self, command: &EntityCommand) {
         match command {
-            EntityCommand::Spawn => {
+            EntityCommand::Spawn(id) => {
                 self.spawn().unwrap();
             }
             EntityCommand::Despawn(id) => {
                 self.despawn(&id);
             }
         }
+    }
+
+    pub fn spawn_with_id(&mut self, id: EntityId) -> Result<EntityId> {
+        self.allocator
+            .try_write_shared(|alloc| alloc.spawn_with_id(id))
+            .map_err(|e| anyhow!(e))
     }
 
     pub fn spawn(&mut self) -> Result<EntityId> {
@@ -79,7 +94,7 @@ impl World {
             .try_write_shared(|alloc| alloc.despawn(entity))
         {
             Ok(res) => {
-                self.components.remove_entity(entity);
+                let x = self.components.remove_entity(entity);
                 res
             }
             Err(e) => {

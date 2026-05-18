@@ -1,6 +1,7 @@
 use crate::EntityId;
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum EntityCommand {
-    Spawn,
+    Spawn(EntityId),
     Despawn(EntityId),
 }

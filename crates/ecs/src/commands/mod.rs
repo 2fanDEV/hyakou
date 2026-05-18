@@ -4,12 +4,6 @@ pub use command_buffer::CommandBuffer;
 
 use crate::EntityId;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum EntityCommand {
-    Spawn,
-    Despawn(EntityId),
-}
-
 #[derive(Debug, Clone)]
 pub enum ComponentCommand<C> {
     Insert { entity: EntityId, component: C },
