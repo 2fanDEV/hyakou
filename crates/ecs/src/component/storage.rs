@@ -4,8 +4,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use log::warn;
+use shared::{Shared, SharedAccess};
+
 use crate::{
-    CommandBuffer, Component, EntityId, KeyedStorage, Storage,
+    CommandBuffer, Component, EntityAllocator, EntityId, KeyedStorage, Storage,
     commands::{ComponentCommand, ExecutedComponentCommand},
 };
 
@@ -72,16 +75,30 @@ impl<C: Component> Storage for ComponentStorage<C> {
         !self.outstanding_commands.is_empty()
     }
 
-    fn apply_outstanding_commands(&mut self) {
+    fn apply_outstanding_commands(&mut self, allocator: &Shared<EntityAllocator>) {
         let drainage = self.outstanding_commands.drain(..).collect::<Vec<_>>();
+        let is_alive = |entity: &EntityId| {
+            allocator
+                .try_read_shared(|alloc| alloc.is_alive(entity))
+                .unwrap_or(false)
+        };
+
         for command in drainage {
             let cmd = command.clone();
             match command {
                 ComponentCommand::Insert { entity, component } => {
-                    self.insert(&entity, component);
+                    if is_alive(&entity) {
+                        self.insert(&entity, component);
+                    } else {
+                        warn!("Skipped component insert for dead entity: {:?}", entity);
+                    }
                 }
                 ComponentCommand::Remove { entity } => {
-                    self.remove(&entity);
+                    if is_alive(&entity) {
+                        self.remove(&entity);
+                    } else {
+                        warn!("Skipped component remove for dead entity: {:?}", entity);
+                    }
                 }
             }
             self.executed_commands.push(ExecutedComponentCommand {

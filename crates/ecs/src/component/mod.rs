@@ -35,10 +35,11 @@ impl Components {
     }
 
     pub fn apply_commands(&mut self) {
+        let allocator = self.allocator.clone();
         let storages = self.storages.filter(|stor| stor.has_outstanding_commands());
         storages
             .par_bridge()
-            .for_each(|storage| storage.apply_outstanding_commands());
+            .for_each(|storage| storage.apply_outstanding_commands(&allocator));
     }
 
     pub(crate) fn insert<C: Component>(&mut self, entity: &EntityId, component: C) {

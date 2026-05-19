@@ -106,6 +106,59 @@ fn test_world_component_storage_is_world_local() {
 }
 
 #[test]
+fn test_deferred_component_insert_applies_for_alive_entity() {
+    let mut world = World::default();
+    let mut entity = world.spawn().unwrap();
+
+    world.components.record().insert(&mut entity, TestComponent);
+    world.cascading_apply();
+
+    assert_eq!(
+        world.get_component::<TestComponent>(&entity),
+        Some(&TestComponent)
+    );
+}
+
+#[test]
+fn test_deferred_component_remove_applies_for_alive_entity() {
+    let mut world = World::default();
+    let mut entity = world.spawn().unwrap();
+    world.insert_component(&mut entity, TestComponent);
+
+    world
+        .components
+        .record()
+        .remove::<TestComponent>(&mut entity);
+    world.cascading_apply();
+
+    assert_eq!(world.get_component::<TestComponent>(&entity), None);
+}
+
+#[test]
+fn test_deferred_component_insert_is_not_recorded_for_dead_entity() {
+    let mut world = World::default();
+    let mut entity = world.spawn().unwrap();
+    assert!(world.despawn(&entity));
+
+    world.components.record().insert(&mut entity, TestComponent);
+    world.cascading_apply();
+
+    assert_eq!(world.get_component::<TestComponent>(&entity), None);
+}
+
+#[test]
+fn test_deferred_component_insert_skips_entity_dead_before_apply() {
+    let mut world = World::default();
+    let mut entity = world.spawn().unwrap();
+
+    world.components.record().insert(&mut entity, TestComponent);
+    assert!(world.despawn(&entity));
+    world.cascading_apply();
+
+    assert_eq!(world.get_component::<TestComponent>(&entity), None);
+}
+
+#[test]
 fn test_world_new_uses_injected_state() {
     let mut world = World::default();
     let entity = world.spawn().unwrap();
