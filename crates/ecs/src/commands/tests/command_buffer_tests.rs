@@ -20,10 +20,8 @@ fn test_command_buffer_preserves_insertion_order() {
     let values = buffer
         .iter()
         .map(|command| match command {
-            entity_command => match entity_command {
-                EntityCommand::Despawn(id) => id.index(),
-                _ => unreachable!(),
-            },
+            EntityCommand::Despawn(id) => id.index(),
+            EntityCommand::Spawn => unreachable!(),
         })
         .collect::<Vec<_>>();
 
@@ -33,8 +31,8 @@ fn test_command_buffer_preserves_insertion_order() {
 #[test]
 fn test_command_buffer_is_cleared_after_apply() {
     let mut world = World::default();
-    world.recorder().spawn(EntityId::default());
-    world.recorder().spawn(EntityId::default());
+    world.recorder().spawn();
+    world.recorder().spawn();
     world.apply_command_buffer();
     assert!(world.buffer().is_empty());
 }
