@@ -1,5 +1,3 @@
-use log::debug;
-
 use crate::EntityId;
 
 #[derive(Debug)]
@@ -22,10 +20,6 @@ impl EntityAllocator {
             slot.alive = true;
             return EntityId::new_uuid(index, slot.version);
         }
-        self.spawn_with_id(EntityId::default())
-    }
-
-    pub fn spawn_with_id(&mut self, id: EntityId) -> EntityId {
         let index = self.slots.len();
         self.slots.push(EntitySlot {
             version: 0,

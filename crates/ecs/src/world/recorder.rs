@@ -9,10 +9,8 @@ impl<'a> WorldRecorder<'a> {
         Self { world }
     }
 
-    pub fn spawn(&mut self, entity_id: EntityId) {
-        self.world
-            .command_buffer
-            .push(EntityCommand::Spawn(entity_id));
+    pub fn spawn(&mut self) {
+        self.world.command_buffer.push(EntityCommand::Spawn);
     }
 
     pub fn despawn(&mut self, entity: EntityId) {

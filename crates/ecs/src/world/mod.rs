@@ -25,7 +25,7 @@ impl Default for World {
         let allocator: Shared<EntityAllocator> = Default::default();
         Self {
             components: Components::new(allocator.clone()),
-            allocator: allocator,
+            allocator,
             command_buffer: CommandBuffer::new(Vec::new()),
             resources: Default::default(),
             events: Default::default(),
@@ -67,19 +67,13 @@ impl World {
 
     pub fn apply_command(&mut self, command: &EntityCommand) {
         match command {
-            EntityCommand::Spawn(id) => {
+            EntityCommand::Spawn => {
                 self.spawn().unwrap();
             }
             EntityCommand::Despawn(id) => {
-                self.despawn(&id);
+                self.despawn(id);
             }
         }
-    }
-
-    pub fn spawn_with_id(&mut self, id: EntityId) -> Result<EntityId> {
-        self.allocator
-            .try_write_shared(|alloc| alloc.spawn_with_id(id))
-            .map_err(|e| anyhow!(e))
     }
 
     pub fn spawn(&mut self) -> Result<EntityId> {
@@ -94,12 +88,12 @@ impl World {
             .try_write_shared(|alloc| alloc.despawn(entity))
         {
             Ok(res) => {
-                let x = self.components.remove_entity(entity);
+                self.components.remove_entity(entity);
                 res
             }
             Err(e) => {
                 debug!("Failed to despawn entity: {}", e);
-                return false;
+                false
             }
         }
     }
