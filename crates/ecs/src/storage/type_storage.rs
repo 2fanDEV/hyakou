@@ -1,11 +1,12 @@
 use std::any::TypeId;
-use std::collections::HashMap;
+
+use fxhash::FxHashMap;
 
 use crate::Storage;
 
 #[derive(Debug, Default)]
 pub struct TypeStorage {
-    map: HashMap<TypeId, Box<dyn Storage>>,
+    map: FxHashMap<TypeId, Box<dyn Storage>>,
 }
 
 impl TypeStorage {
@@ -63,6 +64,16 @@ impl TypeStorage {
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut dyn Storage> + '_ {
         self.map
             .values_mut()
+            .map(|storage| storage.as_mut() as &mut dyn Storage)
+    }
+
+    pub fn filter<'a, F: Fn(&dyn Storage) -> bool + 'a>(
+        &'a mut self,
+        f: F,
+    ) -> impl Iterator<Item = &'a mut dyn Storage> {
+        self.map
+            .values_mut()
+            .filter(move |storage| f(storage.as_ref()))
             .map(|storage| storage.as_mut() as &mut dyn Storage)
     }
 }

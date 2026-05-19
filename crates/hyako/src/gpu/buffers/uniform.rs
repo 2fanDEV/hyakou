@@ -1,13 +1,11 @@
 use std::ops::Deref;
 
-use hyakou_core::{
-    Shared,
-    types::{
-        BaseBuffer, BaseId, TransformBuffer,
-        ids::{UniformBufferId, UniformResourceId},
-        transform::Transform,
-    },
+use hyakou_core::types::{
+    BaseBuffer, BaseId, TransformBuffer,
+    ids::{UniformBufferId, UniformResourceId},
+    transform::Transform,
 };
+use shared::Shared;
 use wgpu::{
     Buffer, BufferUsages, Device,
     util::{BufferInitDescriptor, DeviceExt},

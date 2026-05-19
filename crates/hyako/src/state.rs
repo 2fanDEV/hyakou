@@ -18,8 +18,9 @@ use winit::{
     window::{Window, WindowAttributes},
 };
 
+use shared::Shared;
+
 use hyakou_core::{
-    Shared,
     events::Event,
     types::{DeltaTime64, mouse_delta::MouseButton},
 };

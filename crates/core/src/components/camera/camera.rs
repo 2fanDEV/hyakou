@@ -1,10 +1,10 @@
+use ::shared::id::Id;
 use glam::{Mat4, Vec3};
 
 use crate::{
     animations::trajectory::calculate_direction_vector,
     types::{
         Size,
-        base::Id,
         camera::{Pitch, Yaw},
     },
 };

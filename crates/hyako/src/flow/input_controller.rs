@@ -1,10 +1,10 @@
 use anyhow::Result;
 use hyakou_core::{
-    Shared, SharedAccess,
     selection::structure::SelectionScope,
     types::mouse_delta::{MouseAction, MouseButton, MouseDelta, MousePosition, MouseState},
 };
 use log::{debug, error};
+use shared::{Shared, SharedAccess};
 use strum::IntoDiscriminant;
 use strum_macros::EnumDiscriminants;
 use winit::{

@@ -1,9 +1,10 @@
 use std::ops::Deref;
 
+use ::shared::Shared;
 use anyhow::Result;
 use wgpu::{Buffer, Queue};
 
-use crate::{Shared, types::transform::Transform};
+use crate::types::transform::Transform;
 
 pub mod base;
 pub mod camera;
@@ -48,7 +49,7 @@ pub enum ModelMatrixBindingMode {
     Uniform,
 }
 
-#[deprecated(note = "will be moved into a separate crate")]
+// #[deprecated(note = "will be moved into a separate crate")]
 pub trait BaseId {
     fn get_id(&self) -> &str;
 }

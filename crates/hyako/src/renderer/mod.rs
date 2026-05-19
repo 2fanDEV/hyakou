@@ -20,7 +20,6 @@ use anyhow::Result;
 use bytemuck::bytes_of;
 use glam::{Vec3, Vec4};
 use hyakou_core::{
-    SharedAccess,
     animations::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
     components::{
         LightType,
@@ -29,7 +28,6 @@ use hyakou_core::{
     },
     geometry::ray::{Ray, math::intersect_transformed_mesh},
     selection::structure::{SelectionScope, SelectionTarget},
-    shared,
     traits::BindGroupProvider,
     types::{
         DeltaTime64, ModelMatrixBindingMode, Size, TransformBuffer,
@@ -39,6 +37,7 @@ use hyakou_core::{
     },
 };
 use log::{error, warn};
+use shared::{SharedAccess, shared};
 use wgpu::{
     BindGroup, Color, Device, Operations, Queue, RenderPassColorAttachment,
     RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline, SurfaceConfiguration,

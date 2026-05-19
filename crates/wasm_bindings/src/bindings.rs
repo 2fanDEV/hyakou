@@ -1,12 +1,11 @@
 use hyako::{renderer::SceneRenderer, state::AppState};
 use hyakou_core::{
-    Shared, SharedAccess,
     components::{LightType, camera::data_structures::CameraMode},
     events::Event,
-    shared,
     types::shared::{AssetBundleInformation, AssetInformation, Coordinates3},
 };
 use js_sys::{Array, BigInt, Reflect, Uint8Array};
+use shared::{Shared, SharedAccess, shared};
 use strum::VariantArray;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 

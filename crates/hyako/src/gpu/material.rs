@@ -1,10 +1,8 @@
 use std::rc::Rc;
 
 use bytemuck::{Pod, Zeroable};
-use hyakou_core::{
-    shared,
-    types::{ids::UniformBufferId, transform::Transform},
-};
+use hyakou_core::types::{ids::UniformBufferId, transform::Transform};
+use shared::shared;
 use wgpu::{
     AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BufferBinding,

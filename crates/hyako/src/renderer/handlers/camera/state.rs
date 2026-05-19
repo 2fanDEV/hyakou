@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
+use shared::id::Id;
+
 use hyakou_core::{
     components::camera::{
         camera::Camera,
         data_structures::{CameraAnimationRequest, CameraAnimationStateSnapshot, CameraTransition},
     },
-    types::{base::Id, shared::Coordinates3},
+    types::shared::Coordinates3,
 };
 
 #[derive(Debug)]

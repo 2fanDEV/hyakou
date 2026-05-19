@@ -18,10 +18,8 @@ impl EntityAllocator {
             let slot = &mut self.slots[index];
             slot.version += 1;
             slot.alive = true;
-
             return EntityId::new_uuid(index, slot.version);
         }
-
         let index = self.slots.len();
         self.slots.push(EntitySlot {
             version: 0,
@@ -42,11 +40,11 @@ impl EntityAllocator {
 
         slot.alive = false;
         self.free_slots.push(id.index());
-
         true
     }
 
     pub fn is_alive(&self, id: &EntityId) -> bool {
+        println!("A: {:?}", self.slots);
         self.slots
             .get(id.index())
             .is_some_and(|slot| slot.alive && slot.version == id.version())

@@ -1,9 +1,9 @@
+use ::shared::{Shared, SharedAccess};
 use anyhow::{Result, anyhow};
 use glam::Vec3;
 use log::error;
 
 use crate::{
-    Shared, SharedAccess,
     animations::{
         Animation,
         trajectory::{Direction, calculate_direction_vector},
@@ -134,7 +134,7 @@ impl Animation for LinearTrajectory {
 #[cfg(test)]
 mod tests {
 
-    use crate::{SharedAccess, shared};
+    use ::shared::{SharedAccess, shared};
 
     use super::*;
 

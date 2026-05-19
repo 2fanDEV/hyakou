@@ -1,15 +1,25 @@
-use shared_types::id::{BaseId, Id};
+use shared::id::Id;
 
 mod allocator;
 mod entity_data;
 pub use allocator::EntityAllocator;
 pub use entity_data::Entity;
 
-#[derive(Debug, Default, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct EntityId {
     id: Id,
     index: usize,
     version: usize,
+}
+
+impl Default for EntityId {
+    fn default() -> Self {
+        Self {
+            id: Id::uuid(),
+            index: Default::default(),
+            version: Default::default(),
+        }
+    }
 }
 
 impl EntityId {
