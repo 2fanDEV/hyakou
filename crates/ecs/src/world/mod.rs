@@ -49,6 +49,10 @@ impl World {
         WorldRecorder::new(self)
     }
 
+    /// Applies deferred world commands in FIFO order, then applies deferred component commands.
+    ///
+    /// The internal world command buffer is empty after this returns. Invalid entity commands are
+    /// handled by the target operation; for example, stale despawns are no-ops that return `false`.
     pub fn apply_command_buffer(&mut self) {
         let cmd = std::mem::take(&mut self.command_buffer);
         for command in cmd.iter() {
@@ -61,6 +65,10 @@ impl World {
         &self.command_buffer
     }
 
+    /// Applies commands that are owned by child storages after world-level commands have run.
+    ///
+    /// Component storages preserve FIFO order within each component type. Cross-component-type
+    /// ordering is not part of the contract.
     pub fn cascading_apply(&mut self) {
         self.components.apply_commands();
     }

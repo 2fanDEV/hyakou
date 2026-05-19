@@ -3,6 +3,9 @@ use crate::{Component, Event, Resource, world::World};
 #[derive(Debug, PartialEq, Clone)]
 struct TestComponent;
 
+#[derive(Debug, PartialEq, Clone)]
+struct OrderedComponent(u32);
+
 #[derive(Debug, PartialEq)]
 struct TestEvent(u32);
 
@@ -10,6 +13,7 @@ struct TestEvent(u32);
 struct TestResource(u32);
 
 impl Component for TestComponent {}
+impl Component for OrderedComponent {}
 impl Event for TestEvent {}
 impl Resource for TestResource {}
 
@@ -153,6 +157,53 @@ fn test_deferred_component_insert_skips_entity_dead_before_apply() {
     world.cascading_apply();
 
     assert_eq!(world.get_component::<TestComponent>(&entity), None);
+}
+
+#[test]
+fn test_deferred_component_insert_then_remove_applies_fifo() {
+    let mut world = World::default();
+    let mut entity = world.spawn().unwrap();
+
+    {
+        let mut recorder = world.components.record();
+        recorder.insert(&mut entity, TestComponent);
+        recorder.remove::<TestComponent>(&mut entity);
+    }
+    world.cascading_apply();
+
+    assert_eq!(world.get_component::<TestComponent>(&entity), None);
+}
+
+#[test]
+fn test_deferred_component_remove_then_insert_applies_fifo() {
+    let mut world = World::default();
+    let mut entity = world.spawn().unwrap();
+
+    {
+        let mut recorder = world.components.record();
+        recorder.remove::<OrderedComponent>(&mut entity);
+        recorder.insert(&mut entity, OrderedComponent(7));
+    }
+    world.cascading_apply();
+
+    assert_eq!(
+        world.get_component::<OrderedComponent>(&entity),
+        Some(&OrderedComponent(7))
+    );
+}
+
+#[test]
+fn test_world_commands_apply_before_component_commands() {
+    let mut world = World::default();
+    let mut entity = world.spawn().unwrap();
+
+    world.components.record().insert(&mut entity, TestComponent);
+    world.recorder().despawn(entity.clone());
+    world.apply_command_buffer();
+
+    assert!(!world.is_alive(&entity));
+    assert_eq!(world.get_component::<TestComponent>(&entity), None);
+    assert!(world.buffer().is_empty());
 }
 
 #[test]
