@@ -1,6 +1,11 @@
 use std::any::Any;
 use std::fmt::Debug;
 
+use log::debug;
+use shared::Shared;
+
+use crate::EntityAllocator;
+
 pub trait Storage: Debug + Send {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -14,7 +19,7 @@ pub trait Storage: Debug + Send {
         false
     }
 
-    fn apply_outstanding_commands(&mut self) {
+    fn apply_outstanding_commands(&mut self, _allocator: &Shared<EntityAllocator>) {
         debug!("apply_outstanding_commands not implemented!: {:?}", self);
     }
 }
@@ -24,5 +29,4 @@ pub trait KeyedStorage<K>: Storage {
 }
 
 mod type_storage;
-use log::debug;
 pub use type_storage::TypeStorage;
