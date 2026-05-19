@@ -34,6 +34,11 @@ impl Components {
         ComponentRecorder { components: self }
     }
 
+    /// Applies deferred component commands.
+    ///
+    /// Commands are FIFO within each component type. Different component types may be applied in
+    /// any order, so systems must not depend on global ordering between component types. Commands
+    /// targeting dead or stale entities are skipped and logged as warnings.
     pub fn apply_commands(&mut self) {
         let allocator = self.allocator.clone();
         let storages = self.storages.filter(|stor| stor.has_outstanding_commands());
