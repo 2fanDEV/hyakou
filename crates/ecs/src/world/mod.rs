@@ -6,7 +6,10 @@ use crate::CommandBuffer;
 use crate::component::Components;
 use crate::world::commands::EntityCommand;
 use crate::world::recorder::WorldRecorder;
-use crate::{Component, EntityAllocator, EntityId, Event, Events, Resources, resource::Resource};
+use crate::{
+    Component, EntityAllocator, EntityId, Event, Events, Query, QueryMut, Resources,
+    resource::Resource,
+};
 
 pub mod commands;
 pub mod recorder;
@@ -156,6 +159,20 @@ impl World {
 
     pub fn get_component_mut<C: Component>(&mut self, entity: &EntityId) -> Option<&mut C> {
         self.components.get_mut::<C>(entity)
+    }
+
+    /// Returns a read-only query for one component type.
+    ///
+    /// Results are ordered by ascending entity index, then version, and skip dead or stale entities.
+    pub fn query<C: Component>(&self) -> Query<'_, C> {
+        Query::new(&self.components, &self.allocator)
+    }
+
+    /// Returns a mutable query for one component type.
+    ///
+    /// Results use the same order and liveness rules as [`World::query`].
+    pub fn query_mut<C: Component>(&mut self) -> QueryMut<'_, C> {
+        QueryMut::new(&mut self.components, &self.allocator)
     }
 
     pub fn remove_component<C: Component>(&mut self, entity: &mut EntityId) {
