@@ -9,6 +9,8 @@
   "scripts": {
     "wasm:build:dev": "wasm-pack build ../crates/wasm_bindings --target web --out-dir pkg",
     "wasm:build:prod": "wasm-pack build ../crates/wasm_bindings --target web --release --out-dir pkg",
+    "wasm:build:threads:dev": "bash ./scripts/build-wasm-threads.sh dev",
+    "wasm:build:threads:prod": "bash ./scripts/build-wasm-threads.sh release",
     "watch": "pnpm run --parallel /^dev:.*/",
     "dev:frontend": "vite dev --port 3000",
     "dev:wasm": "cargo watch -w ../crates -s 'wasm-pack build ../crates/wasm_bindings --target web --out-dir pkg'",

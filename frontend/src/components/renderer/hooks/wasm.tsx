@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import init, { Hyako } from "@wasm/hyako_wasm_bindings";
+import init, { Hyako, initThreadPool } from "@wasm/hyako_wasm_bindings";
 import wasm_url from "@wasm/hyako_wasm_bindings_bg.wasm?url";
 import { useRef } from "react";
 
@@ -16,6 +16,7 @@ export default function useWasm(
 		queryKey: ["hyako-wasm-init"],
 		queryFn: async () => {
 			await init({ module_or_path: wasm_url });
+			await initThreadPool(getThreadPoolSize());
 			if (!canvasRef.current) return;
 			const hyako = new Hyako(canvasRef.current);
 			hyako.start_rendering();
@@ -29,6 +30,8 @@ export default function useWasm(
 		retry: false,
 	});
 }
+
+const getThreadPoolSize = () => Math.max(1, navigator.hardwareConcurrency || 1);
 
 const waitUntilRendererReady = async (hyako: Hyako) => {
 	while (!hyako.is_renderer_ready()) {

@@ -11,6 +11,13 @@ use hyakou_core::{
 };
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
+#[cfg(all(target_arch = "wasm32", target_feature = "atomics"))]
+pub use wasm_bindgen_rayon::init_thread_pool;
+
+#[cfg(all(target_arch = "wasm32", not(target_feature = "atomics")))]
+#[wasm_bindgen(js_name = initThreadPool)]
+pub async fn init_thread_pool(_num_threads: usize) {}
+
 #[cfg(target_arch = "wasm32")]
 pub mod bindings;
 
