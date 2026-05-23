@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{collections::hash_map, fmt::Debug};
 
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use shared::Shared;
@@ -59,6 +59,14 @@ impl Components {
         self.storage_mut::<C>().get_mut(entity)
     }
 
+    pub(crate) fn iter<C: Component>(&self) -> Option<hash_map::Iter<'_, EntityId, C>> {
+        Some(self.storage::<C>()?.iter())
+    }
+
+    pub(crate) fn iter_mut<C: Component>(&mut self) -> Option<hash_map::IterMut<'_, EntityId, C>> {
+        Some(self.storage_mut_existing::<C>()?.iter_mut())
+    }
+
     pub fn contains_storage<C: Component>(&self) -> bool {
         self.storages.contains::<ComponentStorage<C>>()
     }
@@ -88,6 +96,10 @@ impl Components {
     fn storage_mut<C: Component>(&mut self) -> &mut ComponentStorage<C> {
         self.storages
             .get_or_insert_with::<ComponentStorage<C>, _>(|| ComponentStorage::<C>::new())
+    }
+
+    fn storage_mut_existing<C: Component>(&mut self) -> Option<&mut ComponentStorage<C>> {
+        self.storages.get_mut::<ComponentStorage<C>>()
     }
 }
 

@@ -327,3 +327,193 @@ fn test_entity_empty_command_buffer_does_nothing() {
     world.apply_command_buffer();
     assert_eq!(world.entity_count(), 1);
 }
+
+#[test]
+fn test_query_empty_world_returns_no_items() {
+    let world = World::default();
+
+    assert_eq!(world.query::<TestComponent>().count(), 0);
+}
+
+#[test]
+fn test_query_returns_entity_identity_and_component() {
+    let mut world = World::default();
+    let mut entity = world.spawn().unwrap();
+    world.insert_component(&mut entity, OrderedComponent(7));
+
+    let query: crate::Query<'_, OrderedComponent> = world.query::<OrderedComponent>();
+    let results = query.collect::<Vec<_>>();
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].0, &entity);
+    assert_eq!(results[0].1, &OrderedComponent(7));
+}
+
+#[test]
+fn test_query_skips_entities_without_component() {
+    let mut world = World::default();
+    let mut entity_with_component = world.spawn().unwrap();
+    let entity_without_component = world.spawn().unwrap();
+    world.insert_component(&mut entity_with_component, OrderedComponent(7));
+
+    let results = world.query::<OrderedComponent>().collect::<Vec<_>>();
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].0, &entity_with_component);
+    assert_ne!(results[0].0, &entity_without_component);
+}
+
+#[test]
+fn test_query_missing_component_storage_returns_empty() {
+    let mut world = World::default();
+    let mut entity = world.spawn().unwrap();
+    world.insert_component(&mut entity, TestComponent);
+
+    assert_eq!(world.query::<OrderedComponent>().count(), 0);
+}
+
+#[test]
+fn test_query_skips_stale_entities() {
+    let mut world = World::default();
+    let stale_entity = world.spawn().unwrap();
+    assert!(world.despawn(&stale_entity));
+    world.components.insert(&stale_entity, OrderedComponent(1));
+
+    let mut live_entity = world.spawn().unwrap();
+    world.insert_component(&mut live_entity, OrderedComponent(2));
+
+    let results = world.query::<OrderedComponent>().collect::<Vec<_>>();
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].0, &live_entity);
+    assert_eq!(results[0].1, &OrderedComponent(2));
+}
+
+#[test]
+fn test_query_mut_updates_stored_component_data() {
+    let mut world = World::default();
+    let mut entity = world.spawn().unwrap();
+    world.insert_component(&mut entity, OrderedComponent(7));
+
+    let query: crate::QueryMut<'_, OrderedComponent> = world.query_mut::<OrderedComponent>();
+    for (_, component) in query {
+        component.0 += 1;
+    }
+
+    assert_eq!(
+        world.get_component::<OrderedComponent>(&entity),
+        Some(&OrderedComponent(8))
+    );
+}
+
+#[test]
+fn test_query_mut_missing_component_storage_returns_empty() {
+    let mut world = World::default();
+    let mut entity = world.spawn().unwrap();
+    world.insert_component(&mut entity, TestComponent);
+
+    assert_eq!(world.query_mut::<OrderedComponent>().count(), 0);
+}
+
+#[test]
+fn test_query_mut_skips_stale_entities() {
+    let mut world = World::default();
+    let stale_entity = world.spawn().unwrap();
+    assert!(world.despawn(&stale_entity));
+    world.components.insert(&stale_entity, OrderedComponent(1));
+
+    let mut live_entity = world.spawn().unwrap();
+    world.insert_component(&mut live_entity, OrderedComponent(2));
+
+    for (_, component) in world.query_mut::<OrderedComponent>() {
+        component.0 += 1;
+    }
+
+    assert_eq!(
+        world.get_component::<OrderedComponent>(&live_entity),
+        Some(&OrderedComponent(3))
+    );
+    assert_eq!(
+        world.get_component::<OrderedComponent>(&stale_entity),
+        Some(&OrderedComponent(1))
+    );
+}
+
+#[test]
+fn test_query_order_is_entity_index_then_version() {
+    let mut world = World::default();
+    let mut first = world.spawn().unwrap();
+    let mut second = world.spawn().unwrap();
+    let mut third = world.spawn().unwrap();
+
+    world.insert_component(&mut third, OrderedComponent(3));
+    world.insert_component(&mut first, OrderedComponent(1));
+    world.insert_component(&mut second, OrderedComponent(2));
+
+    let ids = world
+        .query::<OrderedComponent>()
+        .map(|(entity, _)| entity.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(ids, vec![first, second, third]);
+}
+
+#[test]
+fn test_query_order_after_removal() {
+    let mut world = World::default();
+    let mut first = world.spawn().unwrap();
+    let mut second = world.spawn().unwrap();
+    let mut third = world.spawn().unwrap();
+    world.insert_component(&mut first, OrderedComponent(1));
+    world.insert_component(&mut second, OrderedComponent(2));
+    world.insert_component(&mut third, OrderedComponent(3));
+
+    assert!(world.despawn(&second));
+
+    let ids = world
+        .query::<OrderedComponent>()
+        .map(|(entity, _)| entity.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(ids, vec![first, third]);
+}
+
+#[test]
+fn test_query_order_after_slot_reuse() {
+    let mut world = World::default();
+    let mut first = world.spawn().unwrap();
+    let mut reused_slot = world.spawn().unwrap();
+    let mut third = world.spawn().unwrap();
+    world.insert_component(&mut first, OrderedComponent(1));
+    world.insert_component(&mut reused_slot, OrderedComponent(2));
+    world.insert_component(&mut third, OrderedComponent(3));
+    assert!(world.despawn(&reused_slot));
+
+    reused_slot = world.spawn().unwrap();
+    world.insert_component(&mut reused_slot, OrderedComponent(4));
+
+    let ids = world
+        .query::<OrderedComponent>()
+        .map(|(entity, _)| entity.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(ids, vec![first, reused_slot, third]);
+}
+
+#[test]
+fn test_query_mut_uses_query_order() {
+    let mut world = World::default();
+    let mut first = world.spawn().unwrap();
+    let mut second = world.spawn().unwrap();
+    let mut third = world.spawn().unwrap();
+    world.insert_component(&mut third, OrderedComponent(3));
+    world.insert_component(&mut first, OrderedComponent(1));
+    world.insert_component(&mut second, OrderedComponent(2));
+
+    let ids = world
+        .query_mut::<OrderedComponent>()
+        .map(|(entity, _)| entity.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(ids, vec![first, second, third]);
+}

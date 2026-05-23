@@ -1,6 +1,6 @@
 use std::{
     any::Any,
-    collections::HashMap,
+    collections::{HashMap, hash_map},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -42,6 +42,14 @@ impl<C: Component> ComponentStorage<C> {
 
     pub fn get_mut(&mut self, entity: &EntityId) -> Option<&mut C> {
         self.values.get_mut(entity)
+    }
+
+    pub fn iter(&self) -> hash_map::Iter<'_, EntityId, C> {
+        self.values.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> hash_map::IterMut<'_, EntityId, C> {
+        self.values.iter_mut()
     }
 
     pub fn remove(&mut self, entity: &EntityId) -> Option<C> {

@@ -16,6 +16,7 @@ pub use entity::EntityAllocator;
 pub use entity::EntityId;
 pub use event::Event;
 pub use event::Events;
+pub use query::{Query, QueryMut};
 pub use resource::{Resource, Resources};
 pub use storage::{KeyedStorage, Storage, TypeStorage};
 pub use world::World;
