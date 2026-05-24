@@ -689,27 +689,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ecs"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "ecs_macros",
- "fxhash",
- "log",
- "rayon",
- "shared",
-]
-
-[[package]]
-name = "ecs_macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "egui"
 version = "0.34.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1094,15 +1073,6 @@ dependencies = [
  "memchr",
  "pin-project-lite",
  "slab",
-]
-
-[[package]]
-name = "fxhash"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
-dependencies = [
- "byteorder",
 ]
 
 [[package]]

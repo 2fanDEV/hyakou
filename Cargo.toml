@@ -2,9 +2,7 @@
 members = [
     "crates/core",
     "crates/hyako",
-    "crates/ecs",
     "crates/wasm_bindings",
     "crates/shared",
-    "crates/ecs_macros",
 ]
 resolver = "2"
