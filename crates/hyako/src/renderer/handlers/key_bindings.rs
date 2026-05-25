@@ -4,10 +4,7 @@ use log::{trace, warn};
 use smallvec::{SmallVec, smallvec};
 use winit::keyboard::KeyCode;
 
-use crate::renderer::actions::{
-    Action, CameraActions,
-    camera_actions::{self, CameraHandlerAction},
-};
+use crate::renderer::actions::{Action, CameraActions, camera_actions::CameraHandlerAction};
 
 const MAX_KEY_BIND_COUNT: usize = 5;
 

@@ -1,14 +1,8 @@
-use std::{collections::HashMap, f32::consts::PI, hash::Hash, sync::Arc};
+use std::{collections::HashMap, f32::consts::PI, sync::Arc};
 
 use crate::{
     flow::SceneFrameInput,
-    gpu::{
-        buffers::{
-            camera_buffer::CameraUniform, model_matrix::ModelMatrixUniform, uniform::UniformBuffer,
-        },
-        outline::OutlineUniform,
-        render_mesh::RenderMesh,
-    },
+    gpu::{buffers::model_matrix::ModelMatrixUniform, render_mesh::RenderMesh},
     renderer::{
         frame::FrameTarget,
         handlers::{asset_handler::AssetHandler, camera::CameraHandler},
@@ -18,27 +12,23 @@ use crate::{
 };
 use anyhow::Result;
 use bytemuck::bytes_of;
-use egui::Key::H;
 use glam::{Vec3, Vec4};
 use hyakou_core::{
-    animations::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
+    animations::Animator,
     components::{
         AssetType,
         camera::{camera::Camera, data_structures::CameraMode},
-        light::LightSource,
     },
     geometry::ray::{Ray, math::intersect_transformed_mesh},
     selection::structure::{SelectionScope, SelectionTarget},
-    traits::BindGroupProvider,
     types::{
-        DeltaTime64, ModelMatrixBindingMode, Size, TransformBuffer,
+        DeltaTime64, ModelMatrixBindingMode, Size,
         camera::{Pitch, Yaw},
-        ids::{MeshId, UniformBufferId},
-        transform::Transform,
+        ids::MeshId,
     },
 };
-use log::{error, warn};
-use shared::{SharedAccess, shared};
+use log::error;
+use shared::SharedAccess;
 use wgpu::{
     BindGroup, Color, Device, Operations, Queue, RenderPassColorAttachment,
     RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline, SurfaceConfiguration,
@@ -49,28 +39,23 @@ pub mod actions;
 pub mod frame;
 pub mod handlers;
 pub mod renderer_context;
+mod scene_gpu_resources;
 pub mod surface_frame_controller;
 pub mod util;
 pub mod wrappers;
 
+use scene_gpu_resources::SceneGpuResources;
+
 pub struct SceneRenderer {
     pub ctx: RenderContext,
     pub camera: Camera,
-    camera_uniform: CameraUniform,
-    camera_uniform_buffer: UniformBuffer,
-    camera_bind_group: BindGroup,
-    outline_uniform: OutlineUniform,
-    outline_uniform_buffer: UniformBuffer,
-    outline_bind_group: BindGroup,
+    gpu_resources: SceneGpuResources,
     animators: HashMap<MeshId, Animator>,
     pub camera_handler: CameraHandler,
     pub asset_manager: AssetHandler,
 }
 
 impl SceneRenderer {
-    const DEFAULT_OUTLINE_COLOR: Vec4 = Vec4::new(0.5, 0.1, 1.0, 1.0);
-    const DEFAULT_OUTLINE_THICKNESS: f32 = 0.05;
-
     pub async fn new(window: Arc<Window>) -> Result<Self> {
         const CAMERA_SPEED_UNITS_PER_SECOND: f32 = 20.0;
         const CAMERA_SENSITIVITY: f32 = 0.001;
@@ -80,23 +65,12 @@ impl SceneRenderer {
         .await
         .unwrap();
 
-        let assets_dir = util::get_relative_path();
-
-        let mut asset_handler = AssetHandler::new(
+        let asset_handler = AssetHandler::new(
             ctx.device.clone(),
             ctx.queue.clone(),
             ctx.model_binding_mode,
             ctx.model_bind_group_layout.clone(),
             ctx.material_bind_group_layout.clone(),
-        );
-
-        let outline_uniform =
-            OutlineUniform::new(Self::DEFAULT_OUTLINE_COLOR, Self::DEFAULT_OUTLINE_THICKNESS);
-        let outline_uniform_buffer = OutlineUniform::uniform_buffer(&ctx.device, &outline_uniform);
-        let outline_bind_group = OutlineUniform::bind_group(
-            &ctx.device,
-            &outline_uniform_buffer,
-            &ctx.outline_bind_group_layout,
         );
 
         let aspect = Camera::aspect_ratio_from_size(ctx.size);
@@ -114,32 +88,13 @@ impl SceneRenderer {
             CAMERA_SENSITIVITY,
             0.5,
         );
-
-        let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update(&camera);
-
-        let camera_uniform_buffer = UniformBuffer::new(
-            UniformBufferId::new("Camera".to_string()),
-            &ctx.device,
-            bytemuck::bytes_of(&camera_uniform),
-            shared(Transform::default()),
-        );
-        let camera_bind_group = CameraUniform::bind_group(
-            &ctx.device,
-            &camera_uniform_buffer,
-            &ctx.camera_bind_group_layout,
-        );
+        let gpu_resources = SceneGpuResources::new(&ctx, &camera)?;
 
         Ok(Self {
             ctx,
             asset_manager: asset_handler,
-            camera_uniform,
             camera,
-            camera_uniform_buffer,
-            camera_bind_group,
-            outline_uniform,
-            outline_uniform_buffer,
-            outline_bind_group,
+            gpu_resources,
             animators: HashMap::new(),
             camera_handler: CameraHandler::new(CameraMode::ORBIT),
         })
@@ -154,19 +109,7 @@ impl SceneRenderer {
             }
         });
 
-        self.camera_uniform.update(&self.camera);
-        if let Some(gpu_light_source) = self.light.to_gpu() {
-            self.light_uniform_buffer
-                .update_buffer_transform(&self.ctx.queue, bytes_of(&gpu_light_source))
-                .unwrap()
-        } else {
-            warn!("Skipping light buffer - Transform in Light is still locked");
-        }
-        self.ctx.queue.write_buffer(
-            &self.camera_uniform_buffer,
-            0,
-            bytes_of(&self.camera_uniform),
-        );
+        self.gpu_resources.update(&self.ctx.queue, &self.camera);
     }
 
     pub fn resolve_selection_target(
@@ -181,12 +124,7 @@ impl SceneRenderer {
     }
 
     pub fn set_outline_color(&mut self, color: Vec4) {
-        self.outline_uniform.color = color;
-        self.ctx.queue.write_buffer(
-            &self.outline_uniform_buffer,
-            0,
-            bytes_of(&self.outline_uniform),
-        );
+        self.gpu_resources.set_outline_color(&self.ctx.queue, color);
     }
 
     pub fn render_scene(&mut self, target: &mut FrameTarget<'_>, input: SceneFrameInput<'_>) {
@@ -222,28 +160,28 @@ impl SceneRenderer {
         }
 
         self.asset_manager
-            .get_all_visible_assets_with_modifier(&AssetType::LIGHT)
+            .get_all_visible_assets_with_modifier(&AssetType::NORMAL)
             .for_each(|elem| {
                 Self::record_scene_pass_command_encoder(
                     target,
                     elem,
                     &self.ctx.light_render_pipeline,
                     self.ctx.model_binding_mode,
-                    &self.camera_bind_group,
-                    &self.light_bind_group,
+                    &self.gpu_resources.camera_bind_group,
+                    &self.gpu_resources.light_bind_group,
                 );
             });
 
         self.asset_manager
-            .get_all_visible_assets_with_modifier(&AssetType::NORMAL)
+            .get_all_visible_assets_with_modifier(&AssetType::LIGHT)
             .for_each(|elem| {
                 Self::record_scene_pass_command_encoder(
                     target,
                     elem,
                     &self.ctx.no_light_render_pipeline,
                     self.ctx.model_binding_mode,
-                    &self.camera_bind_group,
-                    &self.light_bind_group,
+                    &self.gpu_resources.camera_bind_group,
+                    &self.gpu_resources.light_bind_group,
                 );
             });
 
@@ -284,10 +222,10 @@ impl SceneRenderer {
         });
 
         render_pass.set_pipeline(&self.ctx.outline_render_pipeline);
-        render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+        render_pass.set_bind_group(0, &self.gpu_resources.camera_bind_group, &[]);
         render_pass.set_bind_group(
             Self::outline_bind_group_index(self.ctx.model_binding_mode),
-            &self.outline_bind_group,
+            &self.gpu_resources.outline_bind_group,
             &[],
         );
 
