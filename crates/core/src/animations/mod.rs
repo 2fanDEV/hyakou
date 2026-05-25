@@ -1,5 +1,6 @@
 use crate::types::{DeltaTime, DeltaTime64, ids::MeshId, transform::Transform};
 use anyhow::{Result, anyhow};
+use bevy_ecs::component::Component;
 
 pub mod trajectory;
 
@@ -9,7 +10,7 @@ pub const NEUTRAL_SPEED: f32 = 1.0;
 /// The animate(...) most likely uses a try_write on a Shared<Transform>> which could
 /// panic but should be handled gracefully. Nonetheless you can match the result to get the
 /// error that occurs when try_write fails to acquire the lock.
-pub trait Animation {
+pub trait Animation: Send + Sync {
     fn get_id(&self) -> &MeshId;
     /// t: Option<&Transform> is a target transform
     /// when an animation allows an animated object to hover around another
@@ -19,6 +20,7 @@ pub trait Animation {
     fn reset(&mut self);
 }
 
+#[derive(Component)]
 pub struct Animator {
     id: MeshId,
     elapsed_time: DeltaTime64,

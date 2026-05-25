@@ -1,4 +1,4 @@
-use hyakou_core::{components::LightType, types::import_diagnostic::ImportDiagnostic};
+use hyakou_core::{components::AssetType, types::import_diagnostic::ImportDiagnostic};
 use log::{debug, error, warn};
 use shared::{Shared, SharedAccess};
 
@@ -38,7 +38,7 @@ impl AssetUploadController {
         &self,
         id: String,
         file_name: String,
-        asset_type: LightType,
+        asset_type: AssetType,
         bytes: Vec<u8>,
     ) {
         #[cfg(not(target_arch = "wasm32"))]
@@ -101,7 +101,7 @@ impl AssetUploadController {
         &self,
         id: String,
         file_name: String,
-        asset_type: LightType,
+        asset_type: AssetType,
         files: Vec<(String, Vec<u8>)>,
     ) {
         #[cfg(not(target_arch = "wasm32"))]
@@ -162,7 +162,7 @@ impl AssetUploadController {
         renderer_slot: &Shared<Option<SceneRenderer>>,
         id: String,
         file_name: String,
-        asset_type: LightType,
+        asset_type: AssetType,
         imported_scene: ImportedScene,
     ) {
         let upload_id = id.clone();

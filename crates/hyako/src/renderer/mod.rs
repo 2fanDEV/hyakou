@@ -1,4 +1,4 @@
-use std::{collections::HashMap, f32::consts::PI, sync::Arc};
+use std::{collections::HashMap, f32::consts::PI, hash::Hash, sync::Arc};
 
 use crate::{
     flow::SceneFrameInput,
@@ -18,11 +18,12 @@ use crate::{
 };
 use anyhow::Result;
 use bytemuck::bytes_of;
+use egui::Key::H;
 use glam::{Vec3, Vec4};
 use hyakou_core::{
     animations::{Animation, Animator, NEUTRAL_SPEED, trajectory::linear::LinearTrajectory},
     components::{
-        LightType,
+        AssetType,
         camera::{camera::Camera, data_structures::CameraMode},
         light::LightSource,
     },
@@ -58,9 +59,6 @@ pub struct SceneRenderer {
     camera_uniform: CameraUniform,
     camera_uniform_buffer: UniformBuffer,
     camera_bind_group: BindGroup,
-    light: LightSource,
-    light_uniform_buffer: UniformBuffer,
-    light_bind_group: BindGroup,
     outline_uniform: OutlineUniform,
     outline_uniform_buffer: UniformBuffer,
     outline_bind_group: BindGroup,
@@ -90,37 +88,6 @@ impl SceneRenderer {
             ctx.model_binding_mode,
             ctx.model_bind_group_layout.clone(),
             ctx.material_bind_group_layout.clone(),
-        );
-        let _suzanne_mesh = asset_handler
-            .add_from_path(
-                "Suzanne".to_string(),
-                LightType::LIGHT,
-                assets_dir.join("assets/gltf/Suzanne.gltf").as_path(),
-            )
-            .await?;
-        let cube_light_mesh = asset_handler
-            .add_from_path(
-                "Cube".to_string(),
-                LightType::NO_LIGHT,
-                assets_dir.join("assets/gltf/Cube.gltf").as_path(),
-            )
-            .await?;
-        cube_light_mesh.transform.try_write_shared(|t| {
-            t.translate(Vec3::new(0.0, 2.0, 1.0));
-            t.scale(Vec3::splat(0.25));
-        })?;
-        let light = LightSource::new(cube_light_mesh.transform.clone(), Vec3::new(1.0, 1.0, 1.0));
-        let light_uniform_buffer = UniformBuffer::new(
-            UniformBufferId::new("Light Uniform Buffer".to_string()),
-            &ctx.device,
-            bytes_of(&light.to_gpu().unwrap()),
-            cube_light_mesh.transform.clone(),
-        );
-
-        let light_bind_group = LightSource::bind_group(
-            &ctx.device,
-            &light_uniform_buffer,
-            &LightSource::bind_group_layout(&ctx.device),
         );
 
         let outline_uniform =
@@ -163,24 +130,6 @@ impl SceneRenderer {
             &ctx.camera_bind_group_layout,
         );
 
-        let test_trajectory = LinearTrajectory::new_deconstructed_mesh(
-            cube_light_mesh.id.clone(),
-            cube_light_mesh.transform.clone(),
-            f32::to_radians(0.0),
-            f32::to_radians(0.0),
-            3.0,
-            3.0,
-            true,
-            true,
-        )
-        .unwrap();
-
-        let mut animators = HashMap::<MeshId, Animator>::new();
-        animators.insert(
-            test_trajectory.get_id().clone(),
-            Animator::new(NEUTRAL_SPEED, Box::new(test_trajectory)).unwrap(),
-        );
-
         Ok(Self {
             ctx,
             asset_manager: asset_handler,
@@ -188,13 +137,10 @@ impl SceneRenderer {
             camera,
             camera_uniform_buffer,
             camera_bind_group,
-            light,
-            light_uniform_buffer,
-            light_bind_group,
             outline_uniform,
             outline_uniform_buffer,
             outline_bind_group,
-            animators,
+            animators: HashMap::new(),
             camera_handler: CameraHandler::new(CameraMode::ORBIT),
         })
     }
@@ -276,7 +222,7 @@ impl SceneRenderer {
         }
 
         self.asset_manager
-            .get_all_visible_assets_with_modifier(&LightType::LIGHT)
+            .get_all_visible_assets_with_modifier(&AssetType::LIGHT)
             .for_each(|elem| {
                 Self::record_scene_pass_command_encoder(
                     target,
@@ -289,7 +235,7 @@ impl SceneRenderer {
             });
 
         self.asset_manager
-            .get_all_visible_assets_with_modifier(&LightType::NO_LIGHT)
+            .get_all_visible_assets_with_modifier(&AssetType::NORMAL)
             .for_each(|elem| {
                 Self::record_scene_pass_command_encoder(
                     target,

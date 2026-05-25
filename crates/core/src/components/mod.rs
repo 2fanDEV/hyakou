@@ -7,7 +7,7 @@ pub mod mesh_node;
 #[wasm_bindgen]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LightType {
+pub enum AssetType {
     LIGHT,
-    NO_LIGHT,
+    NORMAL,
 }

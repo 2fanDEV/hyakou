@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::gpu::glTF::ImportedScene;
 use hyakou_core::{
-    components::{LightType, camera::data_structures::CameraAnimationRequest},
+    components::{AssetType, camera::data_structures::CameraAnimationRequest},
     selection::structure::SelectionScope,
     types::mouse_delta::MouseButton,
 };
@@ -36,19 +36,19 @@ pub enum FlowCommand {
     AssetUploadRequested {
         id: String,
         file_name: String,
-        asset_type: LightType,
+        asset_type: AssetType,
         bytes: Vec<u8>,
     },
     AssetBundleUploadRequested {
         id: String,
         file_name: String,
-        asset_type: LightType,
+        asset_type: AssetType,
         files: Vec<(String, Vec<u8>)>,
     },
     ApplyParsedAsset {
         id: String,
         file_name: String,
-        asset_type: LightType,
+        asset_type: AssetType,
         imported_scene: ImportedScene,
     },
     AssetUploadFailed {

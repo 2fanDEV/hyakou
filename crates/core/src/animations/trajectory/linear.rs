@@ -1,5 +1,6 @@
 use ::shared::{Shared, SharedAccess};
 use anyhow::{Result, anyhow};
+use bevy_ecs::component::Component;
 use glam::Vec3;
 use log::error;
 
@@ -16,7 +17,7 @@ use crate::{
 /// Yaw, Pitch are supposed to be passed in as radians.
 /// Speed is in units/second, distance is in units
 ///
-#[derive(Debug, Clone)]
+#[derive(Component, Debug, Clone)]
 pub struct LinearTrajectory {
     pub id: MeshId,
     transform: Shared<Transform>,

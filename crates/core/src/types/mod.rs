@@ -6,7 +6,6 @@ use wgpu::{Buffer, Queue};
 
 use crate::types::transform::Transform;
 
-pub mod base;
 pub mod camera;
 pub mod ids;
 pub mod import_diagnostic;

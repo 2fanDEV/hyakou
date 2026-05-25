@@ -1,10 +1,12 @@
 use anyhow::Ok;
+use bevy_ecs::component::Component;
 
 use crate::{
     animations::Animation,
     types::{DeltaTime, ids::MeshId, transform::Transform},
 };
 
+#[derive(Component, Debug, Clone)]
 pub struct StationaryTrajectory {
     pub id: MeshId,
 }

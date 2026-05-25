@@ -1,4 +1,5 @@
 use ::shared::{Shared, SharedAccess};
+use bevy_ecs::component::Component;
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use wgpu::{
@@ -8,7 +9,7 @@ use wgpu::{
 
 use crate::{traits::BindGroupProvider, types::transform::Transform};
 
-#[derive(Debug, Clone)]
+#[derive(Component, Debug, Clone)]
 pub struct LightSource {
     pub transform: Shared<Transform>,
     color: Vec3,

@@ -1,4 +1,5 @@
 use ::shared::id::Id;
+use bevy_ecs::component::Component;
 use glam::{Mat4, Vec3};
 
 use crate::{
@@ -9,7 +10,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, Clone)]
+#[derive(Component, Debug, Default, Clone)]
 pub struct Camera {
     pub id: Id,
     pub eye: Vec3,

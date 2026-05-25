@@ -1,5 +1,7 @@
 use std::ops::Deref;
 
+use shared::id::Id;
+
 use crate::types::BaseId;
 
 pub trait UniformResourceId: BaseId {
@@ -14,6 +16,12 @@ pub struct UniformBufferId {
 impl UniformBufferId {
     pub fn new(id: String) -> Self {
         Self { id }
+    }
+}
+
+impl BaseId for Id {
+    fn get_id(&self) -> &str {
+        self.as_ref()
     }
 }
 

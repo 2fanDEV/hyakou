@@ -21,13 +21,15 @@ use winit::{
 use shared::Shared;
 
 use hyakou_core::{
+    components::AssetType,
     events::Event,
     types::{DeltaTime64, mouse_delta::MouseButton},
 };
 
 use crate::{
     flow::{FlowCommand, FlowController, FlowHandle},
-    renderer::SceneRenderer,
+    gpu::glTF::resources,
+    renderer::{SceneRenderer, util},
 };
 
 pub struct AppState {
@@ -106,7 +108,24 @@ impl ApplicationHandler<Event> for AppState {
             .unwrap();
 
         self.send_and_drain(FlowCommand::WindowCreated(window.clone()));
-
+        self.send_and_drain(FlowCommand::AssetBundleUploadRequested {
+            id: String::from("Suzanne"),
+            file_name: String::from("Suzanne.gltf"),
+            asset_type: AssetType::NORMAL,
+            files: vec![(
+                String::from("Suzanne.gltf"),
+                include_bytes!("../assets/gltf/Suzanne.gltf").to_vec(),
+            )],
+        });
+        self.send_and_drain(FlowCommand::AssetBundleUploadRequested {
+            id: String::from("Cube"),
+            file_name: String::from("Cube.gltf"),
+            asset_type: AssetType::LIGHT,
+            files: vec![(
+                String::from("Cube.gltf"),
+                include_bytes!("../assets/gltf/Cube.gltf").to_vec(),
+            )],
+        });
         self.window = Some(window.clone());
         window.request_redraw();
     }

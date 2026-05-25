@@ -17,7 +17,7 @@ use crate::gpu::{
 };
 
 use hyakou_core::{
-    components::{LightType, mesh_node::MeshNode},
+    components::{AssetType, mesh_node::MeshNode},
     selection::structure::SelectionScope,
     types::{ModelMatrixBindingMode, ids::MeshId},
 };
@@ -61,18 +61,18 @@ impl AssetHandler {
     pub async fn upload_from_bytes(
         &mut self,
         id: String,
-        light_type: LightType,
+        asset_type: AssetType,
         bytes: Vec<u8>,
     ) -> Result<()> {
         let imported_scene = self.gltf_loader.load_from_bytes(bytes).await?;
-        self.upload_imported_scene(id, light_type, imported_scene);
+        self.upload_imported_scene(id, asset_type, imported_scene);
         Ok(())
     }
 
     pub fn upload_imported_scene(
         &mut self,
         id: String,
-        light_type: LightType,
+        asset_type: AssetType,
         imported_scene: ImportedScene,
     ) -> Option<Rc<RenderMesh>> {
         let fallback_texture = Rc::new(Texture::create_color_texture(
@@ -101,7 +101,7 @@ impl AssetHandler {
 
         self.upload_mesh_node_as_asset(
             id,
-            light_type,
+            asset_type,
             mesh_nodes,
             &uploaded_materials,
             &default_material,
@@ -111,7 +111,7 @@ impl AssetHandler {
     pub async fn add_from_path(
         &mut self,
         id: String,
-        light_type: LightType,
+        light_type: AssetType,
         path: &Path,
     ) -> Result<Rc<RenderMesh>> {
         let imported_scene = self.gltf_loader.load_from_path(path).await?;
@@ -127,7 +127,7 @@ impl AssetHandler {
     fn upload_mesh_node_as_asset(
         &mut self,
         id: String,
-        light_type: LightType,
+        asset_type: AssetType,
         mesh_nodes: Vec<MeshNode>,
         materials: &[Rc<GpuMaterial>],
         default_material: &Rc<GpuMaterial>,
@@ -147,7 +147,7 @@ impl AssetHandler {
                 &self.device,
                 node,
                 material,
-                &light_type,
+                &asset_type,
                 Some(mesh_id.clone()),
                 self.model_binding_mode,
                 self.model_bind_group_layout.as_ref(),
@@ -301,7 +301,7 @@ impl AssetHandler {
 
     pub fn get_all_visible_assets_with_modifier(
         &mut self,
-        light_type: &LightType,
+        light_type: &AssetType,
     ) -> impl Iterator<Item = &Rc<RenderMesh>> {
         self.get_visible_asset_ids()
             .map(|id| self.memory_loaded_assets.get(id).unwrap())

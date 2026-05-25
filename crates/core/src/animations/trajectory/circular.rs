@@ -2,13 +2,14 @@ use std::f32::consts::PI;
 
 use ::shared::{Shared, SharedAccess};
 use anyhow::{Result, anyhow};
+use bevy_ecs::component::Component;
 
 use crate::{
     animations::Animation,
     types::{DeltaTime, ids::MeshId, transform::Transform},
 };
 
-#[derive(Default, Clone)]
+#[derive(Component, Default, Clone)]
 pub struct CircularTrajectory {
     id: MeshId,
     transform: Shared<Transform>,

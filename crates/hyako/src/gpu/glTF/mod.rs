@@ -8,7 +8,7 @@ use anyhow::{Result, anyhow};
 mod builder;
 mod diagnostics;
 mod materials;
-mod resources;
+pub mod resources;
 mod types;
 
 #[cfg(test)]

@@ -11,7 +11,7 @@ use crate::{
 };
 
 use hyakou_core::{
-    components::{LightType, mesh_node::MeshNode},
+    components::{AssetType, mesh_node::MeshNode},
     geometry::mesh::Mesh,
     traits::BindGroupProvider,
     types::{
@@ -29,7 +29,7 @@ pub struct RenderMesh {
     pub vertex_buffer: Buffer,
     pub index_buffer: Buffer,
     pub index_count: u32,
-    pub light_type: LightType,
+    pub light_type: AssetType,
     pub transform: Shared<Transform>,
     pub model_uniform_buffer: Option<UniformBuffer>,
     pub model_bind_group: Option<BindGroup>,
@@ -42,7 +42,7 @@ impl RenderMesh {
         device: &Device,
         mesh_node: MeshNode,
         material: Rc<GpuMaterial>,
-        light_type: &LightType,
+        asset_type: &AssetType,
         label: Option<MeshId>,
         model_binding_mode: ModelMatrixBindingMode,
         model_bind_group_layout: Option<&BindGroupLayout>,
@@ -73,7 +73,7 @@ impl RenderMesh {
             id,
             vertex_buffer,
             index_buffer,
-            light_type: light_type.clone(),
+            light_type: asset_type.clone(),
             index_count: mesh_node.indices.len() as u32,
             transform,
             model_uniform_buffer,
