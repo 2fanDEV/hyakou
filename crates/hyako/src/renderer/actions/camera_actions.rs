@@ -1,5 +1,3 @@
-use crate::renderer::actions::ActionImpl;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CameraActions {
     SlowModifier,

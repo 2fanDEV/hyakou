@@ -28,9 +28,13 @@ use hyakou_core::{
 
 use crate::{
     flow::{FlowCommand, FlowController, FlowHandle},
-    gpu::glTF::resources,
-    renderer::{SceneRenderer, util},
+    renderer::SceneRenderer,
 };
+
+const SUZANNE_GLTF_BYTES: &[u8] = include_bytes!("../assets/gltf/Suzanne.gltf");
+const SUZANNE_BIN_BYTES: &[u8] = include_bytes!("../assets/gltf/Suzanne.bin");
+const CUBE_GLTF_BYTES: &[u8] = include_bytes!("../assets/gltf/Cube.gltf");
+const CUBE_BIN_BYTES: &[u8] = include_bytes!("../assets/gltf/Cube.bin");
 
 pub struct AppState {
     window: Option<Arc<Window>>,
@@ -112,19 +116,19 @@ impl ApplicationHandler<Event> for AppState {
             id: String::from("Suzanne"),
             file_name: String::from("Suzanne.gltf"),
             asset_type: AssetType::NORMAL,
-            files: vec![(
-                String::from("Suzanne.gltf"),
-                include_bytes!("../assets/gltf/Suzanne.gltf").to_vec(),
-            )],
+            files: vec![
+                (String::from("Suzanne.gltf"), SUZANNE_GLTF_BYTES.to_vec()),
+                (String::from("Suzanne.bin"), SUZANNE_BIN_BYTES.to_vec()),
+            ],
         });
         self.send_and_drain(FlowCommand::AssetBundleUploadRequested {
             id: String::from("Cube"),
             file_name: String::from("Cube.gltf"),
             asset_type: AssetType::LIGHT,
-            files: vec![(
-                String::from("Cube.gltf"),
-                include_bytes!("../assets/gltf/Cube.gltf").to_vec(),
-            )],
+            files: vec![
+                (String::from("Cube.gltf"), CUBE_GLTF_BYTES.to_vec()),
+                (String::from("Cube.bin"), CUBE_BIN_BYTES.to_vec()),
+            ],
         });
         self.window = Some(window.clone());
         window.request_redraw();

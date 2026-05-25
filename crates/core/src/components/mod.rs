@@ -8,6 +8,6 @@ pub mod mesh_node;
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AssetType {
-    LIGHT,
     NORMAL,
+    LIGHT,
 }
