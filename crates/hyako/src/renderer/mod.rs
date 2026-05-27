@@ -18,6 +18,7 @@ use hyakou_core::{
     components::{
         AssetType,
         camera::{camera::Camera, data_structures::CameraMode},
+        light::LightSource,
     },
     geometry::ray::{Ray, math::intersect_transformed_mesh},
     selection::structure::{SelectionScope, SelectionTarget},
@@ -37,14 +38,14 @@ use winit::window::Window;
 
 pub mod actions;
 pub mod frame;
+mod gpu_resources;
 pub mod handlers;
 pub mod renderer_context;
-mod scene_gpu_resources;
 pub mod surface_frame_controller;
 pub mod util;
 pub mod wrappers;
 
-use scene_gpu_resources::SceneGpuResources;
+use gpu_resources::SceneGpuResources;
 
 pub struct SceneRenderer {
     pub ctx: RenderContext,
@@ -127,6 +128,14 @@ impl SceneRenderer {
         self.gpu_resources.set_outline_color(&self.ctx.queue, color);
     }
 
+    pub fn set_outline(&mut self, color: Vec4, thickness: f32) {
+        self.gpu_resources.set_outline(&self.ctx, color, thickness);
+    }
+
+    pub(crate) fn set_light(&mut self, light: LightSource) -> Result<()> {
+        self.gpu_resources.set_light(&self.ctx, light)
+    }
+
     pub fn render_scene(&mut self, target: &mut FrameTarget<'_>, input: SceneFrameInput<'_>) {
         {
             target.encoder.begin_render_pass(&RenderPassDescriptor {
@@ -159,31 +168,38 @@ impl SceneRenderer {
             });
         }
 
-        self.asset_manager
-            .get_all_visible_assets_with_modifier(&AssetType::NORMAL)
-            .for_each(|elem| {
-                Self::record_scene_pass_command_encoder(
-                    target,
-                    elem,
-                    &self.ctx.light_render_pipeline,
-                    self.ctx.model_binding_mode,
-                    &self.gpu_resources.camera_bind_group,
-                    &self.gpu_resources.light_bind_group,
-                );
-            });
+        if let Some(light_bind_group) = self.gpu_resources.light_bind_group() {
+            let camera_bind_group = self.gpu_resources.camera_bind_group();
+            let model_binding_mode = self.ctx.model_binding_mode;
+            let light_render_pipeline = &self.ctx.light_render_pipeline;
+            let no_light_render_pipeline = &self.ctx.no_light_render_pipeline;
 
-        self.asset_manager
-            .get_all_visible_assets_with_modifier(&AssetType::LIGHT)
-            .for_each(|elem| {
-                Self::record_scene_pass_command_encoder(
-                    target,
-                    elem,
-                    &self.ctx.no_light_render_pipeline,
-                    self.ctx.model_binding_mode,
-                    &self.gpu_resources.camera_bind_group,
-                    &self.gpu_resources.light_bind_group,
-                );
-            });
+            self.asset_manager
+                .get_all_visible_assets_with_modifier(&AssetType::NORMAL)
+                .for_each(|elem| {
+                    Self::record_scene_pass_command_encoder(
+                        target,
+                        elem,
+                        light_render_pipeline,
+                        model_binding_mode,
+                        camera_bind_group,
+                        light_bind_group,
+                    );
+                });
+
+            self.asset_manager
+                .get_all_visible_assets_with_modifier(&AssetType::LIGHT)
+                .for_each(|elem| {
+                    Self::record_scene_pass_command_encoder(
+                        target,
+                        elem,
+                        no_light_render_pipeline,
+                        model_binding_mode,
+                        camera_bind_group,
+                        light_bind_group,
+                    );
+                });
+        }
 
         self.render_outlined_meshes(target, input.outlined_mesh_ids);
     }
@@ -196,6 +212,10 @@ impl SceneRenderer {
         if outlined_mesh_ids.is_empty() {
             return;
         }
+
+        let Some(outline_bind_group) = self.gpu_resources.outline_bind_group() else {
+            return;
+        };
 
         let mut render_pass = target.encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("Outline Command Buffer"),
@@ -222,10 +242,10 @@ impl SceneRenderer {
         });
 
         render_pass.set_pipeline(&self.ctx.outline_render_pipeline);
-        render_pass.set_bind_group(0, &self.gpu_resources.camera_bind_group, &[]);
+        render_pass.set_bind_group(0, self.gpu_resources.camera_bind_group(), &[]);
         render_pass.set_bind_group(
             Self::outline_bind_group_index(self.ctx.model_binding_mode),
-            &self.gpu_resources.outline_bind_group,
+            outline_bind_group,
             &[],
         );
 

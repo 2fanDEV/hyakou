@@ -1,7 +1,11 @@
 use std::rc::Rc;
 
 use anyhow::{Result, anyhow};
-use hyakou_core::{components::AssetType, types::import_diagnostic::ImportDiagnostic};
+use glam::Vec3;
+use hyakou_core::{
+    components::{AssetType, light::LightSource},
+    types::import_diagnostic::ImportDiagnostic,
+};
 use log::{debug, error, warn};
 use shared::{Shared, SharedAccess};
 
@@ -174,13 +178,19 @@ impl AssetUploadController {
         let success = renderer_slot.write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
                 warn!("Dropping parsed asset `{id}` because renderer is not ready");
-                return Err(anyhow!("lmgao"));
+                return Err(anyhow!("renderer is not ready"));
             };
 
-            Ok(renderer
+            let render_mesh = renderer
                 .asset_manager
                 .upload_imported_scene(id, asset_type, imported_scene)
-                .unwrap())
+                .ok_or_else(|| anyhow!("uploaded asset produced no renderable meshes"))?;
+
+            if asset_type == AssetType::LIGHT {
+                renderer.set_light(LightSource::new(render_mesh.transform.clone(), Vec3::ONE))?;
+            }
+
+            Ok(render_mesh)
         });
 
         if success.is_ok() {
