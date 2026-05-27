@@ -1685,7 +1685,6 @@ name = "hyako"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bevy_ecs",
  "bytemuck",
  "egui",
  "egui-wgpu",

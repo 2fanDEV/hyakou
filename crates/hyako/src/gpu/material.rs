@@ -1,8 +1,7 @@
 use std::rc::Rc;
 
 use bytemuck::{Pod, Zeroable};
-use hyakou_core::types::{ids::UniformBufferId, transform::Transform};
-use shared::shared;
+use hyakou_core::types::ids::UniformBufferId;
 use wgpu::{
     AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BufferBinding,
@@ -84,7 +83,6 @@ impl GpuMaterial {
             UniformBufferId::new(format!("Material Uniform Buffer: {label}")),
             device,
             bytemuck::bytes_of(&uniform),
-            shared(Transform::default()),
         );
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some(label),

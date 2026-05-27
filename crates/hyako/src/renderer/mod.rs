@@ -42,7 +42,6 @@ mod gpu_resources;
 pub mod handlers;
 pub mod renderer_context;
 pub mod surface_frame_controller;
-pub mod util;
 pub mod wrappers;
 
 use gpu_resources::SceneGpuResources;

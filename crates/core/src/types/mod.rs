@@ -1,16 +1,7 @@
-use std::ops::Deref;
-
-use ::shared::Shared;
-use anyhow::Result;
-use wgpu::{Buffer, Queue};
-
-use crate::types::transform::Transform;
-
 pub mod camera;
 pub mod ids;
 pub mod import_diagnostic;
 pub mod mouse_delta;
-pub mod selection;
 pub mod shared;
 pub mod transform;
 pub mod upload_status;
@@ -46,25 +37,4 @@ impl Size {
 pub enum ModelMatrixBindingMode {
     Immediate,
     Uniform,
-}
-
-// #[deprecated(note = "will be moved into a separate crate")]
-pub trait BaseId {
-    fn get_id(&self) -> &str;
-}
-
-#[allow(unused)]
-pub trait BaseBuffer {
-    fn get_buffer(&self) -> &Buffer;
-    fn get_id_cloned(&self) -> Box<dyn BaseId>;
-    fn get_id_as_string(&self) -> &str;
-}
-
-pub trait TransformBuffer: Deref + BaseBuffer {
-    fn get_transform(&self) -> Shared<Transform>;
-    fn update_buffer_transform(&mut self, queue: &Queue, data: &[u8]) -> Result<()> {
-        let buffer = self.get_buffer();
-        queue.write_buffer(buffer, 0, data);
-        Ok(())
-    }
 }

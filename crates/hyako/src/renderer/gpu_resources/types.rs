@@ -4,10 +4,9 @@ use glam::Vec4;
 use hyakou_core::{
     components::{camera::camera::Camera, light::LightSource},
     traits::BindGroupProvider,
-    types::{TransformBuffer, ids::UniformBufferId, transform::Transform},
+    types::ids::UniformBufferId,
 };
 use log::warn;
-use shared::shared;
 use wgpu::{BindGroup, Queue};
 
 use crate::{
@@ -33,13 +32,9 @@ impl CameraGpuResources {
             UniformBufferId::new("Camera".to_string()),
             &ctx.device,
             bytes_of(&uniform),
-            shared(Transform::default()),
         );
-        let bind_group = CameraUniform::bind_group(
-            &ctx.device,
-            &uniform_buffer,
-            &ctx.camera_bind_group_layout,
-        );
+        let bind_group =
+            CameraUniform::bind_group(&ctx.device, &uniform_buffer, &ctx.camera_bind_group_layout);
 
         Self {
             uniform,
@@ -73,13 +68,9 @@ impl LightGpuResources {
             UniformBufferId::new("Light Uniform Buffer".to_string()),
             &ctx.device,
             bytes_of(&gpu_light_source),
-            source.transform.clone(),
         );
-        let bind_group = LightSource::bind_group(
-            &ctx.device,
-            &uniform_buffer,
-            &ctx.light_bind_group_layout,
-        );
+        let bind_group =
+            LightSource::bind_group(&ctx.device, &uniform_buffer, &ctx.light_bind_group_layout);
 
         Ok(Self {
             source,
@@ -92,7 +83,6 @@ impl LightGpuResources {
         if let Some(gpu_light_source) = self.source.to_gpu() {
             self.uniform_buffer
                 .update_buffer_transform(queue, bytes_of(&gpu_light_source))
-                .unwrap()
         } else {
             warn!("Skipping light buffer - Transform in Light is still locked");
         }

@@ -1,4 +1,3 @@
-use bevy_ecs::component::Component;
 use uuid::Uuid;
 use wgpu::{
     BindGroup, BindGroupLayout, Buffer, BufferUsages, Device,
@@ -8,7 +7,6 @@ use wgpu::{
 use crate::{
     gpu::buffers::{model_matrix::ModelMatrixUniform, uniform::UniformBuffer},
     gpu::material::GpuMaterial,
-    renderer::util::Concatable,
 };
 
 use hyakou_core::{
@@ -23,13 +21,6 @@ use hyakou_core::{
 };
 use shared::{Shared, SharedAccess, shared};
 use std::{ops::Deref, rc::Rc};
-
-#[derive(Component)]
-pub struct ECSRenderMesh {
-    pub id: MeshId,
-    pub light_type: AssetType,
-    pub mesh: Mesh,
-}
 
 #[derive(Debug, Clone)]
 pub struct RenderMesh {
@@ -58,13 +49,13 @@ impl RenderMesh {
         let id = label.unwrap_or(MeshId(Uuid::new_v4().to_string()));
         let mesh = mesh_node.deref().clone();
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Vertex Buffer: ".to_string().concat(&id)),
+            label: Some(&format!("Vertex Buffer: {}", id.0)),
             contents: bytemuck::cast_slice(&mesh_node.vertices),
             usage: BufferUsages::VERTEX,
         });
 
         let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Index Buffer: ".to_string().concat(&id)),
+            label: Some(&format!("Index Buffer: {}", id.0)),
             contents: bytemuck::cast_slice(&mesh_node.indices),
             usage: BufferUsages::INDEX,
         });
@@ -110,7 +101,6 @@ impl RenderMesh {
             UniformBufferId::new(format!("Model Matrix Buffer: {}", id.0)),
             device,
             bytemuck::bytes_of(&model_uniform),
-            transform,
         );
         let bind_group = ModelMatrixUniform::bind_group(device, &uniform_buffer, bind_group_layout);
 
