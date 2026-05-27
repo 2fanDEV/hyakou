@@ -1,6 +1,6 @@
 use std::sync::mpsc::{Receiver, channel};
 
-use bevy_ecs::world::{self, World};
+use bevy_ecs::world::World;
 use hyakou_core::{selection::structure::SelectionTarget, types::ids::MeshId};
 use log::{debug, error, warn};
 use shared::Shared;
@@ -56,7 +56,7 @@ impl FlowController {
         let commands = FlowCommandSender::new(tx);
         let controller = Self {
             rx,
-            _world: World::new(),
+            world: World::new(),
             render_controller: RenderController::new(commands.clone()),
             frame_composer: FrameComposer::new(),
             input_controller: InputController::new(commands.clone()),
@@ -163,7 +163,7 @@ impl FlowController {
                     imported_scene,
                 );
                 match render_mesh {
-                    Ok(r_mesh) => self.world.spawn(bundle),
+                    Ok(_render_mesh) => {}
                     Err(err) => {
                         error!("{:?}", err)
                     }
