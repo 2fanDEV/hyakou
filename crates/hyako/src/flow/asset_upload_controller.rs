@@ -1,10 +1,13 @@
+use std::rc::Rc;
+
+use anyhow::{Result, anyhow};
 use hyakou_core::{components::AssetType, types::import_diagnostic::ImportDiagnostic};
 use log::{debug, error, warn};
 use shared::{Shared, SharedAccess};
 
 use crate::{
     flow::{FlowCommand, FlowCommandSender},
-    gpu::glTF::ImportedScene,
+    gpu::{glTF::ImportedScene, render_mesh::RenderMesh},
     renderer::SceneRenderer,
 };
 
@@ -164,28 +167,27 @@ impl AssetUploadController {
         file_name: String,
         asset_type: AssetType,
         imported_scene: ImportedScene,
-    ) {
+    ) -> Result<Rc<RenderMesh>> {
         let upload_id = id.clone();
         let upload_file_name = file_name.clone();
         let diagnostics = imported_scene.diagnostics.clone();
-        let success = renderer_slot
-            .try_write_shared(|renderer_slot| {
-                let Some(renderer) = renderer_slot.as_mut() else {
-                    warn!("Dropping parsed asset `{id}` because renderer is not ready");
-                    return false;
-                };
+        let success = renderer_slot.write_shared(|renderer_slot| {
+            let Some(renderer) = renderer_slot.as_mut() else {
+                warn!("Dropping parsed asset `{id}` because renderer is not ready");
+                return Err(anyhow!("lmgao"));
+            };
 
-                renderer
-                    .asset_manager
-                    .upload_imported_scene(id, asset_type, imported_scene);
-                true
-            })
-            .unwrap_or(false);
+            Ok(renderer
+                .asset_manager
+                .upload_imported_scene(id, asset_type, imported_scene)
+                .unwrap())
+        });
 
-        if success {
+        if success.is_ok() {
             debug!("Successfully loaded asset: {file_name}");
             self.fire_upload_status_success(upload_id, upload_file_name, diagnostics);
         }
+        success
     }
 
     pub fn handle_asset_upload_failed(&self, id: String, file_name: String, error: String) {
