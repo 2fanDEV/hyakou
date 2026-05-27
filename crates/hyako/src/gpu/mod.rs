@@ -5,6 +5,5 @@ pub mod glTF;
 pub mod material;
 pub mod outline;
 pub mod render_mesh;
-pub mod render_object;
 pub mod render_pipeline;
 pub mod texture;

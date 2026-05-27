@@ -4,16 +4,11 @@ use log::debug;
 
 pub struct CameraModeHandler {
     camera_mode: CameraMode,
-    camera_mode_index: usize,
 }
 
 impl CameraModeHandler {
     pub fn new(mode: CameraMode) -> Self {
-        let index = CameraMode::get_variants().iter().position(|p| mode.eq(p));
-        Self {
-            camera_mode: mode,
-            camera_mode_index: index.unwrap(),
-        }
+        Self { camera_mode: mode }
     }
 
     pub fn set(&mut self, mode: CameraMode) {
@@ -31,30 +26,44 @@ impl CameraModeHandler {
     }
 
     pub fn switch_camera(&mut self, action: &CameraHandlerAction) {
-        self.camera_mode = match action {
+        let variants = CameraMode::get_variants();
+        if variants.is_empty() {
+            return;
+        }
+
+        let current_index = variants
+            .iter()
+            .position(|mode| self.camera_mode.eq(mode))
+            .unwrap_or(0);
+
+        let next_index = match action {
             CameraHandlerAction::SwitchCameraModeForward => {
-                let variants = CameraMode::get_variants();
-                debug!("{:?}", variants.len());
-                self.camera_mode_index = if self.camera_mode_index == variants.len() - 1 {
+                if current_index == variants.len() - 1 {
                     0
                 } else {
-                    self.camera_mode_index + 1
-                };
-                debug!("Forwards camera mode switch");
-                debug!("{:?}", self.camera_mode_index);
-                variants.get(self.camera_mode_index).unwrap().clone()
+                    current_index + 1
+                }
             }
             CameraHandlerAction::SwitchCameraModeBackwards => {
-                let variants = CameraMode::get_variants();
-                self.camera_mode_index = if self.camera_mode_index == 0 {
+                if current_index == 0 {
                     variants.len() - 1
                 } else {
-                    self.camera_mode_index - 1
-                };
-                debug!("backwards camera mode switch");
-                debug!("{:?}", self.camera_mode_index);
-                variants.get(self.camera_mode_index).unwrap().clone()
+                    current_index - 1
+                }
             }
+        };
+
+        if let Some(next_mode) = variants.get(next_index) {
+            self.camera_mode = next_mode.clone();
+            match action {
+                CameraHandlerAction::SwitchCameraModeForward => {
+                    debug!("Forwards camera mode switch");
+                }
+                CameraHandlerAction::SwitchCameraModeBackwards => {
+                    debug!("backwards camera mode switch");
+                }
+            }
+            debug!("{:?}", next_index);
         }
     }
 }

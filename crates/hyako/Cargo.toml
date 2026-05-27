@@ -28,7 +28,6 @@ shared = { path = "../shared" }
 egui = "0.34.1"
 egui-wgpu = "0.34.1"
 egui-winit = { version = "0.34.1", default-features = false }
-bevy_ecs = "0.18.1"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

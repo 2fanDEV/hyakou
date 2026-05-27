@@ -1,13 +1,5 @@
 use std::ops::Deref;
 
-use shared::id::Id;
-
-use crate::types::BaseId;
-
-pub trait UniformResourceId: BaseId {
-    fn get(&self) -> &str;
-}
-
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct UniformBufferId {
     pub id: String,
@@ -17,23 +9,9 @@ impl UniformBufferId {
     pub fn new(id: String) -> Self {
         Self { id }
     }
-}
 
-impl BaseId for Id {
-    fn get_id(&self) -> &str {
-        self.as_ref()
-    }
-}
-
-impl BaseId for UniformBufferId {
-    fn get_id(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.id
-    }
-}
-
-impl UniformResourceId for UniformBufferId {
-    fn get(&self) -> &str {
-        self.get_id()
     }
 }
 
@@ -44,12 +22,6 @@ impl Deref for MeshId {
     type Target = String;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl BaseId for MeshId {
-    fn get_id(&self) -> &str {
         &self.0
     }
 }

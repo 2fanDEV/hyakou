@@ -11,7 +11,10 @@ use shared::{Shared, SharedAccess};
 
 use crate::{
     flow::{FlowCommand, FlowCommandSender},
-    gpu::{glTF::ImportedScene, render_mesh::RenderMesh},
+    gpu::{
+        glTF::{GLTFLoader, ImportedScene},
+        render_mesh::RenderMesh,
+    },
     renderer::SceneRenderer,
 };
 
@@ -22,6 +25,11 @@ pub struct AssetUploadController {
     commands: FlowCommandSender,
     #[cfg(target_arch = "wasm32")]
     upload_status_callback: Shared<Option<js_sys::Function>>,
+}
+
+enum AssetUploadSource {
+    Bytes(Vec<u8>),
+    Bundle(Vec<(String, Vec<u8>)>),
 }
 
 impl AssetUploadController {
@@ -48,14 +56,30 @@ impl AssetUploadController {
         asset_type: AssetType,
         bytes: Vec<u8>,
     ) {
+        self.handle_upload_requested(id, file_name, asset_type, AssetUploadSource::Bytes(bytes));
+    }
+
+    pub fn handle_asset_bundle_upload_requested(
+        &self,
+        id: String,
+        file_name: String,
+        asset_type: AssetType,
+        files: Vec<(String, Vec<u8>)>,
+    ) {
+        self.handle_upload_requested(id, file_name, asset_type, AssetUploadSource::Bundle(files));
+    }
+
+    fn handle_upload_requested(
+        &self,
+        id: String,
+        file_name: String,
+        asset_type: AssetType,
+        source: AssetUploadSource,
+    ) {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            use crate::gpu::glTF::GLTFLoader;
-            let gltf_loader = GLTFLoader::new();
-            let parsed_node_graph = pollster::block_on(
-                gltf_loader.load_from_bytes_with_label(bytes, file_name.clone()),
-            );
-            match parsed_node_graph {
+            let parsed_scene = pollster::block_on(Self::parse_uploaded_asset(&file_name, source));
+            match parsed_scene {
                 Ok(node_graph) => {
                     self.send_command(FlowCommand::ApplyParsedAsset {
                         id,
@@ -78,12 +102,8 @@ impl AssetUploadController {
         {
             let commands = self.commands.clone();
             spawn_local(async move {
-                use crate::gpu::glTF::GLTFLoader;
-                let gltf_loader = GLTFLoader::new();
-                let parsed_node_graph = gltf_loader
-                    .load_from_bytes_with_label(bytes, file_name.clone())
-                    .await;
-                let next_command = match parsed_node_graph {
+                let parsed_scene = Self::parse_uploaded_asset(&file_name, source).await;
+                let next_command = match parsed_scene {
                     Ok(node_graph) => FlowCommand::ApplyParsedAsset {
                         id,
                         file_name,
@@ -104,63 +124,20 @@ impl AssetUploadController {
         }
     }
 
-    pub fn handle_asset_bundle_upload_requested(
-        &self,
-        id: String,
-        file_name: String,
-        asset_type: AssetType,
-        files: Vec<(String, Vec<u8>)>,
-    ) {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            use crate::gpu::glTF::GLTFLoader;
-            let gltf_loader = GLTFLoader::new();
-            let parsed_node_graph =
-                pollster::block_on(gltf_loader.load_from_file_bundle(&file_name, files));
-            match parsed_node_graph {
-                Ok(node_graph) => {
-                    self.send_command(FlowCommand::ApplyParsedAsset {
-                        id,
-                        file_name,
-                        asset_type,
-                        imported_scene: node_graph,
-                    });
-                }
-                Err(upload_error) => {
-                    self.send_command(FlowCommand::AssetUploadFailed {
-                        id,
-                        file_name,
-                        error: upload_error.to_string(),
-                    });
-                }
+    async fn parse_uploaded_asset(
+        file_name: &str,
+        source: AssetUploadSource,
+    ) -> Result<ImportedScene> {
+        let gltf_loader = GLTFLoader::new();
+        match source {
+            AssetUploadSource::Bytes(bytes) => {
+                gltf_loader
+                    .load_from_bytes_with_label(bytes, file_name.to_string())
+                    .await
             }
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            let commands = self.commands.clone();
-            spawn_local(async move {
-                use crate::gpu::glTF::GLTFLoader;
-                let gltf_loader = GLTFLoader::new();
-                let parsed_node_graph = gltf_loader.load_from_file_bundle(&file_name, files).await;
-                let next_command = match parsed_node_graph {
-                    Ok(node_graph) => FlowCommand::ApplyParsedAsset {
-                        id,
-                        file_name,
-                        asset_type,
-                        imported_scene: node_graph,
-                    },
-                    Err(upload_error) => FlowCommand::AssetUploadFailed {
-                        id,
-                        file_name,
-                        error: upload_error.to_string(),
-                    },
-                };
-
-                if !commands.send(next_command) {
-                    warn!("Failed to send parsed asset command: flow channel closed");
-                }
-            });
+            AssetUploadSource::Bundle(files) => {
+                gltf_loader.load_from_file_bundle(file_name, files).await
+            }
         }
     }
 
@@ -174,6 +151,7 @@ impl AssetUploadController {
     ) -> Result<Rc<RenderMesh>> {
         let upload_id = id.clone();
         let upload_file_name = file_name.clone();
+        let display_file_name = file_name.clone();
         let diagnostics = imported_scene.diagnostics.clone();
         let success = renderer_slot.write_shared(|renderer_slot| {
             let Some(renderer) = renderer_slot.as_mut() else {
@@ -184,7 +162,9 @@ impl AssetUploadController {
             let render_mesh = renderer
                 .asset_manager
                 .upload_imported_scene(id, asset_type, imported_scene)
-                .ok_or_else(|| anyhow!("uploaded asset produced no renderable meshes"))?;
+                .ok_or_else(|| {
+                    anyhow!("uploaded asset `{display_file_name}` produced no renderable meshes")
+                })?;
 
             if asset_type == AssetType::LIGHT {
                 renderer.set_light(LightSource::new(render_mesh.transform.clone(), Vec3::ONE))?;

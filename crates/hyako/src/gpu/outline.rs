@@ -1,7 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::Vec4;
-use hyakou_core::types::{ids::UniformBufferId, transform::Transform};
-use shared::shared;
+use hyakou_core::types::ids::UniformBufferId;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BufferBinding, Device, ShaderStages,
@@ -47,7 +46,6 @@ impl OutlineUniform {
             UniformBufferId::new("Outline Uniform Buffer".to_string()),
             device,
             bytemuck::bytes_of(outline),
-            shared(Transform::default()),
         )
     }
 

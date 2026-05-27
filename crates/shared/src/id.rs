@@ -26,21 +26,6 @@ impl Id {
     }
 }
 
-pub trait BaseId {
-    fn uuid() -> Self;
-    fn get_id(&self) -> &str;
-}
-
-impl BaseId for Id {
-    fn uuid() -> Self {
-        Self::uuid()
-    }
-
-    fn get_id(&self) -> &str {
-        &self.value
-    }
-}
-
 impl Deref for Id {
     type Target = str;
 
