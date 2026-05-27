@@ -1,3 +1,4 @@
+use bevy_ecs::component::Component;
 use uuid::Uuid;
 use wgpu::{
     BindGroup, BindGroupLayout, Buffer, BufferUsages, Device,
@@ -22,6 +23,13 @@ use hyakou_core::{
 };
 use shared::{Shared, SharedAccess, shared};
 use std::{ops::Deref, rc::Rc};
+
+#[derive(Component)]
+pub struct ECSRenderMesh {
+    pub id: MeshId,
+    pub light_type: AssetType,
+    pub mesh: Mesh,
+}
 
 #[derive(Debug, Clone)]
 pub struct RenderMesh {

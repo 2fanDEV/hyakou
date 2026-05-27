@@ -31,6 +31,7 @@ pub(super) struct SceneGpuResources {
 }
 
 impl SceneGpuResources {
+    // TODO: needs to be removed at some point // constants to build the buffers. they ain't doing shit
     const DEFAULT_LIGHT_POSITION: Vec3 = Vec3::new(0.0, 2.0, 1.0);
     const DEFAULT_LIGHT_COLOR: Vec3 = Vec3::new(1.0, 1.0, 1.0);
     const DEFAULT_OUTLINE_COLOR: Vec4 = Vec4::new(0.5, 0.1, 1.0, 1.0);

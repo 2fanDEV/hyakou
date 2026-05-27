@@ -1,8 +1,8 @@
 use std::sync::mpsc::{Receiver, channel};
 
-use bevy_ecs::world::World;
+use bevy_ecs::world::{self, World};
 use hyakou_core::{selection::structure::SelectionTarget, types::ids::MeshId};
-use log::{debug, warn};
+use log::{debug, error, warn};
 use shared::Shared;
 
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
 
 pub struct FlowController {
     rx: Receiver<FlowCommand>,
-    _world: World,
+    world: World,
     render_controller: RenderController,
     frame_composer: FrameComposer,
     input_controller: InputController,
@@ -37,7 +37,7 @@ impl FlowController {
         let commands = FlowCommandSender::new(tx);
         let controller = Self {
             rx,
-            _world: World::new(),
+            world: World::new(),
             render_controller: RenderController::new(commands.clone()),
             frame_composer: FrameComposer::new(),
             input_controller: InputController::new(commands.clone()),
@@ -154,13 +154,21 @@ impl FlowController {
                 file_name,
                 asset_type,
                 imported_scene,
-            } => self.asset_upload_controller.handle_apply_parsed_asset(
-                &self.render_controller.renderer(),
-                id,
-                file_name,
-                asset_type,
-                imported_scene,
-            ),
+            } => {
+                let render_mesh = self.asset_upload_controller.handle_apply_parsed_asset(
+                    &self.render_controller.renderer(),
+                    id,
+                    file_name,
+                    asset_type,
+                    imported_scene,
+                );
+                match render_mesh {
+                    Ok(r_mesh) => self.world.spawn(bundle),
+                    Err(err) => {
+                        error!("{:?}", err)
+                    }
+                }
+            }
             FlowCommand::AssetUploadFailed {
                 id,
                 file_name,
