@@ -1,6 +1,5 @@
-use std::{collections::hash_set::Iter, path::Path, rc::Rc};
+use std::rc::Rc;
 
-use anyhow::Result;
 use hyakou_core::{
     components::AssetType,
     geometry::ray::Ray,
@@ -10,7 +9,7 @@ use hyakou_core::{
 
 use crate::{
     gpu::{glTF::ImportedScene, render_mesh::RenderMesh},
-    renderer::handlers::asset_handler::AssetHandler,
+    renderer::{handlers::asset_handler::AssetHandler, renderer_context::RenderContext},
 };
 
 pub struct AssetController {
@@ -18,20 +17,15 @@ pub struct AssetController {
 }
 
 impl AssetController {
-    pub fn new(handler: AssetHandler) -> Self {
+    fn new(handler: AssetHandler) -> Self {
         Self { handler }
     }
 
-    pub async fn upload_from_bytes(
-        &mut self,
-        id: String,
-        asset_type: AssetType,
-        bytes: Vec<u8>,
-    ) -> Result<()> {
-        self.handler.upload_from_bytes(id, asset_type, bytes).await
+    pub(crate) fn from_render_context(ctx: &RenderContext) -> Self {
+        Self::new(AssetHandler::from_render_context(ctx))
     }
 
-    pub fn upload_imported_scene(
+    pub(crate) fn upload_imported_scene(
         &mut self,
         id: String,
         asset_type: AssetType,
@@ -41,16 +35,7 @@ impl AssetController {
             .upload_imported_scene(id, asset_type, imported_scene)
     }
 
-    pub async fn add_from_path(
-        &mut self,
-        id: String,
-        light_type: AssetType,
-        path: &Path,
-    ) -> Result<Rc<RenderMesh>> {
-        self.handler.add_from_path(id, light_type, path).await
-    }
-
-    pub fn resolve_selection_target(
+    pub(crate) fn resolve_selection_target(
         &self,
         ray: &Ray,
         scope: SelectionScope,
@@ -58,31 +43,14 @@ impl AssetController {
         self.handler.resolve_selection_target(ray, scope)
     }
 
-    pub fn toggle_visibility(&mut self, id: String) {
-        self.handler.toggle_visibility(id)
-    }
-
-    pub fn get_all_loaded_asset_ids(&self) -> Vec<String> {
-        self.handler.get_all_loaded_asset_ids()
-    }
-
-    pub fn get_visible_asset_ids(&self) -> Iter<'_, String> {
-        self.handler.get_visible_asset_ids()
-    }
-
-    pub fn get_visible_asset(&self, id: &MeshId) -> Option<&Rc<RenderMesh>> {
+    pub(crate) fn get_visible_asset(&self, id: &MeshId) -> Option<&Rc<RenderMesh>> {
         self.handler.get_visible_asset(id)
     }
 
-    pub fn get_all_visible_assets(&self) -> impl Iterator<Item = &Rc<RenderMesh>> {
-        self.handler.get_all_visible_assets()
-    }
-
-    pub fn get_all_visible_assets_with_modifier(
+    pub(crate) fn visible_meshes_with_asset_type(
         &mut self,
-        light_type: &AssetType,
+        asset_type: &AssetType,
     ) -> impl Iterator<Item = &Rc<RenderMesh>> {
-        self.handler
-            .get_all_visible_assets_with_modifier(light_type)
+        self.handler.visible_meshes_with_asset_type(asset_type)
     }
 }

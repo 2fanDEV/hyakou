@@ -1,19 +1,22 @@
 use std::{
-    collections::{HashMap, HashSet, hash_set::Iter},
-    path::Path,
+    collections::{HashMap, HashSet},
     rc::Rc,
     sync::Arc,
 };
 
-use anyhow::{Result, anyhow};
 use glam::Vec4;
 use wgpu::{BindGroupLayout, Device, Queue};
 
-use crate::gpu::{
-    glTF::{GLTFLoader, ImportedAlphaMode, ImportedMaterial, ImportedScene},
-    material::{GpuMaterial, default_sampler_descriptor, sampler_descriptor_from_imported_sampler},
-    render_mesh::RenderMesh,
-    texture::Texture,
+use crate::{
+    gpu::{
+        glTF::{ImportedAlphaMode, ImportedMaterial, ImportedScene},
+        material::{
+            GpuMaterial, default_sampler_descriptor, sampler_descriptor_from_imported_sampler,
+        },
+        render_mesh::RenderMesh,
+        texture::Texture,
+    },
+    renderer::renderer_context::RenderContext,
 };
 
 use hyakou_core::{
@@ -31,7 +34,6 @@ pub struct AssetHandler {
     model_binding_mode: ModelMatrixBindingMode,
     model_bind_group_layout: Option<BindGroupLayout>,
     material_bind_group_layout: BindGroupLayout,
-    gltf_loader: GLTFLoader,
     memory_loaded_assets: HashMap<String, Rc<RenderMesh>>,
     visible_assets: HashSet<String>,
     asset_groups: HashMap<String, Vec<MeshId>>,
@@ -39,7 +41,7 @@ pub struct AssetHandler {
 }
 
 impl AssetHandler {
-    pub fn new(
+    fn new(
         device: Arc<Device>,
         queue: Arc<Queue>,
         model_binding_mode: ModelMatrixBindingMode,
@@ -48,7 +50,6 @@ impl AssetHandler {
     ) -> AssetHandler {
         AssetHandler {
             memory_loaded_assets: HashMap::new(),
-            gltf_loader: GLTFLoader::new(),
             visible_assets: HashSet::new(),
             asset_groups: HashMap::new(),
             mesh_asset_groups: HashMap::new(),
@@ -60,18 +61,17 @@ impl AssetHandler {
         }
     }
 
-    pub async fn upload_from_bytes(
-        &mut self,
-        id: String,
-        asset_type: AssetType,
-        bytes: Vec<u8>,
-    ) -> Result<()> {
-        let imported_scene = self.gltf_loader.load_from_bytes(bytes).await?;
-        self.upload_imported_scene(id, asset_type, imported_scene);
-        Ok(())
+    pub(crate) fn from_render_context(ctx: &RenderContext) -> Self {
+        Self::new(
+            ctx.device.clone(),
+            ctx.queue.clone(),
+            ctx.model_binding_mode,
+            ctx.model_bind_group_layout.clone(),
+            ctx.material_bind_group_layout.clone(),
+        )
     }
 
-    pub fn upload_imported_scene(
+    pub(crate) fn upload_imported_scene(
         &mut self,
         id: String,
         asset_type: AssetType,
@@ -108,22 +108,6 @@ impl AssetHandler {
             &uploaded_materials,
             &default_material,
         )
-    }
-
-    pub async fn add_from_path(
-        &mut self,
-        id: String,
-        light_type: AssetType,
-        path: &Path,
-    ) -> Result<Rc<RenderMesh>> {
-        let imported_scene = self.gltf_loader.load_from_path(path).await?;
-        self.upload_imported_scene(id, light_type, imported_scene)
-            .ok_or_else(|| {
-                anyhow!(
-                    "glTF asset `{}` produced no renderable meshes",
-                    path.display()
-                )
-            })
     }
 
     fn upload_mesh_node_as_asset(
@@ -250,29 +234,16 @@ impl AssetHandler {
         }
     }
 
-    pub fn get(&self, id: String) -> &RenderMesh {
-        match self.memory_loaded_assets.get(&id) {
-            Some(asset) => asset,
-            None => {
-                panic!("Asset not found!")
-            }
-        }
-    }
-
-    pub fn get_all_loaded_asset_ids(&self) -> Vec<String> {
-        self.memory_loaded_assets.clone().into_keys().collect()
-    }
-
-    pub fn get_visible_asset_ids(&self) -> Iter<'_, std::string::String> {
+    fn visible_asset_ids(&self) -> impl Iterator<Item = &String> {
         self.visible_assets.iter()
     }
 
-    pub fn get_all_visible_assets(&self) -> impl Iterator<Item = &Rc<RenderMesh>> {
-        self.get_visible_asset_ids()
+    fn get_all_visible_assets(&self) -> impl Iterator<Item = &Rc<RenderMesh>> {
+        self.visible_asset_ids()
             .filter_map(|id| self.memory_loaded_assets.get(id))
     }
 
-    pub fn get_visible_asset(&self, id: &MeshId) -> Option<&Rc<RenderMesh>> {
+    pub(crate) fn get_visible_asset(&self, id: &MeshId) -> Option<&Rc<RenderMesh>> {
         if !self.visible_assets.contains(&id.0) {
             return None;
         }
@@ -280,7 +251,7 @@ impl AssetHandler {
         self.memory_loaded_assets.get(&id.0)
     }
 
-    pub fn selection_ids_for(&self, hit_mesh_id: &MeshId, scope: &SelectionScope) -> Vec<MeshId> {
+    fn selection_ids_for(&self, hit_mesh_id: &MeshId, scope: &SelectionScope) -> Vec<MeshId> {
         match scope {
             SelectionScope::Node => vec![hit_mesh_id.clone()],
             SelectionScope::Object => self
@@ -292,7 +263,7 @@ impl AssetHandler {
         }
     }
 
-    pub fn ray_cast(&self, ray: &Ray) -> Option<MeshId> {
+    fn ray_cast(&self, ray: &Ray) -> Option<MeshId> {
         let mut closest_hit: Option<(MeshId, f32)> = None;
 
         for render_mesh in self.get_all_visible_assets() {
@@ -319,7 +290,7 @@ impl AssetHandler {
         closest_hit.map(|(mesh_id, _)| mesh_id)
     }
 
-    pub fn resolve_selection_target(
+    pub(crate) fn resolve_selection_target(
         &self,
         ray: &Ray,
         scope: SelectionScope,
@@ -330,25 +301,12 @@ impl AssetHandler {
         Some(SelectionTarget::new(hit_mesh_id, outline_mesh_ids, scope))
     }
 
-    pub fn toggle_visibility(&mut self, id: String) {
-        let asset_id = self.visible_assets.iter().find(|elem| elem.eq(&&id));
-        if asset_id.is_some() {
-            self.visible_assets.remove(&id);
-        } else {
-            self.visible_assets.insert(id);
-        }
-    }
-
-    pub fn get_all_visible_assets_with_modifier(
+    pub(crate) fn visible_meshes_with_asset_type(
         &mut self,
-        light_type: &AssetType,
+        asset_type: &AssetType,
     ) -> impl Iterator<Item = &Rc<RenderMesh>> {
-        self.get_visible_asset_ids()
+        self.visible_asset_ids()
             .map(|id| self.memory_loaded_assets.get(id).unwrap())
-            .filter(move |rm| rm.light_type.eq(&light_type))
-    }
-
-    pub fn get_visible_asset_by_id(&mut self, id: &str) -> &mut Rc<RenderMesh> {
-        self.memory_loaded_assets.get_mut(id).unwrap()
+            .filter(move |rm| rm.light_type.eq(asset_type))
     }
 }

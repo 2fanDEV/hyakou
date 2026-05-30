@@ -9,7 +9,7 @@ use log::{debug, warn};
 
 use crate::{flow::SceneFrameInput, selection::manager::SelectionManager};
 
-pub trait SelectionSurface {
+pub trait SelectionContext {
     fn active_camera(&self) -> Result<Camera>;
     fn viewport_size(&self) -> Result<Size>;
     fn resolve_selection_target(&self, ray: Ray, scope: SelectionScope) -> Option<SelectionTarget>;
@@ -38,12 +38,12 @@ impl SelectionController {
 
     pub fn select_at_screen_point(
         &mut self,
-        surface: &impl SelectionSurface,
+        context: &impl SelectionContext,
         x: f32,
         y: f32,
         scope: SelectionScope,
     ) {
-        let camera = match surface.active_camera() {
+        let camera = match context.active_camera() {
             Ok(camera) => camera,
             Err(error) => {
                 warn!("Skipping selection because active camera is unavailable: {error:?}");
@@ -51,7 +51,7 @@ impl SelectionController {
             }
         };
 
-        let size = match surface.viewport_size() {
+        let size = match context.viewport_size() {
             Ok(size) => size,
             Err(error) => {
                 warn!("Skipping selection because viewport size is unavailable: {error:?}");
@@ -63,7 +63,7 @@ impl SelectionController {
             return;
         };
 
-        let Some(target) = surface.resolve_selection_target(ray, scope) else {
+        let Some(target) = context.resolve_selection_target(ray, scope) else {
             self.clear();
             return;
         };

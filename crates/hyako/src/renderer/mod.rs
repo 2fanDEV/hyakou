@@ -6,8 +6,8 @@ use crate::{
     gpu::{buffers::model_matrix::ModelMatrixUniform, render_mesh::RenderMesh},
     gui::EguiRenderer,
     renderer::{
-        frame::FrameTarget, handlers::asset_handler::AssetHandler, renderer_context::RenderContext,
-        surface_frame_controller::SurfaceFrameController, wrappers::WinitSurfaceProvider,
+        frame::FrameTarget, renderer_context::RenderContext,
+        surface_frame_controller::SurfaceFrameController,
     },
 };
 use anyhow::Result;
@@ -53,32 +53,16 @@ struct SceneRendererInner {
 }
 
 impl SceneRenderer {
-    pub async fn new(window: Arc<Window>, camera: &Camera) -> Result<(Self, AssetHandler)> {
-        let ctx = RenderContext::new(Some(WinitSurfaceProvider {
-            window: window.clone(),
-        }))
-        .await
-        .unwrap();
-
-        let asset_handler = AssetHandler::new(
-            ctx.device.clone(),
-            ctx.queue.clone(),
-            ctx.model_binding_mode,
-            ctx.model_bind_group_layout.clone(),
-            ctx.material_bind_group_layout.clone(),
-        );
-
+    pub fn from_context(ctx: RenderContext, camera: &Camera) -> Result<Self> {
         let gpu_resources = SceneGpuResources::new(&ctx, camera)?;
 
-        let renderer = Self {
+        Ok(Self {
             inner: RwLock::new(SceneRendererInner {
                 ctx,
                 gpu_resources,
                 animators: HashMap::new(),
             }),
-        };
-
-        Ok((renderer, asset_handler))
+        })
     }
 
     fn read_inner<F, R>(&self, f: F) -> R
