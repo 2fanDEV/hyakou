@@ -17,6 +17,8 @@ pub struct LightSource {
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
+// NOTE: This is GPU-facing data in core for now. Move it into hyako when the
+// render boundary is finalized during the ECS migration.
 pub struct GpuLightSource {
     transform: Transform,
     color: Vec3,

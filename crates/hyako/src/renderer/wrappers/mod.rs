@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use hyakou_core::types::Size;
+use log::error;
 use mockall::automock;
 use wgpu::{Instance, Surface};
 use winit::window::Window;
@@ -19,7 +20,10 @@ impl SurfaceProvider for WinitSurfaceProvider {
     fn create_surface(&self, instance: &Instance) -> Option<wgpu::Surface<'static>> {
         match instance.create_surface(self.window.clone()) {
             Ok(surface) => Some(surface),
-            Err(_) => None,
+            Err(error) => {
+                error!("Failed to create wgpu surface: {error:?}");
+                None
+            }
         }
     }
 

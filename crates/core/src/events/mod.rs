@@ -12,5 +12,5 @@ pub enum Event {
     SetCameraMode(CameraMode),
     AssetUpload(AssetInformation, AssetType),
     AssetBundleUpload(AssetBundleInformation, AssetType),
-    Resize(f64, f64),
+    WindowResized { width: f64, height: f64 },
 }

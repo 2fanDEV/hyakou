@@ -283,12 +283,23 @@ impl RenderController {
             error!("Renderer is not initialized yet!");
             return;
         };
+        let Some(window) = self.window.as_ref() else {
+            error!("Cannot initialize egui renderer without a window");
+            return;
+        };
+        let surface_format = match renderer.surface_format() {
+            Ok(format) => format,
+            Err(error) => {
+                error!("Cannot initialize egui renderer: {error:?}");
+                return;
+            }
+        };
 
         use egui_wgpu::RendererOptions;
         self.egui_renderer = Some(EguiRenderer::new(
             renderer.get_device().clone(),
-            self.window.as_ref().unwrap().clone(),
-            renderer.surface_format(),
+            window.clone(),
+            surface_format,
             RendererOptions::default(),
         ));
     }
@@ -305,7 +316,7 @@ async fn initialize_scene_renderer(
     Ok((renderer, asset_controller))
 }
 
-impl SelectionContext for RetnderController {
+impl SelectionContext for RenderController {
     fn active_camera(&self) -> Result<hyakou_core::components::camera::camera::Camera> {
         self.camera_controller
             .as_ref()

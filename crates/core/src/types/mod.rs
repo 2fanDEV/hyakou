@@ -34,6 +34,8 @@ impl Size {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+// NOTE: This is render-policy state in core for now. Move it into hyako when the
+// render boundary is finalized during the ECS migration.
 pub enum ModelMatrixBindingMode {
     Immediate,
     Uniform,

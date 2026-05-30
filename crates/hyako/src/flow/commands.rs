@@ -42,7 +42,7 @@ pub enum FlowCommand {
         dy: f64,
         dt: f32,
     },
-    MouseButton {
+    MouseButtonInput {
         button: MouseButton,
         pressed: bool,
     },
@@ -69,10 +69,10 @@ pub enum FlowCommand {
         file_name: String,
         error: String,
     },
-    Redraw {
+    RequestFrame {
         dt: f64,
     },
-    Resize {
+    HandleResize {
         dt: f64,
         height: f64,
         width: f64,

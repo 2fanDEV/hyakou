@@ -122,10 +122,14 @@ impl ApplicationHandler<Event> for AppState {
         let window_attributes =
             WindowAttributes::default().with_canvas(self.html_canvas_element.clone());
 
-        let window = event_loop
-            .create_window(window_attributes)
-            .map(Arc::new)
-            .unwrap();
+        let window = match event_loop.create_window(window_attributes).map(Arc::new) {
+            Ok(window) => window,
+            Err(error) => {
+                log::error!("Failed to create application window: {error:?}");
+                event_loop.exit();
+                return;
+            }
+        };
 
         self.send_and_drain(FlowCommand::WindowCreated(window.clone()));
         self.send_and_drain(FlowCommand::AssetBundleUploadRequested {
@@ -161,15 +165,15 @@ impl ApplicationHandler<Event> for AppState {
             Event::SetCameraMode(mode) => {
                 self.send_and_drain(FlowCommand::SetCameraMode(mode));
             }
-            Event::AssetUpload(asset_information, light_type) => {
+            Event::AssetUpload(asset_information, asset_type) => {
                 self.send_and_drain(FlowCommand::AssetUploadRequested {
                     id: asset_information.id(),
                     file_name: asset_information.name(),
-                    asset_type: light_type,
+                    asset_type,
                     bytes: asset_information.bytes(),
                 });
             }
-            Event::AssetBundleUpload(asset_bundle_information, light_type) => {
+            Event::AssetBundleUpload(asset_bundle_information, asset_type) => {
                 let files = asset_bundle_information
                     .files()
                     .iter()
@@ -178,13 +182,13 @@ impl ApplicationHandler<Event> for AppState {
                 self.send_and_drain(FlowCommand::AssetBundleUploadRequested {
                     id: asset_bundle_information.id(),
                     file_name: asset_bundle_information.entry_file_name(),
-                    asset_type: light_type,
+                    asset_type,
                     files,
                 });
             }
-            Event::Resize(width, height) => {
+            Event::WindowResized { width, height } => {
                 let dt = self.get_and_update_last_frame_time();
-                self.send_and_drain(FlowCommand::Resize { dt, width, height });
+                self.send_and_drain(FlowCommand::HandleResize { dt, width, height });
             }
         }
     }
@@ -200,11 +204,11 @@ impl ApplicationHandler<Event> for AppState {
         match event {
             WindowEvent::RedrawRequested => {
                 let dt = self.get_and_update_last_frame_time();
-                self.send_and_drain(FlowCommand::Redraw { dt });
+                self.send_and_drain(FlowCommand::RequestFrame { dt });
             }
             WindowEvent::Resized(size) => {
                 let dt = self.get_and_update_last_frame_time();
-                self.send_and_drain(FlowCommand::Resize {
+                self.send_and_drain(FlowCommand::HandleResize {
                     dt,
                     width: size.width as f64,
                     height: size.height as f64,
@@ -268,7 +272,7 @@ impl ApplicationHandler<Event> for AppState {
                     2 => MouseButton::Middle,
                     _ => return,
                 };
-                self.send_and_drain(FlowCommand::MouseButton {
+                self.send_and_drain(FlowCommand::MouseButtonInput {
                     button: mouse_button,
                     pressed: state == ElementState::Pressed,
                 });

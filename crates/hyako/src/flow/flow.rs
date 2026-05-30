@@ -135,7 +135,7 @@ impl FlowController {
                 self.render_controller
                     .handle_mouse_movement(&mouse_delta, dt);
             }
-            FlowCommand::MouseButton { button, pressed } => {
+            FlowCommand::MouseButtonInput { button, pressed } => {
                 let _ = self
                     .input_controller
                     .handle_mouse_button(self.render_controller.window(), button, pressed)
@@ -189,12 +189,12 @@ impl FlowController {
             } => self
                 .asset_upload_controller
                 .handle_asset_upload_failed(id, file_name, error),
-            FlowCommand::Redraw { dt } => {
+            FlowCommand::RequestFrame { dt } => {
                 let scene_input = self.selection_controller.scene_frame_input();
                 self.render_controller
                     .render_frame(&mut self.frame_composer, dt, scene_input);
             }
-            FlowCommand::Resize { dt, width, height } => {
+            FlowCommand::HandleResize { dt, width, height } => {
                 self.render_controller.handle_resize(width, height);
                 let scene_input = self.selection_controller.scene_frame_input();
                 self.render_controller
