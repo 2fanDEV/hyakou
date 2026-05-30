@@ -145,14 +145,14 @@ impl SceneRenderer {
         self.read_inner(|inner| inner.ctx.device.clone())
     }
 
-    pub fn surface_format(&self) -> TextureFormat {
+    pub fn surface_format(&self) -> Result<TextureFormat> {
         self.read_inner(|inner| {
             inner
                 .ctx
                 .surface_configuration
                 .as_ref()
-                .expect("renderer surface must be configured")
-                .format
+                .map(|configuration| configuration.format)
+                .ok_or_else(|| anyhow::anyhow!("renderer surface is not configured"))
         })
     }
 }

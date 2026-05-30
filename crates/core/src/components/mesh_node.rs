@@ -33,6 +33,8 @@ impl MeshNode {
     }
 }
 
+// NOTE: This GPU layout impl lives in core for now. Move it into hyako when the
+// render boundary is finalized during the ECS migration.
 impl BufferLayoutProvider for MeshNode {
     fn vertex_buffer_layout() -> wgpu::VertexBufferLayout<'static> {
         Vertex::vertex_buffer_layout()
