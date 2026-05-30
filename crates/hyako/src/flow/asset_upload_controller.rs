@@ -1,21 +1,12 @@
-use std::rc::Rc;
-
-use anyhow::{Result, anyhow};
-use glam::Vec3;
-use hyakou_core::{
-    components::{AssetType, light::LightSource},
-    types::import_diagnostic::ImportDiagnostic,
-};
+use anyhow::Result;
+use hyakou_core::{components::AssetType, types::import_diagnostic::ImportDiagnostic};
 use log::{debug, error, warn};
+#[cfg(target_arch = "wasm32")]
 use shared::{Shared, SharedAccess};
 
 use crate::{
     flow::{FlowCommand, FlowCommandSender},
-    gpu::{
-        glTF::{GLTFLoader, ImportedScene},
-        render_mesh::RenderMesh,
-    },
-    renderer::SceneRenderer,
+    gpu::glTF::{GLTFLoader, ImportedScene},
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -141,43 +132,14 @@ impl AssetUploadController {
         }
     }
 
-    pub fn handle_apply_parsed_asset(
+    pub fn handle_asset_upload_succeeded(
         &self,
-        renderer_slot: &Shared<Option<SceneRenderer>>,
         id: String,
         file_name: String,
-        asset_type: AssetType,
-        imported_scene: ImportedScene,
-    ) -> Result<Rc<RenderMesh>> {
-        let upload_id = id.clone();
-        let upload_file_name = file_name.clone();
-        let display_file_name = file_name.clone();
-        let diagnostics = imported_scene.diagnostics.clone();
-        let success = renderer_slot.write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                warn!("Dropping parsed asset `{id}` because renderer is not ready");
-                return Err(anyhow!("renderer is not ready"));
-            };
-
-            let render_mesh = renderer
-                .asset_manager
-                .upload_imported_scene(id, asset_type, imported_scene)
-                .ok_or_else(|| {
-                    anyhow!("uploaded asset `{display_file_name}` produced no renderable meshes")
-                })?;
-
-            if asset_type == AssetType::LIGHT {
-                renderer.set_light(LightSource::new(render_mesh.transform.clone(), Vec3::ONE))?;
-            }
-
-            Ok(render_mesh)
-        });
-
-        if success.is_ok() {
-            debug!("Successfully loaded asset: {file_name}");
-            self.fire_upload_status_success(upload_id, upload_file_name, diagnostics);
-        }
-        success
+        diagnostics: Vec<ImportDiagnostic>,
+    ) {
+        debug!("Successfully loaded asset: {file_name}");
+        self.fire_upload_status_success(id, file_name, diagnostics);
     }
 
     pub fn handle_asset_upload_failed(&self, id: String, file_name: String, error: String) {

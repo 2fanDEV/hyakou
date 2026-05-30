@@ -6,7 +6,7 @@ pub enum MouseButton {
     Middle,
 }
 
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MouseAction {
     Clicked,
     Released,
@@ -14,7 +14,7 @@ pub enum MouseAction {
     NoAction,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct MovementDelta {
     x: f64,
     y: f64,
@@ -54,7 +54,7 @@ impl MousePosition {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct MouseDelta {
     pub delta_position: MovementDelta,
     pub state: MouseState,
@@ -62,7 +62,7 @@ pub struct MouseDelta {
     pub position: MousePosition,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct MouseState {
     button: MouseButton,
     action: MouseAction,

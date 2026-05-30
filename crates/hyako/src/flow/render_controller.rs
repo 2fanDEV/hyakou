@@ -2,46 +2,59 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use hyakou_core::{
-    components::camera::{camera::Camera, data_structures::CameraAnimationRequest},
+    components::camera::data_structures::CameraAnimationRequest,
     geometry::ray::Ray,
     selection::structure::{SelectionScope, SelectionTarget},
-    types::Size,
+    types::{Size, mouse_delta::MouseDelta},
 };
-use log::{error, warn};
-use shared::{Shared, SharedAccess, shared};
+use log::error;
+use shared::{Shared, SharedAccess};
 use winit::window::Window;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::spawn_local;
 
 use crate::{
-    flow::SceneFrameInput,
-    flow::{FlowCommandSender, FrameComposer, selection_controller::SelectionSurface},
+    flow::{
+        CameraController, FlowCommandSender, FrameComposer, SceneFrameInput,
+        selection_controller::SelectionSurface,
+    },
+    gpu::{glTF::ImportedScene, render_mesh::RenderMesh},
     gui::EguiRenderer,
-    renderer::{SceneRenderer, surface_frame_controller::SurfaceFrameController},
+    renderer::{
+        SceneRenderer, handlers::InputEvent, surface_frame_controller::SurfaceFrameController,
+    },
 };
+
+use std::rc::Rc;
 
 pub struct RenderController {
     _commands: FlowCommandSender,
     surface_frame_controller: SurfaceFrameController,
-    renderer: Shared<Option<SceneRenderer>>,
-    egui_renderer: Shared<Option<EguiRenderer>>,
+    renderer: Option<Arc<SceneRenderer>>,
+    camera_controller: Option<Arc<CameraController>>,
+    egui_renderer: Option<EguiRenderer>,
+    renderer_view: Shared<Option<Arc<SceneRenderer>>>,
+    camera_view: Shared<Option<Arc<CameraController>>>,
     window: Option<Arc<Window>>,
 }
 
 impl RenderController {
-    pub fn new(commands: FlowCommandSender) -> Self {
+    pub fn new(
+        commands: FlowCommandSender,
+        renderer_view: Shared<Option<Arc<SceneRenderer>>>,
+        camera_view: Shared<Option<Arc<CameraController>>>,
+    ) -> Self {
         Self {
             _commands: commands,
             surface_frame_controller: SurfaceFrameController::new(),
-            renderer: shared(None),
-            egui_renderer: shared(None),
+            renderer: None,
+            camera_controller: None,
+            egui_renderer: None,
+            renderer_view,
+            camera_view,
             window: None,
         }
-    }
-
-    pub fn renderer(&self) -> Shared<Option<SceneRenderer>> {
-        self.renderer.clone()
     }
 
     pub fn window(&self) -> Option<&Window> {
@@ -50,33 +63,29 @@ impl RenderController {
 
     pub fn handle_egui_window_event(&mut self, event: &winit::event::WindowEvent) -> bool {
         self.egui_renderer
-            .try_write_shared(|egui_renderer| {
-                egui_renderer
-                    .as_mut()
-                    .is_some_and(|egui_renderer| egui_renderer.handle_window_event(event))
-            })
-            .unwrap_or(false)
+            .as_mut()
+            .is_some_and(|egui_renderer| egui_renderer.handle_window_event(event))
     }
 
     pub fn handle_window_created(&mut self, window: Arc<Window>) {
         self.window = Some(window.clone());
 
-        let has_renderer = self
-            .renderer
-            .read_shared(|renderer_slot| renderer_slot.is_some());
-        if has_renderer {
+        if self.renderer.is_some() {
             return;
         }
 
         #[cfg(not(target_arch = "wasm32"))]
-        match pollster::block_on(SceneRenderer::new(window)) {
-            Ok(renderer) => {
-                let _ = self
-                    .renderer
-                    .try_write_shared(|renderer_slot| *renderer_slot = Some(renderer));
-            }
-            Err(renderer_error) => {
-                error!("Failed to initialize renderer: {renderer_error:?}");
+        {
+            let camera_controller = CameraController::new(SurfaceFrameController::size_from_dimensions(1920.0, 1080.0));
+            let camera = camera_controller.active_camera();
+
+            match pollster::block_on(SceneRenderer::new(window, &camera)) {
+                Ok(renderer) => {
+                    self.handle_renderer_initialized(renderer, camera_controller);
+                }
+                Err(renderer_error) => {
+                    error!("Failed to initialize renderer: {renderer_error:?}");
+                }
             }
         }
 
@@ -85,19 +94,20 @@ impl RenderController {
 
         #[cfg(target_arch = "wasm32")]
         {
-            let renderer_slot = self.renderer.clone();
+            use crate::flow::FlowCommand;
+
+            let commands = self._commands.clone();
             spawn_local(async move {
-                match SceneRenderer::new(window.clone()).await {
+                // TODO: get actual viewport size from canvas
+                let camera_controller = CameraController::new(SurfaceFrameController::size_from_dimensions(1920.0, 1080.0));
+                let camera = camera_controller.active_camera();
+
+                match SceneRenderer::new(window.clone(), &camera).await {
                     Ok(renderer) => {
-                        let Some(()) = renderer_slot
-                            .try_write_shared(|slot| *slot = Some(renderer))
-                            .ok()
-                        else {
-                            warn!(
-                                "Renderer initialized but flow slot was busy; skipping this frame"
-                            );
-                            return;
-                        };
+                        commands.send(FlowCommand::RendererInitialized {
+                            renderer,
+                            camera_controller,
+                        });
                         window.request_redraw();
                     }
                     Err(renderer_error) => {
@@ -108,22 +118,35 @@ impl RenderController {
         }
     }
 
+    pub fn handle_renderer_initialized(
+        &mut self,
+        renderer: SceneRenderer,
+        camera_controller: CameraController,
+    ) {
+        let renderer = Arc::new(renderer);
+        let camera_controller = Arc::new(camera_controller);
+
+        self.renderer_view
+            .write_shared(|slot| *slot = Some(renderer.clone()));
+        self.camera_view
+            .write_shared(|slot| *slot = Some(camera_controller.clone()));
+
+        self.renderer = Some(renderer);
+        self.camera_controller = Some(camera_controller);
+    }
+
     pub fn handle_resize(&mut self, width: f64, height: f64) {
         let surface_frame_controller = &mut self.surface_frame_controller;
-        if let Err(lock_error) = self.renderer.try_write_shared(|renderer| {
-            let Some(renderer) = renderer.as_mut() else {
-                return;
-            };
+        let Some(renderer) = self.renderer.as_mut() else {
+            return;
+        };
 
-            let size = SurfaceFrameController::size_from_dimensions(width, height);
-            renderer.set_camera_aspect_from_size(size);
-            if let Err(resize_error) =
-                surface_frame_controller.resize(renderer.render_context_mut(), size)
-            {
-                error!("Failed to resize renderer: {resize_error:?}");
-            }
-        }) {
-            error!("Failed to acquire renderer lock during resize: {lock_error:?}");
+        let size = SurfaceFrameController::size_from_dimensions(width, height);
+        if let Some(camera_controller) = self.camera_controller.as_mut() {
+            camera_controller.set_aspect_from_size(size);
+        }
+        if let Err(resize_error) = renderer.resize_surface(surface_frame_controller, size) {
+            error!("Failed to resize renderer: {resize_error:?}");
         }
     }
 
@@ -137,164 +160,113 @@ impl RenderController {
             return;
         };
         let surface_frame_controller = &mut self.surface_frame_controller;
-        let _ = self.renderer.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-
-            let render_result = self.egui_renderer.try_write_shared(|egui_renderer| {
-                Self::render_locked_frame(
-                    surface_frame_controller,
-                    &window,
-                    frame_composer,
-                    renderer,
-                    egui_renderer.as_mut(),
-                    dt,
-                    scene_input,
-                )
-            });
-
-            match render_result {
-                Ok(Ok(())) => {}
-                Ok(Err(render_error)) => {
-                    error!("Renderer frame composition failed: {render_error:?}");
-                }
-                Err(lock_error) => {
-                    warn!(
-                        "Rendering frame without egui because renderer slot is busy: {lock_error:?}"
-                    );
-                    if let Err(render_error) = Self::render_locked_frame(
-                        surface_frame_controller,
-                        &window,
-                        frame_composer,
-                        renderer,
-                        None,
-                        dt,
-                        scene_input,
-                    ) {
-                        error!("Renderer frame composition failed: {render_error:?}");
-                    }
-                }
-            }
-        });
-    }
-
-    fn render_locked_frame(
-        surface_frame_controller: &mut SurfaceFrameController,
-        window: &Window,
-        frame_composer: &mut FrameComposer,
-        renderer: &mut SceneRenderer,
-        mut egui_renderer: Option<&mut EguiRenderer>,
-        dt: f64,
-        scene_input: SceneFrameInput<'_>,
-    ) -> anyhow::Result<()> {
-        renderer.update(dt);
-
-        let Some(mut frame) =
-            surface_frame_controller.begin_frame(window, renderer.render_context_mut())?
-        else {
-            return Ok(());
+        let Some(camera_controller) = self.camera_controller.as_mut() else {
+            return;
+        };
+        let Some(renderer) = self.renderer.as_mut() else {
+            return;
         };
 
-        {
-            let mut target = frame.target();
-            renderer.render_scene(&mut target, scene_input);
-            frame_composer.compose_frame(
-                &mut target,
-                egui_renderer.as_mut().map(|renderer| &mut **renderer),
-            );
+        camera_controller.update(dt);
+        let camera = camera_controller.active_camera();
+
+        if let Err(render_error) = renderer.render_surface_frame(
+            surface_frame_controller,
+            &window,
+            frame_composer,
+            self.egui_renderer.as_mut(),
+            dt,
+            &camera,
+            scene_input,
+        ) {
+            error!("Renderer frame composition failed: {render_error:?}");
         }
-
-        let finish_result =
-            surface_frame_controller.finish_frame(renderer.render_context_mut(), frame);
-
-        if let Some(egui_renderer) = egui_renderer.as_mut() {
-            egui_renderer.free_textures_after_submit();
-        }
-
-        finish_result
     }
 
     pub fn animate_camera(&mut self, request: CameraAnimationRequest) {
-        let _ = self.renderer.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-            renderer
-                .camera_handler
-                .state
-                .animate_camera(&renderer.camera, request);
-        });
+        if let Some(camera_controller) = self.camera_controller.as_mut() {
+            camera_controller.animate_camera(request);
+        }
     }
 
     pub fn stop_camera_animation(&mut self) {
-        let _ = self.renderer.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
+        if let Some(camera_controller) = self.camera_controller.as_mut() {
+            camera_controller.stop_camera_animation();
+        }
+    }
 
-            renderer
-                .camera_handler
-                .state
-                .stop_camera_animation(&renderer.camera.id);
-        });
+    pub fn set_camera_mode(
+        &mut self,
+        mode: hyakou_core::components::camera::data_structures::CameraMode,
+    ) {
+        if let Some(camera_controller) = self.camera_controller.as_mut() {
+            camera_controller.set_camera_mode(mode);
+        }
+    }
+
+    pub fn handle_input_events(&mut self, events: impl IntoIterator<Item = InputEvent>) {
+        if let Some(camera_controller) = self.camera_controller.as_mut() {
+            camera_controller.handle_input_events(events);
+        }
+    }
+
+    pub fn handle_mouse_movement(&mut self, mouse_delta: &MouseDelta, dt: f32) {
+        if let Some(camera_controller) = self.camera_controller.as_mut() {
+            camera_controller.handle_mouse_movement(mouse_delta, dt);
+        }
+    }
+
+    pub fn apply_parsed_asset(
+        &mut self,
+        id: String,
+        file_name: &str,
+        asset_type: hyakou_core::components::AssetType,
+        imported_scene: ImportedScene,
+    ) -> anyhow::Result<Rc<RenderMesh>> {
+        let Some(renderer) = self.renderer.as_mut() else {
+            return Err(anyhow!("renderer is not ready"));
+        };
+
+        let render_mesh =
+            renderer.upload_imported_scene(id, asset_type, imported_scene, file_name)?;
+        Ok(render_mesh)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     fn create_egui_renderer(&mut self) {
-        let egui_renderer = self
-            .renderer
-            .try_read_shared(|renderer| {
-                if let Some(renderer) = renderer {
-                    use egui_wgpu::RendererOptions;
-                    Some(EguiRenderer::new(
-                        renderer.get_device().clone(),
-                        self.window.as_ref().unwrap().clone(),
-                        renderer.get_surface_configuration().format,
-                        RendererOptions::default(),
-                    ))
-                } else {
-                    error!("Renderer is not initialized yet!");
-                    None
-                }
-            })
-            .unwrap();
-        self.egui_renderer
-            .try_write_shared(|slot| *slot = egui_renderer)
-            .unwrap();
+        let Some(renderer) = self.renderer.as_ref() else {
+            error!("Renderer is not initialized yet!");
+            return;
+        };
+
+        use egui_wgpu::RendererOptions;
+        self.egui_renderer = Some(EguiRenderer::new(
+            renderer.get_device().clone(),
+            self.window.as_ref().unwrap().clone(),
+            renderer.surface_format(),
+            RendererOptions::default(),
+        ));
     }
 }
 
 impl SelectionSurface for RenderController {
-    fn active_camera(&self) -> Result<Camera> {
-        self.renderer.try_read_shared(|renderer_slot| {
-            renderer_slot
-                .as_ref()
-                .map(|renderer| renderer.camera.clone())
-                .ok_or_else(|| anyhow!("Renderer missing or not initialized"))
-        })?
+    fn active_camera(&self) -> Result<hyakou_core::components::camera::camera::Camera> {
+        self.camera_controller
+            .as_ref()
+            .map(|cc| cc.active_camera())
+            .ok_or_else(|| anyhow!("Camera controller missing or not initialized"))
     }
 
     fn viewport_size(&self) -> Result<Size> {
-        self.renderer.try_read_shared(|renderer_slot| {
-            renderer_slot
-                .as_ref()
-                .map(|renderer| renderer.ctx.size)
-                .ok_or_else(|| anyhow!("Renderer missing or not initialized"))
-        })?
+        self.renderer
+            .as_ref()
+            .map(|renderer| renderer.viewport_size())
+            .ok_or_else(|| anyhow!("Renderer missing or not initialized"))
     }
 
     fn resolve_selection_target(&self, ray: Ray, scope: SelectionScope) -> Option<SelectionTarget> {
-        match self.renderer.try_read_shared(|renderer_slot| {
-            renderer_slot
-                .as_ref()
-                .and_then(|renderer| renderer.resolve_selection_target(&ray, scope))
-        }) {
-            Ok(target) => target,
-            Err(lock_error) => {
-                warn!("Failed to acquire renderer lock during selection resolve: {lock_error:?}");
-                None
-            }
-        }
+        self.renderer
+            .as_ref()
+            .and_then(|renderer| renderer.resolve_selection_target(&ray, scope))
     }
 }

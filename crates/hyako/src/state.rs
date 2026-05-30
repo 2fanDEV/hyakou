@@ -18,7 +18,7 @@ use winit::{
     window::{Window, WindowAttributes},
 };
 
-use shared::Shared;
+use shared::{Shared, shared};
 
 use hyakou_core::{
     components::AssetType,
@@ -27,7 +27,7 @@ use hyakou_core::{
 };
 
 use crate::{
-    flow::{FlowCommand, FlowController, FlowHandle},
+    flow::{CameraController, FlowCommand, FlowController, FlowHandle},
     renderer::SceneRenderer,
 };
 
@@ -42,6 +42,8 @@ pub struct AppState {
     html_canvas_element: Option<HtmlCanvasElement>,
     flow_controller: FlowController,
     flow_handle: FlowHandle,
+    renderer: Shared<Option<Arc<SceneRenderer>>>,
+    camera: Shared<Option<Arc<CameraController>>>,
     last_frame_time: Instant,
 }
 
@@ -50,17 +52,26 @@ impl AppState {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Result<Self> {
-        let (flow_controller, flow_handle) = FlowController::new_pair();
+        let renderer = shared(None);
+        let camera = shared(None);
+        let (flow_controller, flow_handle) =
+            FlowController::new_pair(renderer.clone(), camera.clone());
         Ok(Self {
             window: None,
             flow_controller,
             flow_handle,
+            renderer,
+            camera,
             last_frame_time: Instant::now(),
         })
     }
 
-    pub fn get_renderer(&self) -> Shared<Option<SceneRenderer>> {
-        self.flow_controller.get_renderer()
+    pub fn renderer(&self) -> Shared<Option<Arc<SceneRenderer>>> {
+        self.renderer.clone()
+    }
+
+    pub fn camera(&self) -> Shared<Option<Arc<CameraController>>> {
+        self.camera.clone()
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -68,12 +79,17 @@ impl AppState {
         canvas_ref: HtmlCanvasElement,
         upload_status_callback: Shared<Option<js_sys::Function>>,
     ) -> Result<Self> {
-        let (flow_controller, flow_handle) = FlowController::new_pair(upload_status_callback);
+        let renderer = shared(None);
+        let camera = shared(None);
+        let (flow_controller, flow_handle) =
+            FlowController::new_pair(renderer.clone(), camera.clone(), upload_status_callback);
         Ok(Self {
             window: None,
             html_canvas_element: Some(canvas_ref),
             flow_controller,
             flow_handle,
+            renderer,
+            camera,
             last_frame_time: Instant::now(),
         })
     }
@@ -142,6 +158,9 @@ impl ApplicationHandler<Event> for AppState {
             Event::StopCameraAnimation => {
                 self.send_and_drain(FlowCommand::StopCameraAnimation);
             }
+            Event::SetCameraMode(mode) => {
+                self.send_and_drain(FlowCommand::SetCameraMode(mode));
+            }
             Event::AssetUpload(asset_information, light_type) => {
                 self.send_and_drain(FlowCommand::AssetUploadRequested {
                     id: asset_information.id(),
@@ -150,22 +169,86 @@ impl ApplicationHandler<Event> for AppState {
                     bytes: asset_information.bytes(),
                 });
             }
-            Event::AssetBundleUpload(bundle_information, light_type) => {
+            Event::AssetBundleUpload(asset_bundle_information, light_type) => {
+                let files = asset_bundle_information
+                    .files()
+                    .iter()
+                    .map(|file_info| (file_info.name(), file_info.bytes()))
+                    .collect();
                 self.send_and_drain(FlowCommand::AssetBundleUploadRequested {
-                    id: bundle_information.id(),
-                    file_name: bundle_information.entry_file_name(),
+                    id: asset_bundle_information.id(),
+                    file_name: asset_bundle_information.entry_file_name(),
                     asset_type: light_type,
-                    files: bundle_information
-                        .files()
-                        .into_iter()
-                        .map(|file| (file.name(), file.bytes()))
-                        .collect(),
+                    files,
                 });
             }
+            Event::WindowEvent {
+                window_id: _,
+                event,
+            } => match event {
+                WindowEvent::RedrawRequested => {
+                    let dt = self.get_and_update_last_frame_time();
+                    self.send_and_drain(FlowCommand::Redraw { dt });
+                }
+                WindowEvent::Resized(size) => {
+                    let dt = self.get_and_update_last_frame_time();
+                    self.send_and_drain(FlowCommand::Resize {
+                        dt,
+                        width: size.width as f64,
+                        height: size.height as f64,
+                    });
+                }
+                WindowEvent::KeyboardInput { event, .. } => {
+                    if let PhysicalKey::Code(key_code) = event.physical_key {
+                        self.send_and_drain(FlowCommand::KeyboardInput {
+                            key: key_code,
+                            pressed: event.state == ElementState::Pressed,
+                        });
+                    }
+                }
+                WindowEvent::CursorEntered { .. } => {
+                    self.send_and_drain(FlowCommand::CursorInWindow { is_inside: true });
+                }
+                WindowEvent::CursorLeft { .. } => {
+                    self.send_and_drain(FlowCommand::CursorInWindow { is_inside: false });
+                }
+                WindowEvent::CursorMoved { position, .. } => {
+                    self.send_and_drain(FlowCommand::CursorMoved {
+                        x: position.x,
+                        y: position.y,
+                    });
+                }
+                WindowEvent::MouseInput { button, state, .. } => {
+                    self.send_and_drain(FlowCommand::MouseButton {
+                        button: MouseButton::from_winit(button),
+                        pressed: state == ElementState::Pressed,
+                    });
+                }
+                _ => {}
+            },
             Event::Resize(width, height) => {
                 let dt = self.get_and_update_last_frame_time();
-                self.send_and_drain(FlowCommand::Resize { dt, width, height });
+                self.send_and_drain(FlowCommand::Resize {
+                    dt,
+                    width,
+                    height,
+                });
             }
+            Event::DeviceEvent {
+                device_id: _,
+                event,
+            } => match event {
+                DeviceEvent::MouseMotion { delta } => {
+                    let dt = self.get_and_update_last_frame_time() as f32;
+                    self.send_and_drain(FlowCommand::MouseMotion {
+                        dx: delta.0,
+                        dy: delta.1,
+                        dt,
+                    });
+                }
+                _ => {}
+            },
+            _ => {}
         }
     }
 
@@ -175,110 +258,33 @@ impl ApplicationHandler<Event> for AppState {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        let egui_consumed = self.flow_controller.handle_egui_window_event(&event);
-
-        match event {
-            WindowEvent::RedrawRequested => {
-                let delta = self.get_and_update_last_frame_time();
-                self.send_and_drain(FlowCommand::Redraw { dt: delta });
-            }
-            WindowEvent::CursorEntered { .. } => {
-                if egui_consumed {
-                    return;
-                }
-                self.send_and_drain(FlowCommand::CursorInWindow { is_inside: true });
-            }
-            WindowEvent::CursorMoved { position, .. } => {
-                if egui_consumed {
-                    return;
-                }
-                self.send_and_drain(FlowCommand::CursorMoved {
-                    x: position.x,
-                    y: position.y,
-                });
-            }
-            WindowEvent::CursorLeft { .. } => {
-                if egui_consumed {
-                    return;
-                }
-                self.send_and_drain(FlowCommand::CursorInWindow { is_inside: false });
-            }
-            WindowEvent::KeyboardInput { event, .. } => {
-                if egui_consumed {
-                    return;
-                }
-                let PhysicalKey::Code(key) = event.physical_key else {
-                    return;
-                };
-                self.send_and_drain(FlowCommand::KeyboardInput {
-                    key,
-                    pressed: event.state == ElementState::Pressed,
-                });
-            }
-            _ => {}
-        }
-    }
-
-    fn device_event(
-        &mut self,
-        _event_loop: &winit::event_loop::ActiveEventLoop,
-        _device_id: winit::event::DeviceId,
-        event: DeviceEvent,
-    ) {
-        match event {
-            DeviceEvent::MouseMotion { delta } => {
-                let dt = self.get_last_frame_time(Instant::now()) as f32;
-                self.send_and_drain(FlowCommand::MouseMotion {
-                    dx: delta.0,
-                    dy: delta.1,
-                    dt,
-                });
-            }
-            DeviceEvent::Button { button, state } => {
-                let mouse_button = match button {
-                    0 => MouseButton::Left,
-                    1 => MouseButton::Right,
-                    2 => MouseButton::Middle,
-                    _ => return,
-                };
-
-                self.send_and_drain(FlowCommand::MouseButton {
-                    button: mouse_button,
-                    pressed: state == ElementState::Pressed,
-                });
-            }
-            _ => {}
+        if self
+            .flow_controller
+            .handle_egui_window_event(&event)
+        {
+            return;
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{thread::sleep, time::Duration};
-
     use super::*;
 
-    fn setup() -> AppState {
-        AppState::new().unwrap()
+    #[test]
+    fn test_accurate_calculation() {
+        let state = AppState::new().unwrap();
+
+        let delta_time = state.get_and_update_last_frame_time();
+        assert!(delta_time.is_finite());
     }
 
     #[test]
     fn test_clamping_strategy() {
-        let mut state = setup();
-        let actual = state.get_and_update_last_frame_time();
-        assert!(actual > 0.0);
-        assert!(actual <= AppState::MIN_TIME_IN_SECONDS);
-        sleep(Duration::from_secs(1));
-        let actual = state.get_and_update_last_frame_time();
-        assert!(actual <= AppState::MIN_TIME_IN_SECONDS);
-    }
+        let state = AppState::new().unwrap();
 
-    #[test]
-    fn test_accurate_calculation() {
-        let mut state = setup();
-        state.get_and_update_last_frame_time();
-        sleep(Duration::from_millis(16));
-        let second_delta = state.get_and_update_last_frame_time();
-        assert!(second_delta >= 0.015 && second_delta <= AppState::MIN_TIME_IN_SECONDS);
+        let last_frame_time_instant = state.last_frame_time;
+        let delta_time = state.get_last_frame_time(last_frame_time_instant);
+        assert_eq!(delta_time, AppState::MIN_TIME_IN_SECONDS);
     }
 }

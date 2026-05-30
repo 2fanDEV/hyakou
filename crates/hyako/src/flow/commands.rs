@@ -1,8 +1,14 @@
 use std::sync::Arc;
 
-use crate::gpu::glTF::ImportedScene;
+use crate::{
+    flow::CameraController,
+    gpu::glTF::ImportedScene, renderer::SceneRenderer,
+};
 use hyakou_core::{
-    components::{AssetType, camera::data_structures::CameraAnimationRequest},
+    components::{
+        AssetType,
+        camera::data_structures::{CameraAnimationRequest, CameraMode},
+    },
     selection::structure::SelectionScope,
     types::mouse_delta::MouseButton,
 };
@@ -11,8 +17,13 @@ use winit::{keyboard::KeyCode, window::Window};
 
 pub enum FlowCommand {
     WindowCreated(Arc<Window>),
+    RendererInitialized {
+        renderer: SceneRenderer,
+        camera_controller: CameraController,
+    },
     AnimateCamera(CameraAnimationRequest),
     StopCameraAnimation,
+    SetCameraMode(CameraMode),
     CursorInWindow {
         is_inside: bool,
     },

@@ -1,13 +1,16 @@
-use std::sync::mpsc::{Receiver, channel};
+use std::sync::{
+    Arc,
+    mpsc::{Receiver, channel},
+};
 
 use hyakou_core::{selection::structure::SelectionTarget, types::ids::MeshId};
-use log::{debug, error, warn};
+use log::{debug, warn};
 use shared::Shared;
 
 use crate::{
     flow::{
-        AssetUploadController, FlowCommand, FlowCommandSender, FrameComposer, InputController,
-        RenderController, selection_controller::SelectionController,
+        AssetUploadController, CameraController, FlowCommand, FlowCommandSender, FrameComposer,
+        InputController, RenderController, selection_controller::SelectionController,
     },
     renderer::SceneRenderer,
 };
@@ -30,12 +33,15 @@ impl FlowController {
     const MAX_COMMANDS_PER_TICK: usize = 128;
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn new_pair() -> (Self, FlowHandle) {
+    pub fn new_pair(
+        renderer_view: Shared<Option<Arc<SceneRenderer>>>,
+        camera_view: Shared<Option<Arc<CameraController>>>,
+    ) -> (Self, FlowHandle) {
         let (tx, rx) = channel::<FlowCommand>();
         let commands = FlowCommandSender::new(tx);
         let controller = Self {
             rx,
-            render_controller: RenderController::new(commands.clone()),
+            render_controller: RenderController::new(commands.clone(), renderer_view, camera_view),
             frame_composer: FrameComposer::new(),
             input_controller: InputController::new(commands.clone()),
             asset_upload_controller: AssetUploadController::new(commands.clone()),
@@ -47,13 +53,15 @@ impl FlowController {
 
     #[cfg(target_arch = "wasm32")]
     pub fn new_pair(
+        renderer_view: Shared<Option<Arc<SceneRenderer>>>,
+        camera_view: Shared<Option<Arc<CameraController>>>,
         upload_status_callback: Shared<Option<js_sys::Function>>,
     ) -> (Self, FlowHandle) {
         let (tx, rx) = channel::<FlowCommand>();
         let commands = FlowCommandSender::new(tx);
         let controller = Self {
             rx,
-            render_controller: RenderController::new(commands.clone()),
+            render_controller: RenderController::new(commands.clone(), renderer_view, camera_view),
             frame_composer: FrameComposer::new(),
             input_controller: InputController::new(commands.clone()),
             asset_upload_controller: AssetUploadController::new(
@@ -64,10 +72,6 @@ impl FlowController {
         };
 
         (controller, FlowHandle::new(commands))
-    }
-
-    pub fn get_renderer(&self) -> Shared<Option<SceneRenderer>> {
-        self.render_controller.renderer()
     }
 
     pub fn handle_egui_window_event(&mut self, event: &winit::event::WindowEvent) -> bool {
@@ -102,8 +106,16 @@ impl FlowController {
             FlowCommand::WindowCreated(window) => {
                 self.render_controller.handle_window_created(window)
             }
+            FlowCommand::RendererInitialized {
+                renderer,
+                camera_controller,
+            } => {
+                self.render_controller
+                    .handle_renderer_initialized(renderer, camera_controller)
+            }
             FlowCommand::AnimateCamera(request) => self.render_controller.animate_camera(request),
             FlowCommand::StopCameraAnimation => self.render_controller.stop_camera_animation(),
+            FlowCommand::SetCameraMode(mode) => self.render_controller.set_camera_mode(mode),
             FlowCommand::CursorInWindow { is_inside } => {
                 self.input_controller.handle_cursor_in_window(is_inside)
             }
@@ -111,23 +123,21 @@ impl FlowController {
                 self.input_controller.handle_cursor_moved(x, y);
             }
             FlowCommand::KeyboardInput { key, pressed } => {
-                let renderer = self.render_controller.renderer();
-                self.input_controller
-                    .handle_keyboard_input(&renderer, key, pressed);
+                let events = self.input_controller.handle_keyboard_input(key, pressed);
+                self.render_controller.handle_input_events(events);
             }
             FlowCommand::MouseMotion { dx, dy, dt } => {
-                let renderer = self.render_controller.renderer();
-                self.input_controller
-                    .handle_mouse_motion(&renderer, dx, dy, dt);
+                let events = self.input_controller.handle_mouse_motion(dx, dy);
+                let mouse_delta = self.input_controller.mouse_delta();
+                self.render_controller.handle_input_events(events);
+                self.render_controller
+                    .handle_mouse_movement(&mouse_delta, dt);
             }
             FlowCommand::MouseButton { button, pressed } => {
-                let renderer = self.render_controller.renderer();
-                let _ = self.input_controller.handle_mouse_button(
-                    &renderer,
-                    self.render_controller.window(),
-                    button,
-                    pressed,
-                );
+                let _ = self
+                    .input_controller
+                    .handle_mouse_button(self.render_controller.window(), button, pressed)
+                    .map(|events| self.render_controller.handle_input_events(events));
             }
             FlowCommand::AssetUploadRequested {
                 id,
@@ -151,18 +161,23 @@ impl FlowController {
                 asset_type,
                 imported_scene,
             } => {
-                let render_mesh = self.asset_upload_controller.handle_apply_parsed_asset(
-                    &self.render_controller.renderer(),
-                    id,
-                    file_name,
+                let diagnostics = imported_scene.diagnostics.clone();
+                match self.render_controller.apply_parsed_asset(
+                    id.clone(),
+                    &file_name,
                     asset_type,
                     imported_scene,
-                );
-                match render_mesh {
-                    Ok(_) => {}
-                    Err(err) => {
-                        error!("{:?}", err)
-                    }
+                ) {
+                    Ok(_) => self.asset_upload_controller.handle_asset_upload_succeeded(
+                        id,
+                        file_name,
+                        diagnostics,
+                    ),
+                    Err(err) => self.asset_upload_controller.handle_asset_upload_failed(
+                        id,
+                        file_name,
+                        err.to_string(),
+                    ),
                 }
             }
             FlowCommand::AssetUploadFailed {
