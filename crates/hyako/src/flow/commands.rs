@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use crate::{
     flow::CameraController,
-    gpu::glTF::ImportedScene, renderer::SceneRenderer,
+    gpu::glTF::ImportedScene,
+    renderer::{SceneRenderer, handlers::asset_handler::AssetHandler},
 };
 use hyakou_core::{
     components::{
@@ -20,6 +21,7 @@ pub enum FlowCommand {
     RendererInitialized {
         renderer: SceneRenderer,
         camera_controller: CameraController,
+        asset_handler: AssetHandler,
     },
     AnimateCamera(CameraAnimationRequest),
     StopCameraAnimation,

@@ -10,10 +10,7 @@ use hyakou_core::{
     types::{DeltaTime64, Size, camera::Pitch, mouse_delta::MouseDelta},
 };
 
-use crate::renderer::{
-    handlers::InputEvent,
-    handlers::camera::CameraHandler,
-};
+use crate::renderer::{handlers::InputEvent, handlers::camera::CameraHandler};
 
 pub struct CameraController {
     inner: RwLock<CameraControllerInner>,
@@ -71,29 +68,18 @@ impl CameraController {
     }
 
     pub fn camera_animation_state(&self) -> CameraAnimationStateSnapshot {
-        self.read_inner(|inner| {
-            inner
-                .handler
-                .state
-                .camera_animation_state(&inner.camera)
-        })
+        self.read_inner(|inner| inner.handler.state.camera_animation_state(&inner.camera))
     }
 
     pub fn animate_camera(&self, request: CameraAnimationRequest) {
         self.write_inner(|inner| {
-            inner
-                .handler
-                .state
-                .animate_camera(&inner.camera, request);
+            inner.handler.state.animate_camera(&inner.camera, request);
         });
     }
 
     pub fn stop_camera_animation(&self) {
         self.write_inner(|inner| {
-            inner
-                .handler
-                .state
-                .stop_camera_animation(&inner.camera.id);
+            inner.handler.state.stop_camera_animation(&inner.camera.id);
         });
     }
 

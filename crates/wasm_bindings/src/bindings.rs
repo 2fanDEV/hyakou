@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
-use hyako::{
-    flow::CameraController,
-    renderer::SceneRenderer,
-    state::AppState,
-};
+use hyako::{flow::CameraController, renderer::SceneRenderer, state::AppState};
 use hyakou_core::{
     components::{LightType, camera::data_structures::CameraMode},
     events::Event,
@@ -195,10 +191,9 @@ impl Hyako {
     {
         self.camera
             .try_read_shared(|camera| {
-                camera
-                    .as_ref()
-                    .map(|cc| f(cc.as_ref()))
-                    .ok_or_else(|| JsValue::from_str("Camera controller missing or not initialized"))
+                camera.as_ref().map(|cc| f(cc.as_ref())).ok_or_else(|| {
+                    JsValue::from_str("Camera controller missing or not initialized")
+                })
             })
             .map_err(|error| JsValue::from_str(&error.to_string()))?
     }

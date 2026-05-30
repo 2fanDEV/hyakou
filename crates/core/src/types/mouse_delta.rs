@@ -6,6 +6,17 @@ pub enum MouseButton {
     Middle,
 }
 
+impl MouseButton {
+    pub fn from_winit(button: winit::event::MouseButton) -> Self {
+        match button {
+            winit::event::MouseButton::Left => Self::Left,
+            winit::event::MouseButton::Right => Self::Right,
+            winit::event::MouseButton::Middle => Self::Middle,
+            _ => Self::Left,
+        }
+    }
+}
+
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MouseAction {
     Clicked,

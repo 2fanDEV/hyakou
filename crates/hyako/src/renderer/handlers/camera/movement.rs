@@ -105,18 +105,67 @@ impl CameraMovementHandler {
     ) {
         let axes = self.get_axes(camera, mode);
         let speed = self.adjust_speed(camera.speed * delta_time);
-        let movement = self.movement_calculcation(camera, mode, axes, speed);
-        self.update_camera_with_movement(camera, mode, &movement);
+        if mode == &CameraMode::ORBIT {
+            self.update_orbit_camera_with_keyboard(camera, axes.forward_mag, speed);
+        } else {
+            let movement = self.movement_calculcation(camera, mode, axes, speed);
+            self.update_camera_with_movement(camera, &movement);
+        }
     }
 
-    fn update_camera_with_movement(&self, camera: &mut Camera, mode: &CameraMode, movement: &Vec3) {
-        match mode {
-            CameraMode::ORBIT => camera.eye += movement,
-            _ => {
-                camera.eye += movement;
-                camera.target += movement;
-            }
+    fn update_camera_with_movement(&self, camera: &mut Camera, movement: &Vec3) {
+        camera.eye += movement;
+        camera.target += movement;
+    }
+
+    fn update_orbit_camera_with_keyboard(
+        &self,
+        camera: &mut Camera,
+        current_radius: f32,
+        speed: f32,
+    ) {
+        if current_radius <= f32::EPSILON {
+            return;
         }
+
+        let mut radius = current_radius;
+        let mut changed = false;
+        if self.is_forward_pressed && radius > speed {
+            radius -= speed;
+            changed = true;
+        }
+        if self.is_backward_pressed {
+            radius += speed;
+            changed = true;
+        }
+
+        let (mut yaw, mut pitch) = Self::orbit_angles_from_camera(camera);
+        let angular_delta = speed / current_radius;
+
+        if self.is_left_pressed {
+            yaw += angular_delta;
+            changed = true;
+        }
+        if self.is_right_pressed {
+            yaw -= angular_delta;
+            changed = true;
+        }
+        if self.is_up_pressed {
+            pitch -= angular_delta;
+            changed = true;
+        }
+        if self.is_down_pressed {
+            pitch += angular_delta;
+            changed = true;
+        }
+
+        if !changed {
+            return;
+        }
+
+        let pitch_limit = 89.0_f32.to_radians();
+        pitch = pitch.clamp(-pitch_limit, pitch_limit);
+        Self::set_orbit_camera_from_angles(camera, yaw, pitch, radius);
     }
 
     fn get_axes(&self, camera: &Camera, mode: &CameraMode) -> CameraAxes {
@@ -153,6 +202,9 @@ impl CameraMovementHandler {
 
     fn rotate_orbit_camera(camera: &mut Camera, yaw_delta: f32, pitch_delta: f32) {
         let orbit_radius = camera.eye.distance(camera.target);
+        let (yaw, pitch) = Self::orbit_angles_from_camera(camera);
+        camera.yaw.update(yaw);
+        camera.pitch.update(pitch);
 
         camera.yaw.add(
             yaw_delta * camera.sensitivity,
@@ -167,6 +219,22 @@ impl CameraMovementHandler {
 
         let forward = calculate_direction_vector(*camera.yaw, *camera.pitch);
         camera.eye = camera.target - forward * orbit_radius;
+    }
+
+    fn orbit_angles_from_camera(camera: &Camera) -> (f32, f32) {
+        let forward = (camera.target - camera.eye).normalize_or_zero();
+        if forward == Vec3::ZERO {
+            return (*camera.yaw, *camera.pitch);
+        }
+
+        (forward.z.atan2(forward.x), forward.y.asin())
+    }
+
+    fn set_orbit_camera_from_angles(camera: &mut Camera, yaw: f32, pitch: f32, radius: f32) {
+        camera.yaw.update(yaw);
+        camera.pitch.update(pitch);
+        let forward = calculate_direction_vector(yaw, pitch);
+        camera.eye = camera.target - forward * radius;
     }
 
     fn movement_calculcation(

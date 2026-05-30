@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
+use glam::Vec3;
 use hyakou_core::{
-    components::camera::data_structures::CameraAnimationRequest,
+    components::{AssetType, camera::data_structures::CameraAnimationRequest, light::LightSource},
     geometry::ray::Ray,
     selection::structure::{SelectionScope, SelectionTarget},
     types::{Size, mouse_delta::MouseDelta},
@@ -16,13 +17,15 @@ use wasm_bindgen_futures::spawn_local;
 
 use crate::{
     flow::{
-        CameraController, FlowCommandSender, FrameComposer, SceneFrameInput,
+        AssetController, CameraController, FlowCommandSender, FrameComposer, SceneFrameInput,
         selection_controller::SelectionSurface,
     },
     gpu::{glTF::ImportedScene, render_mesh::RenderMesh},
     gui::EguiRenderer,
     renderer::{
-        SceneRenderer, handlers::InputEvent, surface_frame_controller::SurfaceFrameController,
+        SceneRenderInput, SceneRenderer,
+        handlers::{InputEvent, asset_handler::AssetHandler},
+        surface_frame_controller::SurfaceFrameController,
     },
 };
 
@@ -33,6 +36,7 @@ pub struct RenderController {
     surface_frame_controller: SurfaceFrameController,
     renderer: Option<Arc<SceneRenderer>>,
     camera_controller: Option<Arc<CameraController>>,
+    asset_controller: Option<AssetController>,
     egui_renderer: Option<EguiRenderer>,
     renderer_view: Shared<Option<Arc<SceneRenderer>>>,
     camera_view: Shared<Option<Arc<CameraController>>>,
@@ -50,6 +54,7 @@ impl RenderController {
             surface_frame_controller: SurfaceFrameController::new(),
             renderer: None,
             camera_controller: None,
+            asset_controller: None,
             egui_renderer: None,
             renderer_view,
             camera_view,
@@ -76,12 +81,13 @@ impl RenderController {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let camera_controller = CameraController::new(SurfaceFrameController::size_from_dimensions(1920.0, 1080.0));
+            let camera_controller =
+                CameraController::new(SurfaceFrameController::size_from_dimensions(1920.0, 1080.0));
             let camera = camera_controller.active_camera();
 
             match pollster::block_on(SceneRenderer::new(window, &camera)) {
-                Ok(renderer) => {
-                    self.handle_renderer_initialized(renderer, camera_controller);
+                Ok((renderer, asset_handler)) => {
+                    self.handle_renderer_initialized(renderer, camera_controller, asset_handler);
                 }
                 Err(renderer_error) => {
                     error!("Failed to initialize renderer: {renderer_error:?}");
@@ -99,14 +105,17 @@ impl RenderController {
             let commands = self._commands.clone();
             spawn_local(async move {
                 // TODO: get actual viewport size from canvas
-                let camera_controller = CameraController::new(SurfaceFrameController::size_from_dimensions(1920.0, 1080.0));
+                let camera_controller = CameraController::new(
+                    SurfaceFrameController::size_from_dimensions(1920.0, 1080.0),
+                );
                 let camera = camera_controller.active_camera();
 
                 match SceneRenderer::new(window.clone(), &camera).await {
-                    Ok(renderer) => {
+                    Ok((renderer, asset_handler)) => {
                         commands.send(FlowCommand::RendererInitialized {
                             renderer,
                             camera_controller,
+                            asset_handler,
                         });
                         window.request_redraw();
                     }
@@ -122,6 +131,7 @@ impl RenderController {
         &mut self,
         renderer: SceneRenderer,
         camera_controller: CameraController,
+        asset_handler: AssetHandler,
     ) {
         let renderer = Arc::new(renderer);
         let camera_controller = Arc::new(camera_controller);
@@ -133,6 +143,7 @@ impl RenderController {
 
         self.renderer = Some(renderer);
         self.camera_controller = Some(camera_controller);
+        self.asset_controller = Some(AssetController::new(asset_handler));
     }
 
     pub fn handle_resize(&mut self, width: f64, height: f64) {
@@ -166,9 +177,32 @@ impl RenderController {
         let Some(renderer) = self.renderer.as_mut() else {
             return;
         };
+        let Some(asset_controller) = self.asset_controller.as_mut() else {
+            return;
+        };
 
         camera_controller.update(dt);
         let camera = camera_controller.active_camera();
+
+        let normal_meshes: Vec<Rc<RenderMesh>> = asset_controller
+            .get_all_visible_assets_with_modifier(&AssetType::NORMAL)
+            .cloned()
+            .collect();
+        let light_meshes: Vec<Rc<RenderMesh>> = asset_controller
+            .get_all_visible_assets_with_modifier(&AssetType::LIGHT)
+            .cloned()
+            .collect();
+        let outlined_meshes: Vec<Rc<RenderMesh>> = scene_input
+            .outlined_mesh_ids
+            .iter()
+            .filter_map(|id| asset_controller.get_visible_asset(id).cloned())
+            .collect();
+
+        let render_input = SceneRenderInput {
+            normal_meshes: &normal_meshes,
+            light_meshes: &light_meshes,
+            outlined_meshes: &outlined_meshes,
+        };
 
         if let Err(render_error) = renderer.render_surface_frame(
             surface_frame_controller,
@@ -177,7 +211,7 @@ impl RenderController {
             self.egui_renderer.as_mut(),
             dt,
             &camera,
-            scene_input,
+            render_input,
         ) {
             error!("Renderer frame composition failed: {render_error:?}");
         }
@@ -220,15 +254,23 @@ impl RenderController {
         &mut self,
         id: String,
         file_name: &str,
-        asset_type: hyakou_core::components::AssetType,
+        asset_type: AssetType,
         imported_scene: ImportedScene,
     ) -> anyhow::Result<Rc<RenderMesh>> {
-        let Some(renderer) = self.renderer.as_mut() else {
-            return Err(anyhow!("renderer is not ready"));
+        let Some(asset_controller) = self.asset_controller.as_mut() else {
+            return Err(anyhow!("asset controller is not ready"));
         };
 
-        let render_mesh =
-            renderer.upload_imported_scene(id, asset_type, imported_scene, file_name)?;
+        let render_mesh = asset_controller
+            .upload_imported_scene(id, asset_type, imported_scene)
+            .ok_or_else(|| anyhow!("uploaded asset `{file_name}` produced no renderable meshes"))?;
+
+        if asset_type == AssetType::LIGHT {
+            if let Some(renderer) = self.renderer.as_ref() {
+                renderer.set_light(LightSource::new(render_mesh.transform.clone(), Vec3::ONE))?;
+            }
+        }
+
         Ok(render_mesh)
     }
 
@@ -265,8 +307,8 @@ impl SelectionSurface for RenderController {
     }
 
     fn resolve_selection_target(&self, ray: Ray, scope: SelectionScope) -> Option<SelectionTarget> {
-        self.renderer
+        self.asset_controller
             .as_ref()
-            .and_then(|renderer| renderer.resolve_selection_target(&ray, scope))
+            .and_then(|ac| ac.resolve_selection_target(&ray, scope))
     }
 }
