@@ -109,11 +109,11 @@ impl FlowController {
             FlowCommand::RendererInitialized {
                 renderer,
                 camera_controller,
-                asset_handler,
+                asset_controller,
             } => self.render_controller.handle_renderer_initialized(
                 renderer,
                 camera_controller,
-                asset_handler,
+                asset_controller,
             ),
             FlowCommand::AnimateCamera(request) => self.render_controller.animate_camera(request),
             FlowCommand::StopCameraAnimation => self.render_controller.stop_camera_animation(),
