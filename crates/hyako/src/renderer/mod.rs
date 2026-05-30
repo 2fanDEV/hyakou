@@ -1,30 +1,36 @@
-use std::{collections::HashMap, f32::consts::PI, sync::Arc};
+use std::sync::RwLock;
+use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 use crate::{
-    flow::SceneFrameInput,
-    gpu::{buffers::model_matrix::ModelMatrixUniform, render_mesh::RenderMesh},
+    flow::{FrameComposer, SceneFrameInput},
+    gpu::{
+        buffers::model_matrix::ModelMatrixUniform, glTF::ImportedScene, render_mesh::RenderMesh,
+    },
+    gui::EguiRenderer,
     renderer::{
         frame::FrameTarget,
-        handlers::{asset_handler::AssetHandler, camera::CameraHandler},
+        handlers::{InputEvent, asset_handler::AssetHandler},
         renderer_context::RenderContext,
+        surface_frame_controller::SurfaceFrameController,
         wrappers::WinitSurfaceProvider,
     },
 };
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use bytemuck::bytes_of;
 use glam::{Vec3, Vec4};
 use hyakou_core::{
     animations::Animator,
     components::{
         AssetType,
-        camera::{camera::Camera, data_structures::CameraMode},
+        camera::{
+            camera::Camera,
+        },
         light::LightSource,
     },
     geometry::ray::{Ray, math::intersect_transformed_mesh},
     selection::structure::{SelectionScope, SelectionTarget},
     types::{
         DeltaTime64, ModelMatrixBindingMode, Size,
-        camera::{Pitch, Yaw},
         ids::MeshId,
     },
 };
@@ -32,7 +38,7 @@ use log::error;
 use shared::SharedAccess;
 use wgpu::{
     BindGroup, Color, Device, Operations, Queue, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline, SurfaceConfiguration,
+    RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline, TextureFormat,
 };
 use winit::window::Window;
 
@@ -47,18 +53,18 @@ pub mod wrappers;
 use gpu_resources::SceneGpuResources;
 
 pub struct SceneRenderer {
-    pub ctx: RenderContext,
-    pub camera: Camera,
+    inner: RwLock<SceneRendererInner>,
+}
+
+struct SceneRendererInner {
+    ctx: RenderContext,
     gpu_resources: SceneGpuResources,
     animators: HashMap<MeshId, Animator>,
-    pub camera_handler: CameraHandler,
-    pub asset_manager: AssetHandler,
+    asset_manager: AssetHandler,
 }
 
 impl SceneRenderer {
-    pub async fn new(window: Arc<Window>) -> Result<Self> {
-        const CAMERA_SPEED_UNITS_PER_SECOND: f32 = 20.0;
-        const CAMERA_SENSITIVITY: f32 = 0.001;
+    pub async fn new(window: Arc<Window>, camera: &Camera) -> Result<Self> {
         let ctx = RenderContext::new(Some(WinitSurfaceProvider {
             window: window.clone(),
         }))
@@ -73,46 +79,138 @@ impl SceneRenderer {
             ctx.material_bind_group_layout.clone(),
         );
 
-        let aspect = Camera::aspect_ratio_from_size(ctx.size);
-        let camera = Camera::new(
-            Vec3::new(0.0, 0.0, 15.0),
-            Vec3::new(0.0, 0.0, 0.0),
-            Vec3::Y,
-            aspect,
-            45.0_f32.to_radians(),
-            0.1,
-            1000.0,
-            Yaw::new(-PI / 2.0),
-            Pitch::new(0.0),
-            CAMERA_SPEED_UNITS_PER_SECOND,
-            CAMERA_SENSITIVITY,
-            0.5,
-        );
-        let gpu_resources = SceneGpuResources::new(&ctx, &camera)?;
+        let gpu_resources = SceneGpuResources::new(&ctx, camera)?;
 
         Ok(Self {
-            ctx,
-            asset_manager: asset_handler,
-            camera,
-            gpu_resources,
-            animators: HashMap::new(),
-            camera_handler: CameraHandler::new(CameraMode::ORBIT),
+            inner: RwLock::new(SceneRendererInner {
+                ctx,
+                asset_manager: asset_handler,
+                gpu_resources,
+                animators: HashMap::new(),
+            }),
         })
     }
 
-    pub fn update(&mut self, delta_time: DeltaTime64) {
-        self.camera_handler
-            .update(&mut self.camera, delta_time as f32);
+    fn read_inner<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&SceneRendererInner) -> R,
+    {
+        f(&self.inner.read().expect("SceneRenderer lock poisoned"))
+    }
+
+    fn write_inner<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut SceneRendererInner) -> R,
+    {
+        f(&mut self.inner.write().expect("SceneRenderer lock poisoned"))
+    }
+
+    pub fn render_surface_frame(
+        &self,
+        surface_frame_controller: &mut SurfaceFrameController,
+        window: &Window,
+        frame_composer: &mut FrameComposer,
+        egui_renderer: Option<&mut EguiRenderer>,
+        dt: f64,
+        camera: &Camera,
+        scene_input: SceneFrameInput<'_>,
+    ) -> Result<()> {
+        self.write_inner(|inner| {
+            inner.update_gpu(dt, camera);
+
+            let Some(mut frame) = surface_frame_controller.begin_frame(window, &mut inner.ctx)?
+            else {
+                return Ok(());
+            };
+
+            let mut egui_renderer = egui_renderer;
+            {
+                let mut target = frame.target();
+                inner.render_scene(&mut target, scene_input);
+                frame_composer.compose_frame(
+                    &mut target,
+                    egui_renderer.as_mut().map(|renderer| &mut **renderer),
+                );
+            }
+
+            let finish_result = surface_frame_controller.finish_frame(&mut inner.ctx, frame);
+
+            if let Some(egui_renderer) = egui_renderer.as_mut() {
+                egui_renderer.free_textures_after_submit();
+            }
+
+            finish_result
+        })
+    }
+
+    pub fn resize_surface(
+        &self,
+        surface_frame_controller: &mut SurfaceFrameController,
+        size: Size,
+    ) -> Result<()> {
+        self.write_inner(|inner| surface_frame_controller.resize(&mut inner.ctx, size))
+    }
+
+    pub fn resolve_selection_target(
+        &self,
+        ray: &Ray,
+        scope: SelectionScope,
+    ) -> Option<SelectionTarget> {
+        self.read_inner(|inner| inner.resolve_selection_target(ray, scope))
+    }
+
+    pub fn viewport_size(&self) -> Size {
+        self.read_inner(|inner| inner.viewport_size())
+    }
+
+    pub fn upload_imported_scene(
+        &self,
+        id: String,
+        asset_type: AssetType,
+        imported_scene: ImportedScene,
+        display_file_name: &str,
+    ) -> Result<Rc<RenderMesh>> {
+        self.write_inner(|inner| {
+            inner.upload_imported_scene(id, asset_type, imported_scene, display_file_name)
+        })
+    }
+
+    pub fn set_outline_color(&self, color: Vec4) {
+        self.write_inner(|inner| inner.set_outline_color(color));
+    }
+
+    pub fn set_outline(&self, color: Vec4, thickness: f32) {
+        self.write_inner(|inner| inner.set_outline(color, thickness));
+    }
+
+    pub fn get_device(&self) -> Arc<Device> {
+        self.read_inner(|inner| inner.ctx.device.clone())
+    }
+
+    pub fn surface_format(&self) -> TextureFormat {
+        self.read_inner(|inner| {
+            inner
+                .ctx
+                .surface_configuration
+                .as_ref()
+                .expect("renderer surface must be configured")
+                .format
+        })
+    }
+}
+
+impl SceneRendererInner {
+    fn update_gpu(&mut self, delta_time: DeltaTime64, camera: &Camera) {
         self.animators.values_mut().for_each(|animator| {
             if let Err(animator_error) = animator.play(delta_time) {
                 error!("{:?}", animator_error)
             }
         });
 
-        self.gpu_resources.update(&self.ctx.queue, &self.camera);
+        self.gpu_resources.update(&self.ctx.queue, camera);
     }
 
-    pub fn resolve_selection_target(
+    fn resolve_selection_target(
         &self,
         ray: &Ray,
         scope: SelectionScope,
@@ -123,19 +221,44 @@ impl SceneRenderer {
         Some(SelectionTarget::new(hit_mesh_id, outline_mesh_ids, scope))
     }
 
-    pub fn set_outline_color(&mut self, color: Vec4) {
+    fn viewport_size(&self) -> Size {
+        self.ctx.size
+    }
+
+    fn upload_imported_scene(
+        &mut self,
+        id: String,
+        asset_type: AssetType,
+        imported_scene: ImportedScene,
+        display_file_name: &str,
+    ) -> Result<Rc<RenderMesh>> {
+        let render_mesh = self
+            .asset_manager
+            .upload_imported_scene(id, asset_type, imported_scene)
+            .ok_or_else(|| {
+                anyhow!("uploaded asset `{display_file_name}` produced no renderable meshes")
+            })?;
+
+        if asset_type == AssetType::LIGHT {
+            self.set_light(LightSource::new(render_mesh.transform.clone(), Vec3::ONE))?;
+        }
+
+        Ok(render_mesh)
+    }
+
+    fn set_outline_color(&mut self, color: Vec4) {
         self.gpu_resources.set_outline_color(&self.ctx.queue, color);
     }
 
-    pub fn set_outline(&mut self, color: Vec4, thickness: f32) {
+    fn set_outline(&mut self, color: Vec4, thickness: f32) {
         self.gpu_resources.set_outline(&self.ctx, color, thickness);
     }
 
-    pub(crate) fn set_light(&mut self, light: LightSource) -> Result<()> {
+    fn set_light(&mut self, light: LightSource) -> Result<()> {
         self.gpu_resources.set_light(&self.ctx, light)
     }
 
-    pub fn render_scene(&mut self, target: &mut FrameTarget<'_>, input: SceneFrameInput<'_>) {
+    fn render_scene(&mut self, target: &mut FrameTarget<'_>, input: SceneFrameInput<'_>) {
         {
             target.encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Main Command Buffer"),
@@ -366,32 +489,10 @@ impl SceneRenderer {
         }
     }
 
-    pub fn material_bind_group_index(model_binding_mode: ModelMatrixBindingMode) -> u32 {
+    fn material_bind_group_index(model_binding_mode: ModelMatrixBindingMode) -> u32 {
         match model_binding_mode {
             ModelMatrixBindingMode::Immediate => 2,
             ModelMatrixBindingMode::Uniform => 3,
-        }
-    }
-
-    pub fn get_device(&self) -> Arc<Device> {
-        self.ctx.device.clone()
-    }
-
-    pub fn get_queue(&self) -> &Queue {
-        &self.ctx.queue
-    }
-
-    pub fn get_surface_configuration(&self) -> &SurfaceConfiguration {
-        self.ctx.surface_configuration.as_ref().unwrap()
-    }
-
-    pub(crate) fn render_context_mut(&mut self) -> &mut RenderContext {
-        &mut self.ctx
-    }
-
-    pub(crate) fn set_camera_aspect_from_size(&mut self, size: Size) {
-        if !size.is_zero() {
-            self.camera.set_aspect_from_size(size);
         }
     }
 

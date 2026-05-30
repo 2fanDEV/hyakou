@@ -4,7 +4,7 @@ use hyakou_core::{
     types::mouse_delta::{MouseAction, MouseButton, MouseDelta, MousePosition, MouseState},
 };
 use log::{debug, error};
-use shared::{Shared, SharedAccess};
+use smallvec::{SmallVec, smallvec};
 use strum::IntoDiscriminant;
 use strum_macros::EnumDiscriminants;
 use winit::{
@@ -14,9 +14,8 @@ use winit::{
 
 use crate::{
     flow::{FlowCommand, FlowCommandSender},
-    renderer::{
-        SceneRenderer,
-        handlers::{InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler},
+    renderer::handlers::{
+        InputEvent, keyboard_handler::KeyboardHandler, mouse_handler::MouseHandler,
     },
 };
 
@@ -57,20 +56,10 @@ impl InputController {
 
     pub fn handle_keyboard_input(
         &mut self,
-        renderer_slot: &Shared<Option<SceneRenderer>>,
         key: KeyCode,
         pressed: bool,
-    ) {
-        let events = self.keyboard_handler.handle_key(key, pressed);
-        let _ = renderer_slot.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-
-            for input_event in events {
-                self.handle_input_event(renderer, input_event);
-            }
-        });
+    ) -> SmallVec<[InputEvent; 4]> {
+        self.keyboard_handler.handle_key(key, pressed)
     }
 
     fn calculate_mouse_position_distance(current: &MousePosition, delta: &MousePosition) -> f32 {
@@ -79,15 +68,10 @@ impl InputController {
         dx.hypot(dy) as f32
     }
 
-    pub fn handle_mouse_motion(
-        &mut self,
-        renderer_slot: &Shared<Option<SceneRenderer>>,
-        dx: f64,
-        dy: f64,
-        dt: f32,
-    ) {
+    pub fn handle_mouse_motion(&mut self, dx: f64, dy: f64) -> SmallVec<[InputEvent; 4]> {
         self.mouse_delta.delta_position =
             hyakou_core::types::mouse_delta::MovementDelta::new(dx, dy);
+        let mut events = smallvec![];
 
         match &self.pointer_interaction {
             PointerInteraction::PendingClick { start } => {
@@ -96,29 +80,22 @@ impl InputController {
                 debug!("{:?}", distance);
                 if distance > CLICK_DRAG_THRESHOLD {
                     self.pointer_interaction = PointerInteraction::Dragging;
-                    self.enqueue_events(renderer_slot, MouseButton::Left, true);
+                    events.extend(self.enqueue_events(MouseButton::Left, true));
                 }
             }
             _ => {}
         }
 
-        let _ = renderer_slot.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-            renderer
-                .camera_handler
-                .mouse_movement(&mut renderer.camera, &self.mouse_delta, dt);
-        });
+        events
     }
 
     pub fn handle_mouse_button(
         &mut self,
-        renderer_slot: &Shared<Option<SceneRenderer>>,
         window: Option<&Window>,
         button: MouseButton,
         pressed: bool,
-    ) -> Result<()> {
+    ) -> Result<SmallVec<[InputEvent; 4]>> {
+        let mut events = smallvec![];
         self.mouse_delta.state = MouseState::new(
             button,
             if pressed {
@@ -137,7 +114,7 @@ impl InputController {
                         });
                     }
                     PointerInteraction::Dragging => {
-                        self.enqueue_events(renderer_slot, button, pressed);
+                        events.extend(self.enqueue_events(button, pressed));
                     }
                 };
                 self.pointer_interaction = PointerInteraction::None;
@@ -154,10 +131,14 @@ impl InputController {
         }
 
         if !button.eq(&MouseButton::Left) {
-            self.enqueue_events(renderer_slot, button, pressed);
+            events.extend(self.enqueue_events(button, pressed));
         }
 
-        Ok(())
+        Ok(events)
+    }
+
+    pub fn mouse_delta(&self) -> MouseDelta {
+        self.mouse_delta.clone()
     }
 
     fn selection_scope(&self) -> SelectionScope {
@@ -168,33 +149,9 @@ impl InputController {
         }
     }
 
-    fn enqueue_events(
-        &mut self,
-        renderer_slot: &Shared<Option<SceneRenderer>>,
-        button: MouseButton,
-        pressed: bool,
-    ) {
+    fn enqueue_events(&mut self, button: MouseButton, pressed: bool) -> SmallVec<[InputEvent; 4]> {
         let events = self.mouse_handler.handle_button(button, pressed);
-        let _ = renderer_slot.try_write_shared(|renderer_slot| {
-            let Some(renderer) = renderer_slot.as_mut() else {
-                return;
-            };
-            for input_event in events {
-                self.handle_input_event(renderer, input_event);
-            }
-        });
-    }
-
-    fn handle_input_event(&self, renderer: &mut SceneRenderer, event: InputEvent) {
-        debug!("{:?}", event);
         debug!("{:?}", self.pointer_interaction.discriminant());
-        match event {
-            InputEvent::ActionStarted(action) => {
-                renderer.camera_handler.handle_action(&action, true);
-            }
-            InputEvent::ActionEnded(action) => {
-                renderer.camera_handler.handle_action(&action, false);
-            }
-        }
+        events
     }
 }
