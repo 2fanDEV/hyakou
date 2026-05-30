@@ -1,3 +1,4 @@
+pub mod asset_controller;
 pub mod asset_upload_controller;
 pub mod camera_controller;
 pub mod command_sender;
@@ -9,6 +10,7 @@ pub mod input_controller;
 pub mod render_controller;
 pub mod selection_controller;
 
+pub use asset_controller::AssetController;
 pub use asset_upload_controller::AssetUploadController;
 pub use camera_controller::CameraController;
 pub use command_sender::FlowCommandSender;

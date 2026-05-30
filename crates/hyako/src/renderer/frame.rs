@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use wgpu::{CommandEncoder, Queue, SurfaceTexture, TextureView};
 
 pub struct FrameTarget<'a> {
@@ -11,7 +13,7 @@ pub struct FrameTarget<'a> {
 pub struct SurfaceFrame {
     output: SurfaceTexture,
     encoder: CommandEncoder,
-    queue: Queue,
+    queue: Arc<Queue>,
     color_view: TextureView,
     depth_view: TextureView,
     size_in_pixels: [u32; 2],
@@ -22,7 +24,7 @@ impl SurfaceFrame {
     pub fn new(
         output: SurfaceTexture,
         encoder: CommandEncoder,
-        queue: Queue,
+        queue: Arc<Queue>,
         color_view: TextureView,
         depth_view: TextureView,
         size_in_pixels: [u32; 2],

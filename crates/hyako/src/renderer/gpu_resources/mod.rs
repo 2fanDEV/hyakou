@@ -9,6 +9,9 @@ use crate::renderer::renderer_context::RenderContext;
 
 use types::{CameraGpuResources, LightGpuResources, OutlineGpuResources};
 
+const DEFAULT_OUTLINE_COLOR: Vec4 = Vec4::new(0.5, 0.1, 1.0, 1.0);
+const DEFAULT_OUTLINE_THICKNESS: f32 = 0.05;
+
 pub(super) struct SceneGpuResources {
     camera: CameraGpuResources,
     light: Option<LightGpuResources>,
@@ -20,7 +23,11 @@ impl SceneGpuResources {
         Ok(Self {
             camera: CameraGpuResources::new(ctx, camera),
             light: None,
-            outline: None,
+            outline: Some(OutlineGpuResources::new(
+                ctx,
+                DEFAULT_OUTLINE_COLOR,
+                DEFAULT_OUTLINE_THICKNESS,
+            )),
         })
     }
 

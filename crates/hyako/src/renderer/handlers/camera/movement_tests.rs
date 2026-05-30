@@ -122,12 +122,14 @@ fn test_update_camera_backward_movement() {
 fn test_update_camera_left_strafe() {
     let mut camera = create_test_camera();
     let initial_eye = camera.eye;
+    let initial_radius = camera.eye.distance(camera.target);
     let mut controller = CameraMovementHandler::new();
 
     controller.is_left_pressed = true;
     controller.update_camera_with_keyboard(&mut camera, &CameraMode::ORBIT, 1.0);
 
     assert!(camera.eye.x < initial_eye.x);
+    assert!((camera.eye.distance(camera.target) - initial_radius).abs() < 0.001);
 }
 
 #[test]
@@ -135,10 +137,12 @@ fn test_update_camera_right_strafe() {
     let mut camera = create_test_camera();
     let mut controller = CameraMovementHandler::new();
     let initial_eye = camera.eye;
+    let initial_radius = camera.eye.distance(camera.target);
 
     controller.is_right_pressed = true;
     controller.update_camera_with_keyboard(&mut camera, &CameraMode::ORBIT, 10.0);
     assert!(camera.eye.x > initial_eye.x);
+    assert!((camera.eye.distance(camera.target) - initial_radius).abs() < 0.001);
 }
 
 #[test]
@@ -146,10 +150,12 @@ fn test_update_camera_up_movement() {
     let mut camera = create_test_camera();
     let mut controller = CameraMovementHandler::new();
     let initial_eye = camera.eye;
+    let initial_radius = camera.eye.distance(camera.target);
 
     controller.is_up_pressed = true;
     controller.update_camera_with_keyboard(&mut camera, &CameraMode::ORBIT, 1.0);
     assert!(camera.eye.y > initial_eye.y);
+    assert!((camera.eye.distance(camera.target) - initial_radius).abs() < 0.001);
 }
 
 #[test]
@@ -157,10 +163,12 @@ fn test_update_camera_down_movement() {
     let mut camera = create_test_camera();
     let mut controller = CameraMovementHandler::new();
     let initial_eye = camera.eye;
+    let initial_radius = camera.eye.distance(camera.target);
 
     controller.is_down_pressed = true;
     controller.update_camera_with_keyboard(&mut camera, &CameraMode::ORBIT, 1.0);
     assert!(camera.eye.y < initial_eye.y);
+    assert!((camera.eye.distance(camera.target) - initial_radius).abs() < 0.001);
 }
 
 #[test]
@@ -356,6 +364,32 @@ fn test_orbit_drag_keeps_target_fixed() {
 
     assert_eq!(camera.target, initial_target);
     assert!((camera.eye.distance(camera.target) - initial_radius).abs() < 0.001);
+}
+
+#[test]
+fn test_orbit_drag_after_keyboard_orbit_keeps_radius() {
+    let mut camera = create_test_camera();
+    let mut controller = CameraMovementHandler::new();
+    controller.is_left_pressed = true;
+    controller.update_camera_with_keyboard(&mut camera, &CameraMode::ORBIT, 0.25);
+    controller.is_left_pressed = false;
+    controller.is_mouse_dragging = true;
+
+    let radius_after_keyboard = camera.eye.distance(camera.target);
+
+    controller.mouse_movement(
+        &mut camera,
+        &CameraMode::ORBIT,
+        &MouseDelta {
+            delta_position: MovementDelta::new(4.0, -2.0),
+            state: MouseState::new(MouseButton::Left, MouseAction::Clicked),
+            is_mouse_on_window: true,
+            position: MousePosition::new(0.0, 0.0),
+        },
+        0.1,
+    );
+
+    assert!((camera.eye.distance(camera.target) - radius_after_keyboard).abs() < 0.001);
 }
 
 #[test]

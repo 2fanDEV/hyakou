@@ -2,37 +2,21 @@ use std::sync::RwLock;
 use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 use crate::{
-    flow::{FrameComposer, SceneFrameInput},
-    gpu::{
-        buffers::model_matrix::ModelMatrixUniform, glTF::ImportedScene, render_mesh::RenderMesh,
-    },
+    flow::FrameComposer,
+    gpu::{buffers::model_matrix::ModelMatrixUniform, render_mesh::RenderMesh},
     gui::EguiRenderer,
     renderer::{
-        frame::FrameTarget,
-        handlers::{InputEvent, asset_handler::AssetHandler},
-        renderer_context::RenderContext,
-        surface_frame_controller::SurfaceFrameController,
-        wrappers::WinitSurfaceProvider,
+        frame::FrameTarget, handlers::asset_handler::AssetHandler, renderer_context::RenderContext,
+        surface_frame_controller::SurfaceFrameController, wrappers::WinitSurfaceProvider,
     },
 };
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use bytemuck::bytes_of;
-use glam::{Vec3, Vec4};
+use glam::Vec4;
 use hyakou_core::{
     animations::Animator,
-    components::{
-        AssetType,
-        camera::{
-            camera::Camera,
-        },
-        light::LightSource,
-    },
-    geometry::ray::{Ray, math::intersect_transformed_mesh},
-    selection::structure::{SelectionScope, SelectionTarget},
-    types::{
-        DeltaTime64, ModelMatrixBindingMode, Size,
-        ids::MeshId,
-    },
+    components::{camera::camera::Camera, light::LightSource},
+    types::{DeltaTime64, ModelMatrixBindingMode, Size, ids::MeshId},
 };
 use log::error;
 use shared::SharedAccess;
@@ -52,6 +36,12 @@ pub mod wrappers;
 
 use gpu_resources::SceneGpuResources;
 
+pub struct SceneRenderInput<'a> {
+    pub normal_meshes: &'a [Rc<RenderMesh>],
+    pub light_meshes: &'a [Rc<RenderMesh>],
+    pub outlined_meshes: &'a [Rc<RenderMesh>],
+}
+
 pub struct SceneRenderer {
     inner: RwLock<SceneRendererInner>,
 }
@@ -60,11 +50,10 @@ struct SceneRendererInner {
     ctx: RenderContext,
     gpu_resources: SceneGpuResources,
     animators: HashMap<MeshId, Animator>,
-    asset_manager: AssetHandler,
 }
 
 impl SceneRenderer {
-    pub async fn new(window: Arc<Window>, camera: &Camera) -> Result<Self> {
+    pub async fn new(window: Arc<Window>, camera: &Camera) -> Result<(Self, AssetHandler)> {
         let ctx = RenderContext::new(Some(WinitSurfaceProvider {
             window: window.clone(),
         }))
@@ -81,14 +70,15 @@ impl SceneRenderer {
 
         let gpu_resources = SceneGpuResources::new(&ctx, camera)?;
 
-        Ok(Self {
+        let renderer = Self {
             inner: RwLock::new(SceneRendererInner {
                 ctx,
-                asset_manager: asset_handler,
                 gpu_resources,
                 animators: HashMap::new(),
             }),
-        })
+        };
+
+        Ok((renderer, asset_handler))
     }
 
     fn read_inner<F, R>(&self, f: F) -> R
@@ -113,7 +103,7 @@ impl SceneRenderer {
         egui_renderer: Option<&mut EguiRenderer>,
         dt: f64,
         camera: &Camera,
-        scene_input: SceneFrameInput<'_>,
+        render_input: SceneRenderInput<'_>,
     ) -> Result<()> {
         self.write_inner(|inner| {
             inner.update_gpu(dt, camera);
@@ -126,7 +116,7 @@ impl SceneRenderer {
             let mut egui_renderer = egui_renderer;
             {
                 let mut target = frame.target();
-                inner.render_scene(&mut target, scene_input);
+                inner.render_scene(&mut target, render_input);
                 frame_composer.compose_frame(
                     &mut target,
                     egui_renderer.as_mut().map(|renderer| &mut **renderer),
@@ -151,28 +141,12 @@ impl SceneRenderer {
         self.write_inner(|inner| surface_frame_controller.resize(&mut inner.ctx, size))
     }
 
-    pub fn resolve_selection_target(
-        &self,
-        ray: &Ray,
-        scope: SelectionScope,
-    ) -> Option<SelectionTarget> {
-        self.read_inner(|inner| inner.resolve_selection_target(ray, scope))
-    }
-
     pub fn viewport_size(&self) -> Size {
         self.read_inner(|inner| inner.viewport_size())
     }
 
-    pub fn upload_imported_scene(
-        &self,
-        id: String,
-        asset_type: AssetType,
-        imported_scene: ImportedScene,
-        display_file_name: &str,
-    ) -> Result<Rc<RenderMesh>> {
-        self.write_inner(|inner| {
-            inner.upload_imported_scene(id, asset_type, imported_scene, display_file_name)
-        })
+    pub fn set_light(&self, light: LightSource) -> Result<()> {
+        self.write_inner(|inner| inner.set_light(light))
     }
 
     pub fn set_outline_color(&self, color: Vec4) {
@@ -210,40 +184,8 @@ impl SceneRendererInner {
         self.gpu_resources.update(&self.ctx.queue, camera);
     }
 
-    fn resolve_selection_target(
-        &self,
-        ray: &Ray,
-        scope: SelectionScope,
-    ) -> Option<SelectionTarget> {
-        let hit_mesh_id = self.ray_cast(ray)?;
-        let outline_mesh_ids = self.asset_manager.selection_ids_for(&hit_mesh_id, &scope);
-
-        Some(SelectionTarget::new(hit_mesh_id, outline_mesh_ids, scope))
-    }
-
     fn viewport_size(&self) -> Size {
         self.ctx.size
-    }
-
-    fn upload_imported_scene(
-        &mut self,
-        id: String,
-        asset_type: AssetType,
-        imported_scene: ImportedScene,
-        display_file_name: &str,
-    ) -> Result<Rc<RenderMesh>> {
-        let render_mesh = self
-            .asset_manager
-            .upload_imported_scene(id, asset_type, imported_scene)
-            .ok_or_else(|| {
-                anyhow!("uploaded asset `{display_file_name}` produced no renderable meshes")
-            })?;
-
-        if asset_type == AssetType::LIGHT {
-            self.set_light(LightSource::new(render_mesh.transform.clone(), Vec3::ONE))?;
-        }
-
-        Ok(render_mesh)
     }
 
     fn set_outline_color(&mut self, color: Vec4) {
@@ -258,7 +200,7 @@ impl SceneRendererInner {
         self.gpu_resources.set_light(&self.ctx, light)
     }
 
-    fn render_scene(&mut self, target: &mut FrameTarget<'_>, input: SceneFrameInput<'_>) {
+    fn render_scene(&mut self, target: &mut FrameTarget<'_>, input: SceneRenderInput<'_>) {
         {
             target.encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Main Command Buffer"),
@@ -296,42 +238,38 @@ impl SceneRendererInner {
             let light_render_pipeline = &self.ctx.light_render_pipeline;
             let no_light_render_pipeline = &self.ctx.no_light_render_pipeline;
 
-            self.asset_manager
-                .get_all_visible_assets_with_modifier(&AssetType::NORMAL)
-                .for_each(|elem| {
-                    Self::record_scene_pass_command_encoder(
-                        target,
-                        elem,
-                        light_render_pipeline,
-                        model_binding_mode,
-                        camera_bind_group,
-                        light_bind_group,
-                    );
-                });
+            for elem in input.normal_meshes {
+                Self::record_scene_pass_command_encoder(
+                    target,
+                    elem,
+                    light_render_pipeline,
+                    model_binding_mode,
+                    camera_bind_group,
+                    light_bind_group,
+                );
+            }
 
-            self.asset_manager
-                .get_all_visible_assets_with_modifier(&AssetType::LIGHT)
-                .for_each(|elem| {
-                    Self::record_scene_pass_command_encoder(
-                        target,
-                        elem,
-                        no_light_render_pipeline,
-                        model_binding_mode,
-                        camera_bind_group,
-                        light_bind_group,
-                    );
-                });
+            for elem in input.light_meshes {
+                Self::record_scene_pass_command_encoder(
+                    target,
+                    elem,
+                    no_light_render_pipeline,
+                    model_binding_mode,
+                    camera_bind_group,
+                    light_bind_group,
+                );
+            }
         }
 
-        self.render_outlined_meshes(target, input.outlined_mesh_ids);
+        self.render_outlined_meshes(target, input.outlined_meshes);
     }
 
     fn render_outlined_meshes(
         &mut self,
         target: &mut FrameTarget<'_>,
-        outlined_mesh_ids: &[MeshId],
+        outlined_meshes: &[Rc<RenderMesh>],
     ) {
-        if outlined_mesh_ids.is_empty() {
+        if outlined_meshes.is_empty() {
             return;
         }
 
@@ -371,11 +309,7 @@ impl SceneRendererInner {
             &[],
         );
 
-        for outlined_mesh_id in outlined_mesh_ids {
-            let Some(render_mesh) = self.asset_manager.get_visible_asset(outlined_mesh_id) else {
-                continue;
-            };
-
+        for render_mesh in outlined_meshes {
             Self::record_outline_draw_commands(
                 &mut render_pass,
                 render_mesh,
@@ -494,32 +428,5 @@ impl SceneRendererInner {
             ModelMatrixBindingMode::Immediate => 2,
             ModelMatrixBindingMode::Uniform => 3,
         }
-    }
-
-    fn ray_cast(&self, ray: &Ray) -> Option<MeshId> {
-        let mut closest_hit: Option<(MeshId, f32)> = None;
-
-        for render_mesh in self.asset_manager.get_all_visible_assets() {
-            let hit = render_mesh
-                .transform
-                .try_read_shared(|transform| {
-                    intersect_transformed_mesh(ray, &render_mesh.mesh, transform)
-                })
-                .ok()
-                .flatten();
-
-            let Some(hit) = hit else {
-                continue;
-            };
-
-            if closest_hit
-                .as_ref()
-                .is_none_or(|(_, distance)| hit.distance < *distance)
-            {
-                closest_hit = Some((render_mesh.id.clone(), hit.distance));
-            }
-        }
-
-        closest_hit.map(|(mesh_id, _)| mesh_id)
     }
 }

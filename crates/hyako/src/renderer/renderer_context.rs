@@ -42,7 +42,7 @@ pub struct RenderContext {
     pub outline_bind_group_layout: BindGroupLayout,
     pub model_binding_mode: ModelMatrixBindingMode,
     pub depth_texture: Texture,
-    pub queue: Queue,
+    pub queue: Arc<Queue>,
 }
 
 impl RenderContext {
@@ -98,6 +98,7 @@ impl RenderContext {
             .await?;
 
         let device = Arc::new(device);
+        let queue = Arc::new(queue);
 
         let size = if provider.is_some() {
             provider.unwrap().get_size()

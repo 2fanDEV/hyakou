@@ -48,7 +48,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    const MIN_TIME_IN_SECONDS: f64 = 0.05;
+    const MAX_DELTA_SECONDS: f64 = 0.05;
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Result<Self> {
@@ -101,9 +101,9 @@ impl AppState {
         delta_time
     }
 
-    fn get_last_frame_time(&mut self, now: Instant) -> DeltaTime64 {
+    fn get_last_frame_time(&self, now: Instant) -> DeltaTime64 {
         let delta = now.duration_since(self.last_frame_time);
-        delta.as_secs_f64().min(Self::MIN_TIME_IN_SECONDS)
+        delta.as_secs_f64().min(Self::MAX_DELTA_SECONDS)
     }
 
     fn send_and_drain(&mut self, command: FlowCommand) {
@@ -182,73 +182,10 @@ impl ApplicationHandler<Event> for AppState {
                     files,
                 });
             }
-            Event::WindowEvent {
-                window_id: _,
-                event,
-            } => match event {
-                WindowEvent::RedrawRequested => {
-                    let dt = self.get_and_update_last_frame_time();
-                    self.send_and_drain(FlowCommand::Redraw { dt });
-                }
-                WindowEvent::Resized(size) => {
-                    let dt = self.get_and_update_last_frame_time();
-                    self.send_and_drain(FlowCommand::Resize {
-                        dt,
-                        width: size.width as f64,
-                        height: size.height as f64,
-                    });
-                }
-                WindowEvent::KeyboardInput { event, .. } => {
-                    if let PhysicalKey::Code(key_code) = event.physical_key {
-                        self.send_and_drain(FlowCommand::KeyboardInput {
-                            key: key_code,
-                            pressed: event.state == ElementState::Pressed,
-                        });
-                    }
-                }
-                WindowEvent::CursorEntered { .. } => {
-                    self.send_and_drain(FlowCommand::CursorInWindow { is_inside: true });
-                }
-                WindowEvent::CursorLeft { .. } => {
-                    self.send_and_drain(FlowCommand::CursorInWindow { is_inside: false });
-                }
-                WindowEvent::CursorMoved { position, .. } => {
-                    self.send_and_drain(FlowCommand::CursorMoved {
-                        x: position.x,
-                        y: position.y,
-                    });
-                }
-                WindowEvent::MouseInput { button, state, .. } => {
-                    self.send_and_drain(FlowCommand::MouseButton {
-                        button: MouseButton::from_winit(button),
-                        pressed: state == ElementState::Pressed,
-                    });
-                }
-                _ => {}
-            },
             Event::Resize(width, height) => {
                 let dt = self.get_and_update_last_frame_time();
-                self.send_and_drain(FlowCommand::Resize {
-                    dt,
-                    width,
-                    height,
-                });
+                self.send_and_drain(FlowCommand::Resize { dt, width, height });
             }
-            Event::DeviceEvent {
-                device_id: _,
-                event,
-            } => match event {
-                DeviceEvent::MouseMotion { delta } => {
-                    let dt = self.get_and_update_last_frame_time() as f32;
-                    self.send_and_drain(FlowCommand::MouseMotion {
-                        dx: delta.0,
-                        dy: delta.1,
-                        dt,
-                    });
-                }
-                _ => {}
-            },
-            _ => {}
         }
     }
 
@@ -258,11 +195,85 @@ impl ApplicationHandler<Event> for AppState {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        if self
-            .flow_controller
-            .handle_egui_window_event(&event)
-        {
-            return;
+        let egui_consumed = self.flow_controller.handle_egui_window_event(&event);
+
+        match event {
+            WindowEvent::RedrawRequested => {
+                let dt = self.get_and_update_last_frame_time();
+                self.send_and_drain(FlowCommand::Redraw { dt });
+            }
+            WindowEvent::Resized(size) => {
+                let dt = self.get_and_update_last_frame_time();
+                self.send_and_drain(FlowCommand::Resize {
+                    dt,
+                    width: size.width as f64,
+                    height: size.height as f64,
+                });
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if egui_consumed {
+                    return;
+                }
+                if let PhysicalKey::Code(key_code) = event.physical_key {
+                    self.send_and_drain(FlowCommand::KeyboardInput {
+                        key: key_code,
+                        pressed: event.state == ElementState::Pressed,
+                    });
+                }
+            }
+            WindowEvent::CursorEntered { .. } => {
+                if egui_consumed {
+                    return;
+                }
+                self.send_and_drain(FlowCommand::CursorInWindow { is_inside: true });
+            }
+            WindowEvent::CursorLeft { .. } => {
+                if egui_consumed {
+                    return;
+                }
+                self.send_and_drain(FlowCommand::CursorInWindow { is_inside: false });
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                if egui_consumed {
+                    return;
+                }
+                self.send_and_drain(FlowCommand::CursorMoved {
+                    x: position.x,
+                    y: position.y,
+                });
+            }
+            _ => {}
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
+        event: DeviceEvent,
+    ) {
+        match event {
+            DeviceEvent::MouseMotion { delta } => {
+                let dt = self.get_and_update_last_frame_time() as f32;
+                self.send_and_drain(FlowCommand::MouseMotion {
+                    dx: delta.0,
+                    dy: delta.1,
+                    dt,
+                });
+            }
+            DeviceEvent::Button { button, state } => {
+                let mouse_button = match button {
+                    0 => MouseButton::Left,
+                    1 => MouseButton::Right,
+                    2 => MouseButton::Middle,
+                    _ => return,
+                };
+                self.send_and_drain(FlowCommand::MouseButton {
+                    button: mouse_button,
+                    pressed: state == ElementState::Pressed,
+                });
+            }
+            _ => {}
         }
     }
 }
@@ -270,21 +281,31 @@ impl ApplicationHandler<Event> for AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[test]
     fn test_accurate_calculation() {
-        let state = AppState::new().unwrap();
+        let mut state = AppState::new().unwrap();
 
         let delta_time = state.get_and_update_last_frame_time();
         assert!(delta_time.is_finite());
     }
 
     #[test]
-    fn test_clamping_strategy() {
+    fn test_delta_is_not_forced_to_maximum() {
         let state = AppState::new().unwrap();
 
         let last_frame_time_instant = state.last_frame_time;
         let delta_time = state.get_last_frame_time(last_frame_time_instant);
-        assert_eq!(delta_time, AppState::MIN_TIME_IN_SECONDS);
+        assert_eq!(delta_time, 0.0);
+    }
+
+    #[test]
+    fn test_delta_is_capped_to_maximum() {
+        let state = AppState::new().unwrap();
+
+        let now = state.last_frame_time + Duration::from_secs(1);
+        let delta_time = state.get_last_frame_time(now);
+        assert_eq!(delta_time, AppState::MAX_DELTA_SECONDS);
     }
 }

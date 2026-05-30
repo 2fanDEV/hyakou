@@ -18,14 +18,16 @@ use crate::gpu::{
 
 use hyakou_core::{
     components::{AssetType, mesh_node::MeshNode},
-    selection::structure::SelectionScope,
+    geometry::ray::{Ray, math::intersect_transformed_mesh},
+    selection::structure::{SelectionScope, SelectionTarget},
     types::{ModelMatrixBindingMode, ids::MeshId},
 };
+use shared::SharedAccess;
 
 #[derive(Debug)]
 pub struct AssetHandler {
     device: Arc<Device>,
-    queue: Queue,
+    queue: Arc<Queue>,
     model_binding_mode: ModelMatrixBindingMode,
     model_bind_group_layout: Option<BindGroupLayout>,
     material_bind_group_layout: BindGroupLayout,
@@ -39,7 +41,7 @@ pub struct AssetHandler {
 impl AssetHandler {
     pub fn new(
         device: Arc<Device>,
-        queue: Queue,
+        queue: Arc<Queue>,
         model_binding_mode: ModelMatrixBindingMode,
         model_bind_group_layout: Option<BindGroupLayout>,
         material_bind_group_layout: BindGroupLayout,
@@ -288,6 +290,44 @@ impl AssetHandler {
                 .cloned()
                 .unwrap_or_else(|| vec![hit_mesh_id.clone()]),
         }
+    }
+
+    pub fn ray_cast(&self, ray: &Ray) -> Option<MeshId> {
+        let mut closest_hit: Option<(MeshId, f32)> = None;
+
+        for render_mesh in self.get_all_visible_assets() {
+            let hit = render_mesh
+                .transform
+                .try_read_shared(|transform| {
+                    intersect_transformed_mesh(ray, &render_mesh.mesh, transform)
+                })
+                .ok()
+                .flatten();
+
+            let Some(hit) = hit else {
+                continue;
+            };
+
+            if closest_hit
+                .as_ref()
+                .is_none_or(|(_, distance)| hit.distance < *distance)
+            {
+                closest_hit = Some((render_mesh.id.clone(), hit.distance));
+            }
+        }
+
+        closest_hit.map(|(mesh_id, _)| mesh_id)
+    }
+
+    pub fn resolve_selection_target(
+        &self,
+        ray: &Ray,
+        scope: SelectionScope,
+    ) -> Option<SelectionTarget> {
+        let hit_mesh_id = self.ray_cast(ray)?;
+        let outline_mesh_ids = self.selection_ids_for(&hit_mesh_id, &scope);
+
+        Some(SelectionTarget::new(hit_mesh_id, outline_mesh_ids, scope))
     }
 
     pub fn toggle_visibility(&mut self, id: String) {

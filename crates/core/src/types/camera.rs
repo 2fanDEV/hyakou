@@ -30,6 +30,7 @@ impl Yaw {
 
     pub fn update(&mut self, yaw: f32) {
         self.value = yaw;
+        self.previous_delta = F32_ZERO;
     }
 
     pub fn add(&mut self, value: f32, one_minus_smoothing_value: f32, smoothing_factor: f32) {
@@ -75,6 +76,7 @@ impl Pitch {
 
     pub fn update(&mut self, pitch: f32) {
         self.value = pitch;
+        self.previous_delta = F32_ZERO;
     }
 
     pub fn add(&mut self, value: f32, one_minus_smoothing_value: f32, smoothing_factor: f32) {
