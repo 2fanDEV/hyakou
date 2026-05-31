@@ -20,7 +20,7 @@ use winit::{
 
 use hyakou_core::{components::AssetType, events::Event, types::DeltaTime64};
 
-use crate::types::mouse::MouseButton;
+use crate::{flow::CameraController, renderer::SceneRenderer, types::mouse::MouseButton};
 
 use crate::{
     ecs::{CameraControllerHandle, SceneRendererHandle, init_world},
@@ -72,12 +72,17 @@ impl AppState {
         schedule: Rc<RefCell<Schedule>>,
         upload_status_callback: Rc<RefCell<Option<js_sys::Function>>>,
     ) -> Result<Self> {
-        let (flow_controller, flow_handle) = FlowController::new_pair(upload_status_callback);
+        let renderer = shared(None);
+        let camera = shared(None);
+        let (flow_controller, flow_handle) =
+            FlowController::new_pair(renderer.clone(), camera.clone(), upload_status_callback);
         Ok(Self {
             window: None,
             html_canvas_element: Some(canvas_ref),
             flow_controller,
             flow_handle,
+            renderer,
+            camera,
             last_frame_time: Instant::now(),
             world,
             schedule,

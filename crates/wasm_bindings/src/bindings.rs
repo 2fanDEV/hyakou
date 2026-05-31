@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
+<<<<<<< HEAD
 use hyako::{
     ecs::{CameraControllerHandle, SceneRendererHandle},
     state::AppState,
 };
+=======
+use hyako::{flow::CameraController, renderer::SceneRenderer, state::AppState};
+>>>>>>> 94dc0d80d66fa9b963fb997b88bca6320251a8f2
 use hyakou_core::{
     components::{LightType, camera::data_structures::CameraMode},
     events::Event,
@@ -25,8 +29,13 @@ use crate::{CameraAnimationOptions, CameraAnimationStateDO, CameraDO};
 #[wasm_bindgen]
 pub struct Hyako {
     app_state: Option<AppState>,
+<<<<<<< HEAD
     world: Rc<RefCell<World>>,
     schedule: Rc<RefCell<Schedule>>,
+=======
+    renderer: Shared<Option<Arc<SceneRenderer>>>,
+    camera: Shared<Option<Arc<CameraController>>>,
+>>>>>>> 94dc0d80d66fa9b963fb997b88bca6320251a8f2
     event_loop: Option<EventLoop<Event>>,
     event_loop_proxy: EventLoopProxy<Event>,
     upload_status_callback: std::rc::Rc<std::cell::RefCell<Option<js_sys::Function>>>,
@@ -62,10 +71,19 @@ impl Hyako {
             Err(error) => return Err(JsValue::from_str(&error.to_string())),
         };
         let event_loop_proxy = event_loop.create_proxy();
+<<<<<<< HEAD
         Ok(Hyako {
             app_state: Some(app_state),
             world,
             schedule,
+=======
+        let renderer = app_state.renderer();
+        let camera = app_state.camera();
+        Ok(Hyako {
+            app_state: Some(app_state),
+            renderer,
+            camera,
+>>>>>>> 94dc0d80d66fa9b963fb997b88bca6320251a8f2
             event_loop: Some(event_loop),
             event_loop_proxy,
             upload_status_callback,
@@ -143,15 +161,22 @@ impl Hyako {
 
     #[wasm_bindgen]
     pub fn get_camera(&self) -> Result<CameraDO, JsValue> {
+<<<<<<< HEAD
         let world = self.world.borrow();
         let handle = world
             .get_resource::<CameraControllerHandle>()
             .ok_or_else(|| JsValue::from_str("Camera controller not initialized"))?;
         Ok(CameraDO::from_camera(&handle.0.active_camera()))
+=======
+        self.read_camera(|camera_controller| {
+            CameraDO::from_camera(&camera_controller.active_camera())
+        })
+>>>>>>> 94dc0d80d66fa9b963fb997b88bca6320251a8f2
     }
 
     #[wasm_bindgen]
     pub fn get_camera_animation_state(&self) -> Result<CameraAnimationStateDO, JsValue> {
+<<<<<<< HEAD
         let world = self.world.borrow();
         let handle = world
             .get_resource::<CameraControllerHandle>()
@@ -159,6 +184,11 @@ impl Hyako {
         Ok(CameraAnimationStateDO::from_snapshot(
             handle.0.camera_animation_state(),
         ))
+=======
+        self.read_camera(|camera_controller| {
+            CameraAnimationStateDO::from_snapshot(camera_controller.camera_animation_state())
+        })
+>>>>>>> 94dc0d80d66fa9b963fb997b88bca6320251a8f2
     }
 
     #[wasm_bindgen]
@@ -183,11 +213,17 @@ impl Hyako {
 
     #[wasm_bindgen]
     pub fn is_renderer_ready(&mut self) -> Result<bool, JsValue> {
+<<<<<<< HEAD
         Ok(self
             .world
             .borrow()
             .get_resource::<SceneRendererHandle>()
             .is_some())
+=======
+        self.renderer
+            .try_read_shared(|renderer| renderer.is_some())
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+>>>>>>> 94dc0d80d66fa9b963fb997b88bca6320251a8f2
     }
 
     #[wasm_bindgen(js_name = setUploadStatusListener)]
@@ -200,6 +236,19 @@ impl Hyako {
             Ok(_) => Ok(()),
             Err(msg) => Err(JsValue::from_str(&msg.to_string())),
         }
+    }
+
+    fn read_camera<F, R>(&self, f: F) -> Result<R, JsValue>
+    where
+        F: FnOnce(&CameraController) -> R,
+    {
+        self.camera
+            .try_read_shared(|camera| {
+                camera.as_ref().map(|cc| f(cc.as_ref())).ok_or_else(|| {
+                    JsValue::from_str("Camera controller missing or not initialized")
+                })
+            })
+            .map_err(|error| JsValue::from_str(&error.to_string()))?
     }
 }
 
