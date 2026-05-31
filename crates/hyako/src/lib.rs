@@ -1,3 +1,4 @@
+pub mod ecs;
 pub mod flow;
 pub mod gpu;
 pub mod gui;

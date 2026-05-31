@@ -8,7 +8,10 @@ use crate::{
 use hyakou_core::{
     components::{
         AssetType,
-        camera::data_structures::{CameraAnimationRequest, CameraMode},
+        camera::{
+            camera::Camera,
+            data_structures::{CameraAnimationRequest, CameraMode},
+        },
     },
     selection::structure::SelectionScope,
 };
@@ -72,6 +75,7 @@ pub enum FlowCommand {
     },
     RequestFrame {
         dt: f64,
+        camera: Camera,
     },
     HandleResize {
         dt: f64,

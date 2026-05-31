@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use bevy_ecs::resource::Resource;
 use shared::id::Id;
 
 use hyakou_core::{
@@ -10,7 +11,7 @@ use hyakou_core::{
     types::shared::Coordinates3,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Resource)]
 pub struct CameraState {
     pub camera_transition: HashMap<Id, CameraTransition>,
 }
