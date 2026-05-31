@@ -1,3 +1,5 @@
+use bevy_ecs::component::Component;
+use bevy_ecs::event::Event;
 use glam::Vec3;
 use strum::VariantArray;
 use strum_macros::{EnumIter, VariantArray};
@@ -6,7 +8,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use crate::types::{DeltaTime, shared::Coordinates3};
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, VariantArray, EnumIter, PartialEq, Eq)]
+#[derive(Clone, Debug, VariantArray, EnumIter, PartialEq, Eq, Component)]
 pub enum CameraMode {
     FLY,
     PAN,
@@ -60,7 +62,7 @@ impl CameraAnimationEasing {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Event)]
 pub struct CameraAnimationRequest {
     target_coords: Coordinates3,
     duration_seconds: Option<f32>,
@@ -142,7 +144,7 @@ impl CameraAnimationStateSnapshot {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Component)]
 pub struct CameraTransition {
     start_coords: Coordinates3,
     target_coords: Coordinates3,
