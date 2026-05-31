@@ -8,8 +8,10 @@ use hyakou_core::{
         camera::Camera,
         data_structures::{CameraAxes, CameraMode, CameraTransition},
     },
-    types::{DeltaTime, mouse_delta::MouseDelta},
+    types::DeltaTime,
 };
+
+use crate::types::mouse::MouseDelta;
 
 #[derive(Debug)]
 pub struct CameraMovementHandler {

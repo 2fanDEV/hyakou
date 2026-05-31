@@ -20,11 +20,9 @@ use winit::{
 
 use shared::{Shared, shared};
 
-use hyakou_core::{
-    components::AssetType,
-    events::Event,
-    types::{DeltaTime64, mouse_delta::MouseButton},
-};
+use hyakou_core::{components::AssetType, events::Event, types::DeltaTime64};
+
+use crate::types::mouse::MouseButton;
 
 use crate::{
     flow::{CameraController, FlowCommand, FlowController, FlowHandle},

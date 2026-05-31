@@ -7,8 +7,10 @@ use hyakou_core::{
         camera::Camera,
         data_structures::{CameraAnimationRequest, CameraAnimationStateSnapshot, CameraMode},
     },
-    types::{DeltaTime64, Size, camera::Pitch, mouse_delta::MouseDelta},
+    types::{DeltaTime64, Size, camera::Pitch},
 };
+
+use crate::types::mouse::MouseDelta;
 
 use crate::renderer::{handlers::InputEvent, handlers::camera::CameraHandler};
 

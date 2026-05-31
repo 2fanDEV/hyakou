@@ -10,8 +10,10 @@ use hyakou_core::{
     },
     geometry::ray::Ray,
     selection::structure::{SelectionScope, SelectionTarget},
-    types::{Size, mouse_delta::MouseDelta},
+    types::Size,
 };
+
+use crate::types::mouse::MouseDelta;
 use log::error;
 use shared::{Shared, SharedAccess};
 use winit::window::Window;

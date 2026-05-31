@@ -2,12 +2,8 @@ use ::shared::{Shared, SharedAccess};
 use bevy_ecs::component::Component;
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
-use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,
-};
 
-use crate::{traits::BindGroupProvider, types::transform::Transform};
+use crate::types::transform::Transform;
 
 #[derive(Component, Debug, Clone)]
 pub struct LightSource {
@@ -17,8 +13,6 @@ pub struct LightSource {
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
-// NOTE: This is GPU-facing data in core for now. Move it into hyako when the
-// render boundary is finalized during the ECS migration.
 pub struct GpuLightSource {
     transform: Transform,
     color: Vec3,
@@ -43,42 +37,5 @@ impl LightSource {
                 _padding_2: 0.0,
             })
             .ok()
-    }
-}
-
-impl BindGroupProvider for LightSource {
-    fn bind_group_layout(device: &Device) -> BindGroupLayout {
-        device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("Light Source"),
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        })
-    }
-
-    fn bind_group(
-        device: &Device,
-        buffer: &Buffer,
-        bind_group_layout: &BindGroupLayout,
-    ) -> BindGroup {
-        device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Light Bind Group"),
-            layout: bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Buffer(BufferBinding {
-                    buffer: &buffer,
-                    offset: 0,
-                    size: None,
-                }),
-            }],
-        })
     }
 }

@@ -1,8 +1,6 @@
+use crate::types::mouse::{MouseAction, MouseButton, MousePosition, MouseState, MovementDelta};
 use glam::Vec3;
-use hyakou_core::types::{
-    camera::{Pitch, Yaw},
-    mouse_delta::{MouseAction, MouseButton, MousePosition, MouseState, MovementDelta},
-};
+use hyakou_core::types::camera::{Pitch, Yaw};
 
 use super::*;
 

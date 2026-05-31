@@ -7,12 +7,12 @@ use wgpu::{
 use crate::{
     gpu::buffers::{model_matrix::ModelMatrixUniform, uniform::UniformBuffer},
     gpu::material::GpuMaterial,
+    gpu::traits::BindGroupProvider,
 };
 
 use hyakou_core::{
     components::{AssetType, mesh_node::MeshNode},
     geometry::mesh::Mesh,
-    traits::BindGroupProvider,
     types::{
         ModelMatrixBindingMode,
         ids::{MeshId, UniformBufferId},

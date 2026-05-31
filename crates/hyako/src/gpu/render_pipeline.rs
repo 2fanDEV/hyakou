@@ -1,4 +1,5 @@
-use hyakou_core::{geometry::vertices::Vertex, traits::BufferLayoutProvider};
+use crate::gpu::traits::BufferLayoutProvider;
+use hyakou_core::geometry::vertices::Vertex;
 use wgpu::{
     BlendState, ColorTargetState, ColorWrites, Device, FragmentState, MultisampleState,
     PipelineCompilationOptions, PipelineLayout, PrimitiveState, RenderPipeline,

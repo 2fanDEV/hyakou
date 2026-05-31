@@ -1,6 +1,6 @@
+use crate::gpu::traits::BindGroupProvider;
 use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
-use hyakou_core::traits::BindGroupProvider;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,

@@ -11,8 +11,9 @@ use hyakou_core::{
         camera::data_structures::{CameraAnimationRequest, CameraMode},
     },
     selection::structure::SelectionScope,
-    types::mouse_delta::MouseButton,
 };
+
+use crate::types::mouse::MouseButton;
 
 use winit::{keyboard::KeyCode, window::Window};
 

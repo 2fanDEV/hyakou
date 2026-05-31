@@ -1750,8 +1750,6 @@ dependencies = [
  "strum_macros 0.28.0",
  "uuid",
  "wasm-bindgen",
- "wgpu",
- "winit",
 ]
 
 [[package]]

@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use hyakou_core::{
     components::light::LightSource,
-    traits::BindGroupProvider,
     types::{ModelMatrixBindingMode, Size},
 };
 use log::warn;
@@ -22,6 +21,7 @@ use crate::{
         outline::OutlineUniform,
         render_pipeline::{create_outline_render_pipeline, create_render_pipeline},
         texture::Texture,
+        traits::BindGroupProvider,
     },
     renderer::wrappers::SurfaceProvider,
 };

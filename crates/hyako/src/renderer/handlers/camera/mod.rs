@@ -1,7 +1,9 @@
 use hyakou_core::{
     components::camera::{camera::Camera, data_structures::CameraMode},
-    types::{DeltaTime, mouse_delta::MouseDelta},
+    types::DeltaTime,
 };
+
+use crate::types::mouse::MouseDelta;
 
 use crate::renderer::{
     actions::Action,

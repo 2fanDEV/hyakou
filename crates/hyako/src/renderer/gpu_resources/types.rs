@@ -3,7 +3,6 @@ use bytemuck::bytes_of;
 use glam::Vec4;
 use hyakou_core::{
     components::{camera::camera::Camera, light::LightSource},
-    traits::BindGroupProvider,
     types::ids::UniformBufferId,
 };
 use log::warn;
@@ -13,6 +12,7 @@ use crate::{
     gpu::{
         buffers::{camera_buffer::CameraUniform, uniform::UniformBuffer},
         outline::OutlineUniform,
+        traits::BindGroupProvider,
     },
     renderer::renderer_context::RenderContext,
 };
