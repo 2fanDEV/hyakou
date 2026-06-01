@@ -84,7 +84,7 @@ fn vertex_colors_glb_bytes() -> Vec<u8> {
     { "bufferView": 3, "byteOffset": 0, "componentType": 5123, "count": 3, "max": [2], "min": [0], "type": "SCALAR" }
   ]
 }"#;
-    let bin = include_bytes!("../../assets/gltf/test_fixtures/vertex_colors.bin");
+    let bin = include_bytes!("../../../assets/gltf/test_fixtures/vertex_colors.bin");
 
     let mut json_chunk = json.to_vec();
     while json_chunk.len() % 4 != 0 {
@@ -234,7 +234,7 @@ fn test_load_from_path_reports_missing_external_sidecar() {
 fn test_load_from_bytes_rejects_relative_external_buffer() {
     assert_loader_error_contains(
         load_from_bytes(
-            include_bytes!("../../assets/gltf/test_fixtures/vertex_colors.gltf").to_vec(),
+            include_bytes!("../../../assets/gltf/test_fixtures/vertex_colors.gltf").to_vec(),
         ),
         "cannot be resolved from in-memory glTF bytes",
     );
@@ -321,7 +321,7 @@ fn test_load_from_path_reads_data_uri_buffer() {
 #[test]
 fn test_load_from_bytes_reads_data_uri_buffer() {
     let imported_scene = load_from_bytes(
-        include_bytes!("../../assets/gltf/test_fixtures/vertex_colors_data_uri.gltf").to_vec(),
+        include_bytes!("../../../assets/gltf/test_fixtures/vertex_colors_data_uri.gltf").to_vec(),
     )
     .unwrap();
 

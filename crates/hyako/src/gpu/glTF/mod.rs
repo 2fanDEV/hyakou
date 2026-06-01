@@ -119,5 +119,4 @@ impl Default for GLTFLoader {
 }
 
 #[cfg(test)]
-#[path = "../gltf_tests.rs"]
 mod tests;

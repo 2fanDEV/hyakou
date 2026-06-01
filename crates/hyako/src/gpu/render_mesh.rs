@@ -7,7 +7,7 @@ use wgpu::{
 use crate::{
     gpu::buffers::{model_matrix::ModelMatrixUniform, uniform::UniformBuffer},
     gpu::material::GpuMaterial,
-    gpu::traits::BindGroupProvider,
+    gpu::uniform::BindGroupProvider,
 };
 
 use hyakou_core::{

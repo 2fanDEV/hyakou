@@ -12,9 +12,12 @@ use crate::renderer::{
     },
 };
 
+mod controller;
 pub mod mode;
 pub mod movement;
 pub mod state;
+
+pub use controller::CameraController;
 
 pub struct CameraHandler {
     movement_handler: CameraMovementHandler,

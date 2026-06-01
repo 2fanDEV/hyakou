@@ -12,6 +12,10 @@ use crate::{
     renderer::{handlers::asset_handler::AssetHandler, renderer_context::RenderContext},
 };
 
+mod upload;
+
+pub use upload::AssetUploadController;
+
 pub struct AssetController {
     handler: AssetHandler,
 }

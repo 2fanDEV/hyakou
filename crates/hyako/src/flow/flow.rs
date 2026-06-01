@@ -9,9 +9,10 @@ use log::{debug, warn};
 use crate::{
     flow::{
         AssetUploadController, CameraController, FlowCommand, FlowCommandSender, FrameComposer,
-        InputController, RenderController, selection_controller::SelectionController,
+        InputController, RenderController,
     },
     renderer::SceneRenderer,
+    selection::controller::SelectionController,
 };
 
 pub struct FlowController {

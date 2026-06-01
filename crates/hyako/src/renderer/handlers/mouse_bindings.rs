@@ -1,9 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
-use log::{trace, warn};
 use smallvec::{SmallVec, smallvec};
 
-use crate::renderer::actions::{Action, CameraActions};
+use crate::renderer::{
+    actions::{Action, CameraActions},
+    handlers::binding_map::BindingMap,
+};
 use crate::types::mouse::MouseButton;
 
 const MAX_MOUSE_BUTTON_BIND_COUNT: usize = 5;
@@ -22,46 +24,38 @@ impl MouseBinding {
 
 #[derive(Debug, Default)]
 pub struct MouseBindingMap {
-    bindings: HashMap<MouseBinding, Action>,
+    bindings: BindingMap<MouseBinding>,
 }
 
 impl MouseBindingMap {
     pub fn initialize() -> Self {
-        let mut bindings = HashMap::new();
-        bindings.insert(
-            MouseBinding::new(smallvec![MouseButton::Left]),
-            Action::Camera(CameraActions::Drag),
-        );
-        Self { bindings }
+        Self {
+            bindings: BindingMap::from_entries([(
+                MouseBinding::new(smallvec![MouseButton::Left]),
+                Action::Camera(CameraActions::Drag),
+            )]),
+        }
     }
 
     pub fn add_binding(&mut self, mouse_binding: MouseBinding, action: Action) {
-        if self.get_binding(&mouse_binding).is_some() {
-            warn!("The binding is already in use!");
-        } else {
-            self.bindings.insert(mouse_binding, action);
-        }
+        self.bindings.add_binding(mouse_binding, action);
     }
 
     pub fn change_binding(&mut self, previous_bindings: MouseBinding, new_binding: MouseBinding) {
-        if let Some(action) = self.remove_binding(&previous_bindings) {
-            self.add_binding(new_binding, action);
-        } else {
-            trace!("Previous Binding did not exist! Binding new binding to action");
-        }
+        self.bindings.change_binding(previous_bindings, new_binding);
     }
 
     pub fn get_binding(&self, registered_binding: &MouseBinding) -> Option<&Action> {
-        self.bindings.get(registered_binding)
+        self.bindings.get_binding(registered_binding)
     }
 
     pub fn remove_binding(&mut self, previous_bindings: &MouseBinding) -> Option<Action> {
-        self.bindings.remove(previous_bindings)
+        self.bindings.remove_binding(previous_bindings)
     }
 
     pub fn resolve_active_actions(&self, pressed_buttons: &HashSet<MouseButton>) -> Vec<Action> {
         let mut active_actions = Vec::new();
-        for (binding, action) in &self.bindings {
+        for (binding, action) in self.bindings.iter() {
             if binding
                 .buttons
                 .iter()

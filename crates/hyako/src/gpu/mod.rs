@@ -1,5 +1,4 @@
 pub mod buffers;
-pub mod drawables;
 #[allow(non_snake_case)]
 pub mod glTF;
 pub mod light;
@@ -9,5 +8,5 @@ pub mod outline;
 pub mod render_mesh;
 pub mod render_pipeline;
 pub mod texture;
-pub mod traits;
+pub mod uniform;
 pub mod vertex;

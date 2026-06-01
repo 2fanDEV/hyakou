@@ -20,7 +20,7 @@ use winit::{
 
 use hyakou_core::{components::AssetType, events::Event, types::DeltaTime64};
 
-use crate::{flow::CameraController, renderer::SceneRenderer, types::mouse::MouseButton};
+use crate::types::mouse::MouseButton;
 
 use crate::{
     ecs::{CameraControllerHandle, SceneRendererHandle, init_world},

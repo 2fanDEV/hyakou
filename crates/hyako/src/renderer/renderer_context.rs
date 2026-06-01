@@ -1,29 +1,16 @@
 use std::sync::Arc;
 
-use anyhow::{Result, anyhow};
-use hyakou_core::{
-    components::light::LightSource,
-    types::{ModelMatrixBindingMode, Size},
-};
-use log::warn;
+use anyhow::Result;
+use hyakou_core::types::{ModelMatrixBindingMode, Size};
 use wgpu::{
     Backends, BindGroupLayout, Device, DeviceDescriptor, ExperimentalFeatures, Features,
     FeaturesWebGPU, Instance, InstanceDescriptor, InstanceFlags, Limits, MemoryHints, Queue,
-    RenderPipeline, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat,
-    TextureUsages, include_wgsl,
+    RenderPipeline, RequestAdapterOptions, Surface, SurfaceConfiguration,
 };
 
 use crate::{
-    gpu::{
-        buffers::camera_buffer::CameraUniform,
-        buffers::model_matrix::ModelMatrixUniform,
-        material::GpuMaterial,
-        outline::OutlineUniform,
-        render_pipeline::{create_outline_render_pipeline, create_render_pipeline},
-        texture::Texture,
-        traits::BindGroupProvider,
-    },
-    renderer::wrappers::SurfaceProvider,
+    gpu::texture::Texture,
+    renderer::{pipelines, surface, wrappers::SurfaceProvider},
 };
 
 pub struct RenderContext {
@@ -46,8 +33,8 @@ pub struct RenderContext {
 }
 
 impl RenderContext {
-    const IMMEDIATE_MODEL_MATRIX_SIZE: u32 = 64;
-    const DEPTH_TEXTURE_LABEL: &str = "Depth Texture";
+    pub(super) const IMMEDIATE_MODEL_MATRIX_SIZE: u32 = 64;
+    pub(super) const DEPTH_TEXTURE_LABEL: &str = "Depth Texture";
 
     pub async fn new<T>(provider: Option<T>) -> Result<Self>
     where
@@ -100,18 +87,17 @@ impl RenderContext {
         let device = Arc::new(device);
         let queue = Arc::new(queue);
 
-        let size = if provider.is_some() {
-            provider.unwrap().get_size()
-        } else {
+        let size = provider.as_ref().map_or(
             Size {
                 width: 1920,
                 height: 1080,
-            }
-        };
+            },
+            SurfaceProvider::get_size,
+        );
 
         let surface_configuration = match surface.as_ref() {
             Some(surface_ref) => {
-                init_surface_configuration(Some(surface_ref), adapter, size, &device)
+                surface::init_surface_configuration(Some(surface_ref), &adapter, size, &device)
             }
             None => None,
         };
@@ -119,95 +105,10 @@ impl RenderContext {
         let depth_texture =
             Texture::create_depth_texture(Self::DEPTH_TEXTURE_LABEL, &device, &size);
 
-        let camera_bind_group_layout = CameraUniform::bind_group_layout(&device);
-        let light_bind_group_layout = LightSource::bind_group_layout(&device);
-        let model_bind_group_layout = (model_binding_mode == ModelMatrixBindingMode::Uniform)
-            .then(|| ModelMatrixUniform::bind_group_layout(&device));
-        let material_bind_group_layout = GpuMaterial::bind_group_layout(&device);
-        let outline_bind_group_layout = OutlineUniform::bind_group_layout(&device);
-
-        let vertex_shader = create_light_shader_module(&device, model_binding_mode);
-        let no_light_vertex_shader = create_no_light_shader_module(&device, model_binding_mode);
-        let bind_group_layouts =
-            if let Some(model_bind_group_layout) = model_bind_group_layout.as_ref() {
-                vec![
-                    Some(&camera_bind_group_layout),
-                    Some(&light_bind_group_layout),
-                    Some(model_bind_group_layout),
-                    Some(&material_bind_group_layout),
-                ]
-            } else {
-                vec![
-                    Some(&camera_bind_group_layout),
-                    Some(&light_bind_group_layout),
-                    Some(&material_bind_group_layout),
-                ]
-            };
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &bind_group_layouts,
-                immediate_size: if model_binding_mode == ModelMatrixBindingMode::Immediate {
-                    Self::IMMEDIATE_MODEL_MATRIX_SIZE
-                } else {
-                    0
-                },
-            });
-
-        let outline_bind_group_layouts =
-            if let Some(model_bind_group_layout) = model_bind_group_layout.as_ref() {
-                vec![
-                    Some(&camera_bind_group_layout),
-                    Some(model_bind_group_layout),
-                    Some(&outline_bind_group_layout),
-                ]
-            } else {
-                vec![
-                    Some(&camera_bind_group_layout),
-                    Some(&outline_bind_group_layout),
-                ]
-            };
-        let outline_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Outline Pipeline Layout"),
-                bind_group_layouts: &outline_bind_group_layouts,
-                immediate_size: if model_binding_mode == ModelMatrixBindingMode::Immediate {
-                    Self::IMMEDIATE_MODEL_MATRIX_SIZE
-                } else {
-                    0
-                },
-            });
-
-        let format = if surface_configuration.is_some() {
-            surface_configuration.as_ref().unwrap().format
-        } else {
-            TextureFormat::Bgra8UnormSrgb
-        };
-
-        let no_light_render_pipeline = create_render_pipeline(
+        let pipeline_resources = pipelines::create_pipeline_resources(
             &device,
-            "no light render pass",
-            &render_pipeline_layout,
-            format,
-            no_light_vertex_shader,
-            Some(TextureFormat::Depth32Float),
-        );
-
-        let light_render_pipeline = create_render_pipeline(
-            &device,
-            "light render pass",
-            &render_pipeline_layout,
-            format,
-            vertex_shader,
-            Some(TextureFormat::Depth32Float),
-        );
-
-        let outline_render_pipeline = create_outline_render_pipeline(
-            &device,
-            &outline_pipeline_layout,
-            format,
-            create_outline_shader_module(&device, model_binding_mode),
-            TextureFormat::Depth32Float,
+            model_binding_mode,
+            surface::surface_format(surface_configuration.as_ref()),
         );
 
         Ok(Self {
@@ -215,51 +116,19 @@ impl RenderContext {
             surface,
             surface_configuration,
             device,
-            light_render_pipeline,
-            no_light_render_pipeline,
-            outline_render_pipeline,
+            light_render_pipeline: pipeline_resources.light_render_pipeline,
+            no_light_render_pipeline: pipeline_resources.no_light_render_pipeline,
+            outline_render_pipeline: pipeline_resources.outline_render_pipeline,
             size,
             depth_texture,
-            light_bind_group_layout,
-            camera_bind_group_layout,
-            model_bind_group_layout,
-            material_bind_group_layout,
-            outline_bind_group_layout,
+            light_bind_group_layout: pipeline_resources.light_bind_group_layout,
+            camera_bind_group_layout: pipeline_resources.camera_bind_group_layout,
+            model_bind_group_layout: pipeline_resources.model_bind_group_layout,
+            material_bind_group_layout: pipeline_resources.material_bind_group_layout,
+            outline_bind_group_layout: pipeline_resources.outline_bind_group_layout,
             model_binding_mode,
             queue,
         })
-    }
-
-    pub fn resize(&mut self, size: Size) -> Result<()> {
-        self.size = size;
-
-        if size.is_zero() {
-            warn!(
-                "Ignoring resize because wgpu surfaces cannot be configured with zero width or height: {}x{}",
-                size.width, size.height
-            );
-            return Ok(());
-        }
-
-        let Some(surface) = self.surface.as_ref() else {
-            self.depth_texture =
-                Texture::create_depth_texture(Self::DEPTH_TEXTURE_LABEL, &self.device, &self.size);
-            return Ok(());
-        };
-
-        let Some(surface_configuration) = self.surface_configuration.as_mut() else {
-            return Err(anyhow!(
-                "Cannot resize render surface because the surface configuration is missing"
-            ));
-        };
-
-        surface_configuration.width = size.width;
-        surface_configuration.height = size.height;
-        surface.configure(&self.device, surface_configuration);
-        self.depth_texture =
-            Texture::create_depth_texture(Self::DEPTH_TEXTURE_LABEL, &self.device, &self.size);
-
-        Ok(())
     }
 }
 
@@ -304,88 +173,6 @@ fn required_limits_for(model_binding_mode: ModelMatrixBindingMode) -> Limits {
     } else {
         Limits::default()
     }
-}
-
-fn create_light_shader_module(
-    device: &Device,
-    model_binding_mode: ModelMatrixBindingMode,
-) -> wgpu::ShaderModule {
-    match model_binding_mode {
-        ModelMatrixBindingMode::Immediate => {
-            device.create_shader_module(include_wgsl!("../../assets/vertex.wgsl"))
-        }
-        ModelMatrixBindingMode::Uniform => {
-            device.create_shader_module(include_wgsl!("../../assets/vertex_uniform.wgsl"))
-        }
-    }
-}
-
-fn create_no_light_shader_module(
-    device: &Device,
-    model_binding_mode: ModelMatrixBindingMode,
-) -> wgpu::ShaderModule {
-    match model_binding_mode {
-        ModelMatrixBindingMode::Immediate => {
-            device.create_shader_module(include_wgsl!("../../assets/no_light_vertex.wgsl"))
-        }
-        ModelMatrixBindingMode::Uniform => {
-            device.create_shader_module(include_wgsl!("../../assets/no_light_vertex_uniform.wgsl"))
-        }
-    }
-}
-
-fn create_outline_shader_module(
-    device: &Device,
-    model_binding_mode: ModelMatrixBindingMode,
-) -> wgpu::ShaderModule {
-    match model_binding_mode {
-        ModelMatrixBindingMode::Immediate => {
-            device.create_shader_module(include_wgsl!("../../assets/outline.wgsl"))
-        }
-        ModelMatrixBindingMode::Uniform => {
-            device.create_shader_module(include_wgsl!("../../assets/outline_uniform.wgsl"))
-        }
-    }
-}
-
-fn init_surface_configuration(
-    surface: Option<&Surface<'static>>,
-    adapter: wgpu::Adapter,
-    size: Size,
-    device: &Device,
-) -> Option<wgpu::wgt::SurfaceConfiguration<Vec<wgpu::TextureFormat>>> {
-    let surface_configuration = match surface {
-        Some(surface) => {
-            let capabilities = surface.get_capabilities(&adapter);
-            let format = capabilities
-                .formats
-                .iter()
-                .find(|f| f.is_srgb())
-                .copied()
-                .unwrap_or(capabilities.formats[0]);
-
-            let configured_size = size.clamp_size_for_gpu();
-
-            let surface_configuration = SurfaceConfiguration {
-                usage: TextureUsages::RENDER_ATTACHMENT,
-                format,
-                width: configured_size.width,
-                height: configured_size.height,
-                present_mode: capabilities.present_modes[0],
-                desired_maximum_frame_latency: 2,
-                alpha_mode: capabilities.alpha_modes[0],
-                view_formats: vec![],
-            };
-
-            if !size.is_zero() {
-                surface.configure(device, &surface_configuration);
-            }
-
-            Some(surface_configuration)
-        }
-        None => None,
-    };
-    surface_configuration
 }
 
 #[cfg(test)]

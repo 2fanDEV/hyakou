@@ -1,7 +1,7 @@
 use hyakou_core::geometry::vertices::Vertex;
 use wgpu::VertexBufferLayout;
 
-use crate::gpu::traits::BufferLayoutProvider;
+use crate::gpu::uniform::BufferLayoutProvider;
 
 impl BufferLayoutProvider for Vertex {
     fn vertex_buffer_layout() -> VertexBufferLayout<'static> {

@@ -21,16 +21,14 @@ use winit::window::Window;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::{
-    flow::{
-        AssetController, CameraController, FlowCommandSender, FrameComposer, SceneFrameInput,
-        selection_controller::SelectionContext,
-    },
+    flow::{AssetController, CameraController, FlowCommandSender, FrameComposer, SceneFrameInput},
     gpu::{glTF::ImportedScene, render_mesh::RenderMesh},
     gui::EguiRenderer,
     renderer::{
         SceneRenderInput, SceneRenderer, handlers::InputEvent, renderer_context::RenderContext,
         surface_frame_controller::SurfaceFrameController, wrappers::WinitSurfaceProvider,
     },
+    selection::controller::SelectionContext,
 };
 
 use std::rc::Rc;
