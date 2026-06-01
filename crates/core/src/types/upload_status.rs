@@ -1,8 +1,10 @@
+use bevy_ecs::event::Event;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::types::import_diagnostic::ImportDiagnostic;
 
 #[wasm_bindgen(getter_with_clone)]
+#[derive(Clone, Event)]
 pub struct UploadStatusEvent {
     #[wasm_bindgen(js_name = uploadId)]
     pub upload_id: String,

@@ -1,4 +1,4 @@
-use std::{io::Result, sync::Arc};
+use std::{cell::RefCell, io::Result, rc::Rc, sync::Arc};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
@@ -18,18 +18,17 @@ use winit::{
     window::{Window, WindowAttributes},
 };
 
-use shared::{Shared, shared};
+use hyakou_core::{components::AssetType, events::Event, types::DeltaTime64};
 
-use hyakou_core::{
-    components::AssetType,
-    events::Event,
-    types::{DeltaTime64, mouse_delta::MouseButton},
-};
+use crate::types::mouse::MouseButton;
 
 use crate::{
-    flow::{CameraController, FlowCommand, FlowController, FlowHandle},
-    renderer::SceneRenderer,
+    ecs::{CameraControllerHandle, SceneRendererHandle, init_world},
+    flow::{FlowCommand, FlowController, FlowHandle},
 };
+use hyakou_core::{components::camera::camera::Camera, types::transform::Transform};
+
+use bevy_ecs::{schedule::Schedule, world::World};
 
 const SUZANNE_GLTF_BYTES: &[u8] = include_bytes!("../assets/gltf/Suzanne.gltf");
 const SUZANNE_BIN_BYTES: &[u8] = include_bytes!("../assets/gltf/Suzanne.bin");
@@ -42,9 +41,9 @@ pub struct AppState {
     html_canvas_element: Option<HtmlCanvasElement>,
     flow_controller: FlowController,
     flow_handle: FlowHandle,
-    renderer: Shared<Option<Arc<SceneRenderer>>>,
-    camera: Shared<Option<Arc<CameraController>>>,
     last_frame_time: Instant,
+    world: Rc<RefCell<World>>,
+    schedule: Rc<RefCell<Schedule>>,
 }
 
 impl AppState {
@@ -52,32 +51,26 @@ impl AppState {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Result<Self> {
-        let renderer = shared(None);
-        let camera = shared(None);
-        let (flow_controller, flow_handle) =
-            FlowController::new_pair(renderer.clone(), camera.clone());
+        let (world, schedule) = init_world();
+        let world = Rc::new(RefCell::new(world));
+        let schedule = Rc::new(RefCell::new(schedule));
+        let (flow_controller, flow_handle) = FlowController::new_pair();
         Ok(Self {
             window: None,
             flow_controller,
             flow_handle,
-            renderer,
-            camera,
             last_frame_time: Instant::now(),
+            world,
+            schedule,
         })
-    }
-
-    pub fn renderer(&self) -> Shared<Option<Arc<SceneRenderer>>> {
-        self.renderer.clone()
-    }
-
-    pub fn camera(&self) -> Shared<Option<Arc<CameraController>>> {
-        self.camera.clone()
     }
 
     #[cfg(target_arch = "wasm32")]
     pub fn from_canvas_ref(
         canvas_ref: HtmlCanvasElement,
-        upload_status_callback: Shared<Option<js_sys::Function>>,
+        world: Rc<RefCell<World>>,
+        schedule: Rc<RefCell<Schedule>>,
+        upload_status_callback: Rc<RefCell<Option<js_sys::Function>>>,
     ) -> Result<Self> {
         let renderer = shared(None);
         let camera = shared(None);
@@ -91,6 +84,8 @@ impl AppState {
             renderer,
             camera,
             last_frame_time: Instant::now(),
+            world,
+            schedule,
         })
     }
 
@@ -204,7 +199,39 @@ impl ApplicationHandler<Event> for AppState {
         match event {
             WindowEvent::RedrawRequested => {
                 let dt = self.get_and_update_last_frame_time();
-                self.send_and_drain(FlowCommand::RequestFrame { dt });
+
+                if let Some(camera_controller) = self.flow_controller.camera_controller() {
+                    camera_controller.update(dt);
+                    let cam = camera_controller.active_camera();
+
+                    // Sync camera to ECS entity
+                    {
+                        let mut world = self.world.borrow_mut();
+                        let mut query = world.query::<(&mut Transform, &mut Camera)>();
+                        if let Ok((mut transform, mut ecs_camera)) = query.single_mut(&mut world) {
+                            transform.position = cam.eye;
+                            *ecs_camera = cam.clone();
+                        }
+                    }
+
+                    // Sync newly initialized renderer/camera into World as Resources
+                    if let Some(renderer) = self.flow_controller.renderer() {
+                        let mut world = self.world.borrow_mut();
+                        if world.get_resource::<SceneRendererHandle>().is_none() {
+                            world.insert_resource(SceneRendererHandle(renderer));
+                        }
+                    }
+                    {
+                        let mut world = self.world.borrow_mut();
+                        if world.get_resource::<CameraControllerHandle>().is_none() {
+                            world.insert_resource(CameraControllerHandle(camera_controller));
+                        }
+                    }
+
+                    self.schedule.borrow_mut().run(&mut self.world.borrow_mut());
+
+                    self.send_and_drain(FlowCommand::RequestFrame { dt, camera: cam });
+                }
             }
             WindowEvent::Resized(size) => {
                 let dt = self.get_and_update_last_frame_time();

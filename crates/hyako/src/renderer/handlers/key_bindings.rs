@@ -1,10 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
-use log::{trace, warn};
 use smallvec::{SmallVec, smallvec};
 use winit::keyboard::KeyCode;
 
-use crate::renderer::actions::{Action, CameraActions, camera_actions::CameraHandlerAction};
+use crate::renderer::{
+    actions::{Action, CameraActions, camera_actions::CameraHandlerAction},
+    handlers::binding_map::BindingMap,
+};
 
 const MAX_KEY_BIND_COUNT: usize = 5;
 
@@ -27,83 +29,77 @@ impl KeyBinding {
 
 #[derive(Debug, Default)]
 pub struct KeyBindingMap {
-    binding: HashMap<KeyBinding, Action>,
+    bindings: BindingMap<KeyBinding>,
 }
 
 impl KeyBindingMap {
     pub fn initialize() -> Self {
-        let mut binding = HashMap::new();
-        binding.insert(
-            KeyBinding::new(smallvec![], smallvec![KeyCode::KeyW]),
-            Action::Camera(CameraActions::Forwards),
-        );
-        binding.insert(
-            KeyBinding::new(smallvec![], smallvec![KeyCode::KeyS]),
-            Action::Camera(CameraActions::Backwards),
-        );
-        binding.insert(
-            KeyBinding::new(smallvec![], smallvec![KeyCode::KeyD]),
-            Action::Camera(CameraActions::Right),
-        );
-        binding.insert(
-            KeyBinding::new(smallvec![], smallvec![KeyCode::KeyA]),
-            Action::Camera(CameraActions::Left),
-        );
-        binding.insert(
-            KeyBinding::new(smallvec![KeyCode::ShiftLeft], smallvec![]),
-            Action::Camera(CameraActions::SpeedModifier),
-        );
-        binding.insert(
-            KeyBinding::new(smallvec![], smallvec![KeyCode::Space]),
-            Action::Camera(CameraActions::Up),
-        );
-        binding.insert(
-            KeyBinding::new(smallvec![KeyCode::ControlLeft], smallvec![]),
-            Action::Camera(CameraActions::Down),
-        );
-        binding.insert(
-            KeyBinding::new(
-                smallvec![KeyCode::ShiftLeft, KeyCode::ControlLeft],
-                smallvec![],
-            ),
-            Action::Camera(CameraActions::SlowModifier),
-        );
-        binding.insert(
-            KeyBinding::new(smallvec![KeyCode::ControlLeft], smallvec![KeyCode::KeyC]),
-            Action::CameraHandler(CameraHandlerAction::SwitchCameraModeForward),
-        );
-        binding.insert(
-            KeyBinding::new(
-                smallvec![KeyCode::ControlLeft, KeyCode::ShiftLeft],
-                smallvec![KeyCode::KeyC],
-            ),
-            Action::CameraHandler(CameraHandlerAction::SwitchCameraModeBackwards),
-        );
-        Self { binding }
+        Self {
+            bindings: BindingMap::from_entries([
+                (
+                    KeyBinding::new(smallvec![], smallvec![KeyCode::KeyW]),
+                    Action::Camera(CameraActions::Forwards),
+                ),
+                (
+                    KeyBinding::new(smallvec![], smallvec![KeyCode::KeyS]),
+                    Action::Camera(CameraActions::Backwards),
+                ),
+                (
+                    KeyBinding::new(smallvec![], smallvec![KeyCode::KeyD]),
+                    Action::Camera(CameraActions::Right),
+                ),
+                (
+                    KeyBinding::new(smallvec![], smallvec![KeyCode::KeyA]),
+                    Action::Camera(CameraActions::Left),
+                ),
+                (
+                    KeyBinding::new(smallvec![KeyCode::ShiftLeft], smallvec![]),
+                    Action::Camera(CameraActions::SpeedModifier),
+                ),
+                (
+                    KeyBinding::new(smallvec![], smallvec![KeyCode::Space]),
+                    Action::Camera(CameraActions::Up),
+                ),
+                (
+                    KeyBinding::new(smallvec![KeyCode::ControlLeft], smallvec![]),
+                    Action::Camera(CameraActions::Down),
+                ),
+                (
+                    KeyBinding::new(
+                        smallvec![KeyCode::ShiftLeft, KeyCode::ControlLeft],
+                        smallvec![],
+                    ),
+                    Action::Camera(CameraActions::SlowModifier),
+                ),
+                (
+                    KeyBinding::new(smallvec![KeyCode::ControlLeft], smallvec![KeyCode::KeyC]),
+                    Action::CameraHandler(CameraHandlerAction::SwitchCameraModeForward),
+                ),
+                (
+                    KeyBinding::new(
+                        smallvec![KeyCode::ControlLeft, KeyCode::ShiftLeft],
+                        smallvec![KeyCode::KeyC],
+                    ),
+                    Action::CameraHandler(CameraHandlerAction::SwitchCameraModeBackwards),
+                ),
+            ]),
+        }
     }
 
     pub fn add_binding(&mut self, key_bindings: KeyBinding, action: Action) {
-        if self.get_binding(&key_bindings).is_some() {
-            warn!("The binding is already in use!");
-        } else {
-            self.binding.insert(key_bindings, action);
-        }
+        self.bindings.add_binding(key_bindings, action);
     }
 
     pub fn change_binding(&mut self, previous_bindings: KeyBinding, new_binding: KeyBinding) {
-        if let Some(action) = self.remove_binding(&previous_bindings) {
-            self.add_binding(new_binding, action);
-        } else {
-            trace!("Previous Binding did not exist! Binding new binding to action");
-        }
+        self.bindings.change_binding(previous_bindings, new_binding);
     }
 
     pub fn get_binding(&self, registered_binding: &KeyBinding) -> Option<&Action> {
-        self.binding.get(registered_binding)
+        self.bindings.get_binding(registered_binding)
     }
 
     pub fn remove_binding(&mut self, previous_bindings: &KeyBinding) -> Option<Action> {
-        self.binding.remove(previous_bindings)
+        self.bindings.remove_binding(previous_bindings)
     }
 
     pub fn resolve_active_actions(
@@ -120,11 +116,11 @@ impl KeyBindingMap {
 
             let combined_binding = KeyBinding::new(modifiers_vec.clone(), key_vec.clone());
 
-            if let Some(action) = self.binding.get(&combined_binding) {
+            if let Some(action) = self.bindings.get_binding(&combined_binding) {
                 active_actions.push(*action);
             } else {
                 let key_only_binding = KeyBinding::new(smallvec![], key_vec);
-                if let Some(action) = self.binding.get(&key_only_binding) {
+                if let Some(action) = self.bindings.get_binding(&key_only_binding) {
                     active_actions.push(*action);
                 }
             }
@@ -135,7 +131,7 @@ impl KeyBindingMap {
                 pressed_modifiers.iter().cloned().collect();
             let modifier_binding = KeyBinding::new(modifiers_vec, smallvec![]);
 
-            if let Some(action) = self.binding.get(&modifier_binding) {
+            if let Some(action) = self.bindings.get_binding(&modifier_binding) {
                 active_actions.push(*action);
             }
         }

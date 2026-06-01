@@ -10,26 +10,25 @@ use hyakou_core::{
     },
     geometry::ray::Ray,
     selection::structure::{SelectionScope, SelectionTarget},
-    types::{Size, mouse_delta::MouseDelta},
+    types::Size,
 };
+
+use crate::types::mouse::MouseDelta;
 use log::error;
-use shared::{Shared, SharedAccess};
 use winit::window::Window;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::spawn_local;
 
 use crate::{
-    flow::{
-        AssetController, CameraController, FlowCommandSender, FrameComposer, SceneFrameInput,
-        selection_controller::SelectionContext,
-    },
+    flow::{AssetController, CameraController, FlowCommandSender, FrameComposer, SceneFrameInput},
     gpu::{glTF::ImportedScene, render_mesh::RenderMesh},
     gui::EguiRenderer,
     renderer::{
         SceneRenderInput, SceneRenderer, handlers::InputEvent, renderer_context::RenderContext,
         surface_frame_controller::SurfaceFrameController, wrappers::WinitSurfaceProvider,
     },
+    selection::controller::SelectionContext,
 };
 
 use std::rc::Rc;
@@ -41,17 +40,11 @@ pub struct RenderController {
     camera_controller: Option<Arc<CameraController>>,
     asset_controller: Option<AssetController>,
     egui_renderer: Option<EguiRenderer>,
-    renderer_view: Shared<Option<Arc<SceneRenderer>>>,
-    camera_view: Shared<Option<Arc<CameraController>>>,
     window: Option<Arc<Window>>,
 }
 
 impl RenderController {
-    pub fn new(
-        commands: FlowCommandSender,
-        renderer_view: Shared<Option<Arc<SceneRenderer>>>,
-        camera_view: Shared<Option<Arc<CameraController>>>,
-    ) -> Self {
+    pub fn new(commands: FlowCommandSender) -> Self {
         Self {
             _commands: commands,
             surface_frame_controller: SurfaceFrameController::new(),
@@ -59,10 +52,16 @@ impl RenderController {
             camera_controller: None,
             asset_controller: None,
             egui_renderer: None,
-            renderer_view,
-            camera_view,
             window: None,
         }
+    }
+
+    pub fn renderer(&self) -> Option<Arc<SceneRenderer>> {
+        self.renderer.clone()
+    }
+
+    pub fn camera_controller(&self) -> Option<Arc<CameraController>> {
+        self.camera_controller.clone()
     }
 
     pub fn window(&self) -> Option<&Window> {
@@ -139,11 +138,6 @@ impl RenderController {
         let renderer = Arc::new(renderer);
         let camera_controller = Arc::new(camera_controller);
 
-        self.renderer_view
-            .write_shared(|slot| *slot = Some(renderer.clone()));
-        self.camera_view
-            .write_shared(|slot| *slot = Some(camera_controller.clone()));
-
         self.renderer = Some(renderer);
         self.camera_controller = Some(camera_controller);
         self.asset_controller = Some(asset_controller);
@@ -169,23 +163,18 @@ impl RenderController {
         frame_composer: &mut FrameComposer,
         dt: f64,
         scene_input: SceneFrameInput<'_>,
+        camera: &Camera,
     ) {
         let Some(window) = self.window.clone() else {
             return;
         };
         let surface_frame_controller = &mut self.surface_frame_controller;
-        let Some(camera_controller) = self.camera_controller.as_mut() else {
-            return;
-        };
         let Some(renderer) = self.renderer.as_mut() else {
             return;
         };
         let Some(asset_controller) = self.asset_controller.as_mut() else {
             return;
         };
-
-        camera_controller.update(dt);
-        let camera = camera_controller.active_camera();
 
         let normal_meshes: Vec<Rc<RenderMesh>> = asset_controller
             .visible_meshes_with_asset_type(&AssetType::NORMAL)
@@ -213,7 +202,7 @@ impl RenderController {
             frame_composer,
             self.egui_renderer.as_mut(),
             dt,
-            &camera,
+            camera,
             render_input,
         ) {
             error!("Renderer frame composition failed: {render_error:?}");

@@ -5,14 +5,14 @@ use std::sync::{
 
 use hyakou_core::{selection::structure::SelectionTarget, types::ids::MeshId};
 use log::{debug, warn};
-use shared::Shared;
 
 use crate::{
     flow::{
         AssetUploadController, CameraController, FlowCommand, FlowCommandSender, FrameComposer,
-        InputController, RenderController, selection_controller::SelectionController,
+        InputController, RenderController,
     },
     renderer::SceneRenderer,
+    selection::controller::SelectionController,
 };
 
 pub struct FlowController {
@@ -33,15 +33,12 @@ impl FlowController {
     const MAX_COMMANDS_PER_TICK: usize = 128;
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn new_pair(
-        renderer_view: Shared<Option<Arc<SceneRenderer>>>,
-        camera_view: Shared<Option<Arc<CameraController>>>,
-    ) -> (Self, FlowHandle) {
+    pub fn new_pair() -> (Self, FlowHandle) {
         let (tx, rx) = channel::<FlowCommand>();
         let commands = FlowCommandSender::new(tx);
         let controller = Self {
             rx,
-            render_controller: RenderController::new(commands.clone(), renderer_view, camera_view),
+            render_controller: RenderController::new(commands.clone()),
             frame_composer: FrameComposer::new(),
             input_controller: InputController::new(commands.clone()),
             asset_upload_controller: AssetUploadController::new(commands.clone()),
@@ -53,15 +50,13 @@ impl FlowController {
 
     #[cfg(target_arch = "wasm32")]
     pub fn new_pair(
-        renderer_view: Shared<Option<Arc<SceneRenderer>>>,
-        camera_view: Shared<Option<Arc<CameraController>>>,
-        upload_status_callback: Shared<Option<js_sys::Function>>,
+        upload_status_callback: std::rc::Rc<std::cell::RefCell<Option<js_sys::Function>>>,
     ) -> (Self, FlowHandle) {
         let (tx, rx) = channel::<FlowCommand>();
         let commands = FlowCommandSender::new(tx);
         let controller = Self {
             rx,
-            render_controller: RenderController::new(commands.clone(), renderer_view, camera_view),
+            render_controller: RenderController::new(commands.clone()),
             frame_composer: FrameComposer::new(),
             input_controller: InputController::new(commands.clone()),
             asset_upload_controller: AssetUploadController::new(
@@ -91,6 +86,14 @@ impl FlowController {
         warn!(
             "FlowController reached max commands per tick; remaining commands will be handled next frame"
         );
+    }
+
+    pub fn renderer(&self) -> Option<Arc<SceneRenderer>> {
+        self.render_controller.renderer()
+    }
+
+    pub fn camera_controller(&self) -> Option<Arc<CameraController>> {
+        self.render_controller.camera_controller()
     }
 
     pub fn current_selection(&self) -> &[SelectionTarget] {
@@ -189,16 +192,28 @@ impl FlowController {
             } => self
                 .asset_upload_controller
                 .handle_asset_upload_failed(id, file_name, error),
-            FlowCommand::RequestFrame { dt } => {
+            FlowCommand::RequestFrame { dt, camera } => {
                 let scene_input = self.selection_controller.scene_frame_input();
-                self.render_controller
-                    .render_frame(&mut self.frame_composer, dt, scene_input);
+                self.render_controller.render_frame(
+                    &mut self.frame_composer,
+                    dt,
+                    scene_input,
+                    &camera,
+                );
             }
             FlowCommand::HandleResize { dt, width, height } => {
                 self.render_controller.handle_resize(width, height);
+                let Some(camera_controller) = self.render_controller.camera_controller() else {
+                    return;
+                };
+                let camera = camera_controller.active_camera();
                 let scene_input = self.selection_controller.scene_frame_input();
-                self.render_controller
-                    .render_frame(&mut self.frame_composer, dt, scene_input);
+                self.render_controller.render_frame(
+                    &mut self.frame_composer,
+                    dt,
+                    scene_input,
+                    &camera,
+                );
             }
             FlowCommand::SelectAtScreenPoint { x, y, scope } => self
                 .selection_controller

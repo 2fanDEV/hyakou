@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use bevy_ecs::component::Component;
 use glam::Mat4;
 
 use crate::{components::mesh_node::MeshNode, geometry::mesh::Mesh, types::transform::Transform};
@@ -65,6 +66,7 @@ impl NodeGraph {
     }
 }
 
+#[derive(Debug, Clone, Component)]
 pub struct Node {
     pub metadata: NodeMetadata,
     pub local_transform: Transform,
@@ -73,7 +75,7 @@ pub struct Node {
     pub parent_id: Option<NodeId>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Component)]
 pub struct NodeMetadata {
     pub name: Option<String>,
     pub source_index: Option<usize>,

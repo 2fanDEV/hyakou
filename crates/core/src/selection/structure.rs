@@ -1,12 +1,14 @@
+use bevy_ecs::resource::Resource;
+
 use crate::types::ids::MeshId;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Resource)]
 pub enum SelectionScope {
     Node,
     Object,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Resource)]
 pub struct SelectionTarget {
     mesh_id: MeshId,
     outline_mesh_ids: Vec<MeshId>,

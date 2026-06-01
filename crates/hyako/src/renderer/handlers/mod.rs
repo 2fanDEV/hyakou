@@ -1,4 +1,5 @@
 pub mod asset_handler;
+mod binding_map;
 pub mod camera;
 pub mod key_bindings;
 pub mod keyboard_handler;

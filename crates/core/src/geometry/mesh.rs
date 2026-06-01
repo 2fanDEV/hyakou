@@ -1,7 +1,9 @@
+use bevy_ecs::component::Component;
+
 use crate::geometry::vertices::Vertex;
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Component)]
 pub struct Mesh {
     pub name: Option<String>,
     pub material_index: Option<usize>,

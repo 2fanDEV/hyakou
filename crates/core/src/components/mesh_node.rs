@@ -1,8 +1,7 @@
 use std::ops::Deref;
 
 use crate::{
-    geometry::{mesh::Mesh, node::NodeMetadata, vertices::Vertex},
-    traits::BufferLayoutProvider,
+    geometry::{mesh::Mesh, node::NodeMetadata},
     types::transform::Transform,
 };
 
@@ -30,13 +29,5 @@ impl MeshNode {
             transform,
             node_metadata,
         }
-    }
-}
-
-// NOTE: This GPU layout impl lives in core for now. Move it into hyako when the
-// render boundary is finalized during the ECS migration.
-impl BufferLayoutProvider for MeshNode {
-    fn vertex_buffer_layout() -> wgpu::VertexBufferLayout<'static> {
-        Vertex::vertex_buffer_layout()
     }
 }

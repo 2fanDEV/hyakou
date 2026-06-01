@@ -1,22 +1,23 @@
-pub mod asset_controller;
-pub mod asset_upload_controller;
-pub mod camera_controller;
+pub mod asset;
 pub mod command_sender;
 pub mod commands;
 pub mod flow;
-pub mod frame;
 pub mod frame_composer;
 pub mod input_controller;
 pub mod render_controller;
-pub mod selection_controller;
 
-pub use asset_controller::AssetController;
-pub use asset_upload_controller::AssetUploadController;
-pub use camera_controller::CameraController;
+use hyakou_core::types::ids::MeshId;
+
+pub use crate::renderer::handlers::camera::CameraController;
+pub use asset::{AssetController, AssetUploadController};
 pub use command_sender::FlowCommandSender;
 pub use commands::FlowCommand;
 pub use flow::{FlowController, FlowHandle};
-pub use frame::SceneFrameInput;
 pub use frame_composer::FrameComposer;
 pub use input_controller::InputController;
 pub use render_controller::RenderController;
+
+#[derive(Clone, Copy)]
+pub struct SceneFrameInput<'a> {
+    pub outlined_mesh_ids: &'a [MeshId],
+}

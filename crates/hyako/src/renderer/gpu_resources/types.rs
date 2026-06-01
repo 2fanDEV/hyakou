@@ -2,8 +2,10 @@ use anyhow::{Result, anyhow};
 use bytemuck::bytes_of;
 use glam::Vec4;
 use hyakou_core::{
-    components::{camera::camera::Camera, light::LightSource},
-    traits::BindGroupProvider,
+    components::{
+        camera::camera::Camera,
+        light::{GpuLightSource, LightSource},
+    },
     types::ids::UniformBufferId,
 };
 use log::warn;
@@ -13,6 +15,7 @@ use crate::{
     gpu::{
         buffers::{camera_buffer::CameraUniform, uniform::UniformBuffer},
         outline::OutlineUniform,
+        uniform::BindGroupProvider,
     },
     renderer::renderer_context::RenderContext,
 };
@@ -70,7 +73,7 @@ impl LightGpuResources {
             bytes_of(&gpu_light_source),
         );
         let bind_group =
-            LightSource::bind_group(&ctx.device, &uniform_buffer, &ctx.light_bind_group_layout);
+            GpuLightSource::bind_group(&ctx.device, &uniform_buffer, &ctx.light_bind_group_layout);
 
         Ok(Self {
             source,
@@ -102,7 +105,11 @@ pub(super) struct OutlineGpuResources {
 impl OutlineGpuResources {
     pub(super) fn new(ctx: &RenderContext, color: Vec4, thickness: f32) -> Self {
         let uniform = OutlineUniform::new(color, thickness);
-        let uniform_buffer = OutlineUniform::uniform_buffer(&ctx.device, &uniform);
+        let uniform_buffer = UniformBuffer::new(
+            UniformBufferId::new("Outline Uniform Buffer".to_string()),
+            &ctx.device,
+            bytes_of(&uniform),
+        );
         let bind_group = OutlineUniform::bind_group(
             &ctx.device,
             &uniform_buffer,

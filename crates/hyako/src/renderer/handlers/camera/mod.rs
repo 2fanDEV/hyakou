@@ -1,7 +1,9 @@
 use hyakou_core::{
     components::camera::{camera::Camera, data_structures::CameraMode},
-    types::{DeltaTime, mouse_delta::MouseDelta},
+    types::DeltaTime,
 };
+
+use crate::types::mouse::MouseDelta;
 
 use crate::renderer::{
     actions::Action,
@@ -10,9 +12,12 @@ use crate::renderer::{
     },
 };
 
+mod controller;
 pub mod mode;
 pub mod movement;
 pub mod state;
+
+pub use controller::CameraController;
 
 pub struct CameraHandler {
     movement_handler: CameraMovementHandler,

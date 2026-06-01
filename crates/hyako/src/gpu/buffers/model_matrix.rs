@@ -1,10 +1,7 @@
+use crate::gpu::uniform::GpuUniformMetadata;
 use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
-use hyakou_core::traits::BindGroupProvider;
-use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, Buffer, BufferBinding, Device, ShaderStages,
-};
+use wgpu::ShaderStages;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
@@ -18,39 +15,8 @@ impl ModelMatrixUniform {
     }
 }
 
-impl BindGroupProvider for ModelMatrixUniform {
-    fn bind_group_layout(device: &Device) -> BindGroupLayout {
-        device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("Model Matrix Buffer"),
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        })
-    }
-
-    fn bind_group(
-        device: &Device,
-        buffer: &Buffer,
-        bind_group_layout: &BindGroupLayout,
-    ) -> BindGroup {
-        device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Model Matrix Bind Group"),
-            layout: bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Buffer(BufferBinding {
-                    buffer,
-                    offset: 0,
-                    size: None,
-                }),
-            }],
-        })
-    }
+impl GpuUniformMetadata for ModelMatrixUniform {
+    const LAYOUT_LABEL: &'static str = "Model Matrix Buffer";
+    const BIND_GROUP_LABEL: &'static str = "Model Matrix Bind Group";
+    const VISIBILITY: ShaderStages = ShaderStages::VERTEX;
 }

@@ -1,8 +1,6 @@
+use crate::types::mouse::{MouseAction, MouseButton, MouseDelta, MousePosition, MouseState};
 use anyhow::Result;
-use hyakou_core::{
-    selection::structure::SelectionScope,
-    types::mouse_delta::{MouseAction, MouseButton, MouseDelta, MousePosition, MouseState},
-};
+use hyakou_core::selection::structure::SelectionScope;
 use log::{debug, error};
 use smallvec::{SmallVec, smallvec};
 use strum::IntoDiscriminant;
@@ -69,8 +67,7 @@ impl InputController {
     }
 
     pub fn handle_mouse_motion(&mut self, dx: f64, dy: f64) -> SmallVec<[InputEvent; 4]> {
-        self.mouse_delta.delta_position =
-            hyakou_core::types::mouse_delta::MovementDelta::new(dx, dy);
+        self.mouse_delta.delta_position = crate::types::mouse::MovementDelta::new(dx, dy);
         let mut events = smallvec![];
 
         match &self.pointer_interaction {

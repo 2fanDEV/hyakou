@@ -2,7 +2,7 @@ use anyhow::Result;
 use hyakou_core::{components::AssetType, types::import_diagnostic::ImportDiagnostic};
 use log::{debug, error, warn};
 #[cfg(target_arch = "wasm32")]
-use shared::{Shared, SharedAccess};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     flow::{FlowCommand, FlowCommandSender},
@@ -15,7 +15,7 @@ use wasm_bindgen_futures::spawn_local;
 pub struct AssetUploadController {
     commands: FlowCommandSender,
     #[cfg(target_arch = "wasm32")]
-    upload_status_callback: Shared<Option<js_sys::Function>>,
+    upload_status_callback: Rc<RefCell<Option<js_sys::Function>>>,
 }
 
 enum AssetUploadSource {
@@ -32,7 +32,7 @@ impl AssetUploadController {
     #[cfg(target_arch = "wasm32")]
     pub fn new(
         commands: FlowCommandSender,
-        upload_status_callback: Shared<Option<js_sys::Function>>,
+        upload_status_callback: Rc<RefCell<Option<js_sys::Function>>>,
     ) -> Self {
         Self {
             commands,
@@ -163,14 +163,13 @@ impl AssetUploadController {
         use hyakou_core::types::upload_status::UploadStatusEvent;
         use wasm_bindgen::JsValue;
 
-        let _ = self.upload_status_callback.try_read_shared(|callback| {
-            if let Some(callback) = callback {
-                let event = UploadStatusEvent::success(upload_id, file_name, diagnostics);
-                if let Err(err) = callback.call1(&JsValue::NULL, &event.into()) {
-                    warn!("Failed to invoke upload status callback: {err:?}");
-                }
+        let callback = self.upload_status_callback.borrow();
+        if let Some(callback) = callback.as_ref() {
+            let event = UploadStatusEvent::success(upload_id, file_name, diagnostics);
+            if let Err(err) = callback.call1(&JsValue::NULL, &event.into()) {
+                warn!("Failed to invoke upload status callback: {err:?}");
             }
-        });
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -187,14 +186,13 @@ impl AssetUploadController {
         use hyakou_core::types::upload_status::UploadStatusEvent;
         use wasm_bindgen::JsValue;
 
-        let _ = self.upload_status_callback.try_read_shared(|callback| {
-            if let Some(callback) = callback {
-                let event = UploadStatusEvent::error(upload_id, file_name, error);
-                if let Err(err) = callback.call1(&JsValue::NULL, &event.into()) {
-                    warn!("Failed to invoke upload status callback: {err:?}");
-                }
+        let callback = self.upload_status_callback.borrow();
+        if let Some(callback) = callback.as_ref() {
+            let event = UploadStatusEvent::error(upload_id, file_name, error);
+            if let Err(err) = callback.call1(&JsValue::NULL, &event.into()) {
+                warn!("Failed to invoke upload status callback: {err:?}");
             }
-        });
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
